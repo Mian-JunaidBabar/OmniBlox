@@ -1,0 +1,135 @@
+The navbar contains   
+        Saves data locally (in case of no internet)
+        Shows buttons to clear local data
+        Shows today's profit
+        Abouts
+        Language
+        Styles (e.g., change chart colors)
+        Calendar
+        On-screen calculator
+
+Actions  
+    these actions are available on most pages, with custom actions like, barcode print, stock adjustment, etc
+        Add, Update, Delete 
+        Export to Excel
+        Import from excel
+
+1. Dashboard  
+    Shows analytics
+        shows these details in charts and in tables
+            Stock chart overview
+            Monthly sales
+                Sales (with taxation)
+
+
+    Sections  
+        Section 2:   Quick links
+        Section 3:   "Top 5"
+            shows the top in table form, user can switch tabs and see these
+                Sales
+                Quotations
+                Purchase
+                Transfer
+                Customers
+                Suppliers
+        Section 4:   Best Sellers
+
+2. Products  
+    List Products  
+        Salesman accounts can't see cost.
+        Price is on permission.
+        Power account is admin.
+        Option for multiple warehouses.
+    View Product   (as a pop-up)
+    Add Product  
+    Import Products   (using an Excel sheet instead of one-by-one)
+    Barcode Label   (used to generate scannable barcodes)
+    Quantity Adjustment  
+    Stock & Count  
+
+3. Sales  
+    List Sales
+    Add Sale
+      Create sales and generate invoice.
+      Migrate stock from warehouse.
+      Send invoice to customer.
+      Allow due pay.
+    Add Sales by CSV
+    Deliveries
+
+4. Purchases  
+    List Purchase
+    Add
+    Add Purchase by CSV
+    List expenses
+
+5. Quotations  
+    List Quotations
+    Add
+
+6. returns
+    list returns
+
+7. People
+    list users  
+    add users
+    list billers
+    add billers
+    list customers
+    add customers
+    list Suppliers
+    add Suppliers
+
+8. notifications
+    allow us to add events  
+        customers will be sent mails based on the event
+
+9. settings
+        change company settings like name logo etc
+    Currencies
+        add multiple Currencies rather then a default one
+    customer group
+        add customer groups, like "Retail", "Wholesale", etc.
+        we can also add benefits or discounts for each group. like 10+ to a specific group.
+    units
+        allow us to create a custom unit, like for 3000PC a unit 1 or so
+    Brands
+        manage brands which we are working with
+    Variants
+        allow to add different Variants of a product, like a color or size
+    warehouse
+        allow us to manage multiple warehouses
+    Email templates
+        works as our smtp
+    group permissions
+        allow us to set permissions for each group and manage custom groups
+    site logs
+
+10. Reports 
+    overview chart
+    warehouse stock chart
+    best seller
+    product quantity alerts
+        show low stock products
+    product expiry alerts
+        show expired products
+    permission report
+    adjustment report
+    product report
+    Category report
+    brand report
+    daily sales
+    Payment report
+    tax report
+    profit and loss report (in charts)
+    daily Purchase
+    Monthly Purchase
+    overview Purchase
+    expenses report
+    customer report
+        this is most imp one, shows all customers and their total purchases, paid, balance, etc
+    Supplier report
+        similar to customer
+        this shows all suppliers and their total purchases, paid, balance, etc
+    staff report
+        shows who sells and what credits are available
