@@ -1,0 +1,328 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  // For Supabase: shadowDatabaseUrl is needed for migrations.
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+// ENUMS for status management
+enum UserRole {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  PARTIAL
+}
+
+
+// MODELS
+
+// 1. People & Users Module
+// Corresponds to the `people/` directory
+
+// Links to Supabase Auth users. The ID should match the Supabase user UUID.
+model User {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  firstName String?
+  lastName  String?
+  role      UserRole  @default(STAFF)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations: A user can create many transactions
+  sales          Sale[]
+  purchaseOrders PurchaseOrder[]
+  quotations     Quotation[]
+  salesReturns   SalesReturn[]
+  expenses       Expense[]
+
+  @@map("users")
+}
+
+model Customer {
+  id      String   @id @default(uuid())
+  name    String
+  email   String?  @unique
+  phone   String?
+  address String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  sales      Sale[]
+  quotations Quotation[]
+
+  @@map("customers")
+}
+
+model Supplier {
+  id      String   @id @default(uuid())
+  name    String
+  email   String?  @unique
+  phone   String?
+  address String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  purchaseOrders PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+// 2. Products & Inventory Module
+// Corresponds to the `products/` and `inventory/` directories
+
+model Product {
+  id          String   @id @default(uuid())
+  name        String
+  sku         String   @unique // Stock Keeping Unit
+  description String?
+  salePrice   Decimal  @db.Decimal(10, 2)
+  costPrice   Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  inventory        Inventory[]
+  saleItems        SaleItem[]
+  purchaseOrderItems PurchaseOrderItem[]
+  quotationItems   QuotationItem[]
+  salesReturnItems SalesReturnItem[]
+
+
+  @@map("products")
+}
+
+model Warehouse {
+  id       String @id @default(uuid())
+  name     String
+  location String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  inventory Inventory[]
+
+  @@map("warehouses")
+}
+
+// Join table to track stock of a product in a specific warehouse
+model Inventory {
+  productId   String
+  warehouseId String
+  quantity    Int
+
+  // Relations
+  product   Product   @relation(fields: [productId], references: [id])
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@id([productId, warehouseId])
+  @@map("inventory")
+}
+
+
+// 3. Sales & Transactions Module
+// Corresponds to `sales/`, `purchases/`, `quotations/`, `returns/`
+
+model Sale {
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  status        OrderStatus   @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+  saleDate      DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  // Foreign Keys
+  customerId String
+  userId     String
+
+  // Relations
+  customer Customer   @relation(fields: [customerId], references: [id])
+  user     User       @relation(fields: [userId], references: [id])
+  items    SaleItem[]
+
+  @@map("sales")
+}
+
+model SaleItem {
+  id        String  @id @default(uuid())
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2) // Price at the time of sale
+
+  // Foreign Keys
+  saleId    String
+  productId String
+
+  // Relations
+  sale    Sale    @relation(fields: [saleId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("sale_items")
+}
+
+model PurchaseOrder {
+  id              String        @id @default(uuid())
+  referenceNumber String        @unique
+  totalAmount     Decimal       @db.Decimal(10, 2)
+  status          OrderStatus   @default(PENDING)
+  orderDate       DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Foreign Keys
+  supplierId String
+  userId     String
+
+  // Relations
+  supplier Supplier          @relation(fields: [supplierId], references: [id])
+  user     User              @relation(fields: [userId], references: [id])
+  items    PurchaseOrderItem[]
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id        String  @id @default(uuid())
+  quantity  Int
+  unitCost  Decimal @db.Decimal(10, 2)
+
+  // Foreign Keys
+  purchaseOrderId String
+  productId       String
+
+  // Relations
+  purchaseOrder PurchaseOrder @relation(fields: [purchaseOrderId], references: [id])
+  product       Product       @relation(fields: [productId], references: [id])
+
+  @@map("purchase_order_items")
+}
+
+model Quotation {
+  id              String        @id @default(uuid())
+  referenceNumber String        @unique
+  totalAmount     Decimal       @db.Decimal(10, 2)
+  status          OrderStatus   @default(PENDING)
+  quoteDate       DateTime      @default(now())
+  expiryDate      DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Foreign Keys
+  customerId String
+  userId     String
+
+  // Relations
+  customer Customer        @relation(fields: [customerId], references: [id])
+  user     User            @relation(fields: [userId], references: [id])
+  items    QuotationItem[]
+
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id          String  @id @default(uuid())
+  quantity    Int
+  unitPrice   Decimal @db.Decimal(10, 2)
+
+  // Foreign Keys
+  quotationId String
+  productId   String
+
+  // Relations
+  quotation Quotation @relation(fields: [quotationId], references: [id])
+  product   Product   @relation(fields: [productId], references: [id])
+
+  @@map("quotation_items")
+}
+
+model SalesReturn {
+  id              String        @id @default(uuid())
+  referenceNumber String        @unique
+  totalAmount     Decimal       @db.Decimal(10, 2)
+  reason          String?
+  returnDate      DateTime      @default(now())
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  // Foreign Keys
+  userId String
+
+  // Relations
+  user  User            @relation(fields: [userId], references: [id])
+  items SalesReturnItem[]
+
+  @@map("sales_returns")
+}
+
+model SalesReturnItem {
+  id            String  @id @default(uuid())
+  quantity      Int
+  unitPrice     Decimal @db.Decimal(10, 2)
+
+  // Foreign Keys
+  salesReturnId String
+  productId     String
+
+  // Relations
+  salesReturn SalesReturn @relation(fields: [salesReturnId], references: [id])
+  product     Product     @relation(fields: [productId], references: [id])
+
+  @@map("sales_return_items")
+}
+
+// 4. Expenses Module
+// Corresponds to `expenses/` directory
+
+model ExpenseCategory {
+  id   String @id @default(uuid())
+  name String @unique
+
+  // Relations
+  expenses Expense[]
+
+  @@map("expense_categories")
+}
+
+model Expense {
+  id         String   @id @default(uuid())
+  reference  String
+  amount     Decimal  @db.Decimal(10, 2)
+  notes      String?
+  expenseDate DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  // Foreign Keys
+  categoryId String
+  userId     String
+
+  // Relations
+  category ExpenseCategory @relation(fields: [categoryId], references: [id])
+  user     User            @relation(fields: [userId], references: [id])
+
+  @@map("expenses")
+}
