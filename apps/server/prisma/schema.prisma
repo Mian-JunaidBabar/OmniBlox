@@ -5,10 +5,11 @@ generator client {
   provider = "prisma-client-js"
 }
 
+// In server/prisma/schema.prisma
+
 datasource db {
   provider          = "postgresql"
   url               = env("DATABASE_URL")
-  // For Supabase: shadowDatabaseUrl is needed for migrations.
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
@@ -39,13 +40,23 @@ enum PaymentStatus {
 
 // Links to Supabase Auth users. The ID should match the Supabase user UUID.
 model User {
-  id        String    @id @default(uuid())
-  email     String    @unique
-  firstName String?
-  lastName  String?
-  role      UserRole  @default(STAFF)
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  id               String    @id @default(uuid())
+  email            String    @unique
+  password         String    // Hashed password
+  name             String    // Full name from signup
+  firstName        String?
+  lastName         String?
+  role             UserRole  @default(STAFF)
+  
+  // Business Details
+  companyName      String?
+  workspaceUrl     String?   @unique
+  industry         String?
+  otherIndustry    String?
+  country          String?
+  
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
   // Relations: A user can create many transactions
   sales          Sale[]

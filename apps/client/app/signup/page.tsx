@@ -24,22 +24,69 @@ import {
   MapPin,
   Loader2,
   PencilLine,
+  AlertCircle,
 } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 export default function SignupPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
   const [industry, setIndustry] = useState("");
   const [otherIndustry, setOtherIndustry] = useState("");
+  const [error, setError] = useState("");
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setIsLoading(true);
+    setError("");
 
-    setTimeout(() => {
-      router.push("/dashboard");
+    const formData = new FormData(e.target as HTMLFormElement);
+    const password = formData.get("password") as string;
+    const cpassword = formData.get("cpassword") as string;
+
+    // Validate passwords match
+    if (password !== cpassword) {
+      setError("Passwords do not match");
       setIsLoading(false);
-    }, 1200);
+      return;
+    }
+
+    const payload = {
+      email: formData.get("email") as string,
+      password: password,
+      name: formData.get("name") as string,
+      companyName: formData.get("companyName") as string,
+      workspaceUrl: formData.get("workspaceUrl") as string,
+      industry: industry,
+      otherIndustry: industry === "other" ? otherIndustry : undefined,
+      country: formData.get("country") as string,
+    };
+
+    try {
+      const response = await fetch("http://localhost:5000/auth/signup", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Signup failed");
+      }
+
+      // Store token and user data
+      localStorage.setItem("omniblox_token", data.accessToken);
+      localStorage.setItem("omniblox_user", JSON.stringify(data.user));
+
+      // Redirect to dashboard
+      router.push("/dashboard");
+    } catch (err: any) {
+      setError(err.message || "An error occurred during signup");
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -57,6 +104,14 @@ export default function SignupPage() {
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="mt-10 space-y-12">
+          {/* Error Alert */}
+          {error && (
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          )}
+
           {/* 1. Administrator Account */}
           <section>
             <h2 className="text-lg sm:text-xl font-semibold border-b pb-2 mb-6">
@@ -64,7 +119,10 @@ export default function SignupPage() {
             </h2>
             <div className="grid gap-6 md:grid-cols-2">
               <div>
-                <Label htmlFor="name" className="mb-2 block text-sm font-medium">
+                <Label
+                  htmlFor="name"
+                  className="mb-2 block text-sm font-medium"
+                >
                   Full Name
                 </Label>
                 <div className="relative">
@@ -80,7 +138,10 @@ export default function SignupPage() {
               </div>
 
               <div>
-                <Label htmlFor="email" className="mb-2 block text-sm font-medium">
+                <Label
+                  htmlFor="email"
+                  className="mb-2 block text-sm font-medium"
+                >
                   Work Email
                 </Label>
                 <div className="relative">
@@ -97,7 +158,10 @@ export default function SignupPage() {
               </div>
 
               <div>
-                <Label htmlFor="password" className="mb-2 block text-sm font-medium">
+                <Label
+                  htmlFor="password"
+                  className="mb-2 block text-sm font-medium"
+                >
                   Password
                 </Label>
                 <div className="relative">
@@ -114,7 +178,10 @@ export default function SignupPage() {
               </div>
 
               <div>
-                <Label htmlFor="cpassword" className="mb-2 block text-sm font-medium">
+                <Label
+                  htmlFor="cpassword"
+                  className="mb-2 block text-sm font-medium"
+                >
                   Confirm Password
                 </Label>
                 <div className="relative">
