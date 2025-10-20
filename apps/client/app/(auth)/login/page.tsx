@@ -24,35 +24,7 @@ export default function LoginPage() {
   const router = useRouter();
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError("");
-
-    try {
-      const response = await fetch("http://localhost:5000/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Login failed");
-      }
-
-      // Store token and user data
-      localStorage.setItem("omniblox_token", data.accessToken);
-      localStorage.setItem("omniblox_user", JSON.stringify(data.user));
-
-      // Redirect to dashboard
-      router.push("/dashboard");
-    } catch (err: any) {
-      setError(err.message || "Invalid email or password");
-      setIsLoading(false);
-    }
+    // TODO: use api.ts from lib folder to send request on the server endpoint
   };
 
   return (

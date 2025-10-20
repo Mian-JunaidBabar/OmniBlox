@@ -38,7 +38,7 @@ export class AuthService {
       throw new ConflictException('User with this email already exists');
     }
 
-    // Check if workspace URL is already taken (use findFirst so we can query on a non-unique input safely)
+    // Check if workspace URL is already taken
     const existingWorkspace = await this.prisma.user.findFirst({
       where: { workspaceUrl } as any,
     } as any);
@@ -56,7 +56,6 @@ export class AuthService {
         email,
         password: hashedPassword,
         name,
-        // role is an enum in Prisma; cast to any to avoid TS mismatch here
         role: 'ADMIN' as any,
         companyName,
         workspaceUrl,
@@ -66,7 +65,6 @@ export class AuthService {
       } as any,
     });
 
-    // Fetch the full user record with the fields we need (explicit select)
     // Fetch the created user record (cast to any to avoid generated type mismatches)
     const user = (await this.prisma.user.findUnique({
       where: { id: created.id },
@@ -76,7 +74,7 @@ export class AuthService {
       throw new ConflictException('Failed to create user');
     }
 
-    // Generate JWT token
+    // Generate JWT tokens
     const payload = {
       sub: (user as any).id,
       email: (user as any).email,
@@ -85,17 +83,25 @@ export class AuthService {
     } as any;
 
     const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
 
     return {
       accessToken,
-      user,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        companyName: user.companyName,
+        workspaceUrl: user.workspaceUrl,
+      },
     };
   }
 
   async login(loginDto: LoginDto) {
     const { email, password } = loginDto;
 
-    // Find user by email and include password for verification
     // Fetch user by email and include password (cast to any)
     const user = (await this.prisma.user.findUnique({
       where: { email },
@@ -115,7 +121,7 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Generate JWT token
+    // Generate JWT tokens
     const payload = {
       sub: (user as any).id,
       email: (user as any).email,
@@ -124,9 +130,11 @@ export class AuthService {
     } as any;
 
     const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
 
     return {
       accessToken,
+      refreshToken,
       user: {
         id: (user as any).id,
         email: (user as any).email,
@@ -155,5 +163,77 @@ export class AuthService {
       companyName: user.companyName,
       workspaceUrl: user.workspaceUrl,
     } as any;
+  }
+
+  async refreshToken(userId: string) {
+    const user = await this.validateUser(userId);
+
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      workspaceUrl: user.workspaceUrl,
+    };
+
+    const accessToken = this.jwtService.sign(payload);
+    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
+
+    return {
+      accessToken,
+      refreshToken,
+      user,
+    };
+  }
+
+  async getUserById(userId: string) {
+    return this.validateUser(userId);
+  }
+
+  async updateUserProfile(userId: string, updateData: Partial<SignupDto>) {
+    const user = (await this.prisma.user.update({
+      where: { id: userId },
+      data: updateData as any,
+    })) as any;
+
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      companyName: user.companyName,
+      workspaceUrl: user.workspaceUrl,
+    };
+  }
+
+  async changePassword(
+    userId: string,
+    currentPassword: string,
+    newPassword: string,
+  ) {
+    const user = (await this.prisma.user.findUnique({
+      where: { id: userId },
+    })) as any;
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const isCurrentPasswordValid = await bcrypt.compare(
+      currentPassword,
+      user.password,
+    );
+
+    if (!isCurrentPasswordValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedNewPassword } as any,
+    });
+
+    return { message: 'Password updated successfully' };
   }
 }

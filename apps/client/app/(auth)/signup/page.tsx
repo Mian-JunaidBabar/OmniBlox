@@ -36,57 +36,7 @@ export default function SignupPage() {
   const [error, setError] = useState("");
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setIsLoading(true);
-    setError("");
-
-    const formData = new FormData(e.target as HTMLFormElement);
-    const password = formData.get("password") as string;
-    const cpassword = formData.get("cpassword") as string;
-
-    // Validate passwords match
-    if (password !== cpassword) {
-      setError("Passwords do not match");
-      setIsLoading(false);
-      return;
-    }
-
-    const payload = {
-      email: formData.get("email") as string,
-      password: password,
-      name: formData.get("name") as string,
-      companyName: formData.get("companyName") as string,
-      workspaceUrl: formData.get("workspaceUrl") as string,
-      industry: industry,
-      otherIndustry: industry === "other" ? otherIndustry : undefined,
-      country: formData.get("country") as string,
-    };
-
-    try {
-      const response = await fetch("http://localhost:5000/auth/signup", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Signup failed");
-      }
-
-      // Store token and user data
-      localStorage.setItem("omniblox_token", data.accessToken);
-      localStorage.setItem("omniblox_user", JSON.stringify(data.user));
-
-      // Redirect to dashboard
-      router.push("/dashboard");
-    } catch (err: any) {
-      setError(err.message || "An error occurred during signup");
-      setIsLoading(false);
-    }
+    // TODO: use api.ts from lib folder to send request on the server endpoint
   }
 
   return (
