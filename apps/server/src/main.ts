@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser'; // Import cookie-parser correctly
+import { LoggingMiddleware } from './common/logging.middleware';
 import { createClient } from '@supabase/supabase-js';
 import dotenv from 'dotenv';
 
@@ -60,6 +61,9 @@ async function bootstrap() {
 
   // Add cookie parser middleware
   app.use(cookieParser());
+
+  // Register logging middleware early so all requests/responses are captured
+  app.use(new LoggingMiddleware().use as any);
 
   app.useGlobalPipes(new ValidationPipe({ whitelist: true }));
 
