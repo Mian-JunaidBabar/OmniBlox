@@ -1,51 +1,205 @@
-"use client"
+"use client";
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { useRouter } from "next/navigation"
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  type ReactNode,
+} from "react";
+import { useRouter } from "next/navigation";
+import { api, TokenManager, User as ApiUser, ApiError } from "./api";
 
-type User = {
-  id: string
-  email: string
-  name: string
-  role: "admin" | "manager" | "salesman" | "biller"
-  permissions: string[]
+type User = ApiUser & {
+  permissions?: string[];
+};
+
+interface AuthContextType {
+  user: User | null;
+  isLoading: boolean;
+  isAuthenticated: boolean;
+  login: (email: string, password: string) => Promise<void>;
+  signup: (data: SignupData) => Promise<void>;
+  logout: () => Promise<void>;
+  updateProfile: (data: UpdateProfileData) => Promise<void>;
+  changePassword: (
+    currentPassword: string,
+    newPassword: string
+  ) => Promise<void>;
+  refreshUser: () => Promise<void>;
 }
 
-type AuthContextType = {
-  user: User | null
-  logout: () => void
-  isLoading: boolean
+interface SignupData {
+  email: string;
+  password: string;
+  name: string;
+  companyName: string;
+  workspaceUrl: string;
+  industry: string;
+  otherIndustry?: string;
+  country: string;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined)
+interface UpdateProfileData {
+  name?: string;
+  companyName?: string;
+  industry?: string;
+  otherIndustry?: string;
+  country?: string;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const router = useRouter()
+  const [user, setUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const router = useRouter();
 
+  const isAuthenticated = !!user && TokenManager.isAuthenticated();
+
+  // Initialize auth state
   useEffect(() => {
-    // Check for stored user session
-    const storedUser = localStorage.getItem("omniblox_user")
-    if (storedUser) {
-      setUser(JSON.parse(storedUser))
+    const initializeAuth = async () => {
+      try {
+        const storedUser = TokenManager.getUser();
+        const accessToken = TokenManager.getAccessToken();
+
+        if (storedUser && accessToken) {
+          // Validate token with backend
+          try {
+            const { user: validatedUser } = await api.validateToken();
+            setUser({ ...validatedUser, permissions: ["all"] });
+          } catch (error) {
+            // Token is invalid, clear storage
+            TokenManager.clearTokens();
+            setUser(null);
+          }
+        }
+      } catch (error) {
+        console.error("Auth initialization error:", error);
+        TokenManager.clearTokens();
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initializeAuth();
+  }, []);
+
+  const login = async (email: string, password: string): Promise<void> => {
+    try {
+      setIsLoading(true);
+      const response = await api.login(email, password);
+      setUser({ ...response.user, permissions: ["all"] });
+      router.push("/dashboard");
+    } catch (error) {
+      throw error;
+    } finally {
+      setIsLoading(false);
     }
-    setIsLoading(false)
-  }, [])
+  };
 
-  const logout = () => {
-    localStorage.removeItem("omniblox_user")
-    setUser(null)
-    router.push("/login")
-  }
+  const signup = async (data: SignupData): Promise<void> => {
+    try {
+      setIsLoading(true);
+      const response = await api.signup(data);
+      setUser({ ...response.user, permissions: ["all"] });
+      router.push("/dashboard");
+    } catch (error) {
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-  return <AuthContext.Provider value={{ user, logout, isLoading }}>{children}</AuthContext.Provider>
+  const logout = async (): Promise<void> => {
+    try {
+      setIsLoading(true);
+      await api.logout();
+      setUser(null);
+      router.push("/login");
+    } catch (error) {
+      // Even if logout fails on backend, clear local state
+      TokenManager.clearTokens();
+      setUser(null);
+      router.push("/login");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const updateProfile = async (data: UpdateProfileData): Promise<void> => {
+    try {
+      const updatedUser = await api.updateProfile(data);
+      setUser({ ...updatedUser, permissions: user?.permissions || ["all"] });
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const changePassword = async (
+    currentPassword: string,
+    newPassword: string
+  ): Promise<void> => {
+    try {
+      await api.changePassword(currentPassword, newPassword);
+    } catch (error) {
+      throw error;
+    }
+  };
+
+  const refreshUser = async (): Promise<void> => {
+    try {
+      const refreshedUser = await api.getProfile();
+      setUser({ ...refreshedUser, permissions: user?.permissions || ["all"] });
+    } catch (error) {
+      console.error("Failed to refresh user:", error);
+      throw error;
+    }
+  };
+
+  const value: AuthContextType = {
+    user,
+    isLoading,
+    isAuthenticated,
+    login,
+    signup,
+    logout,
+    updateProfile,
+    changePassword,
+    refreshUser,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext)
+  const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error("useAuth must be used within an AuthProvider")
+    throw new Error("useAuth must be used within an AuthProvider");
   }
-  return context
+  return context;
+}
+
+// Hook for requiring authentication
+export function useRequireAuth(): User {
+  const { user, isAuthenticated, isLoading } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      router.replace("/login");
+    }
+  }, [isAuthenticated, isLoading, router]);
+
+  if (isLoading) {
+    return null as any; // Loading state
+  }
+
+  if (!isAuthenticated || !user) {
+    return null as any; // Will redirect
+  }
+
+  return user;
 }
