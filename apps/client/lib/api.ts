@@ -52,6 +52,15 @@ class TokenManager {
     localStorage.setItem(this.ACCESS_TOKEN_KEY, accessToken);
     localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
     localStorage.setItem(this.USER_KEY, JSON.stringify(user));
+    try {
+      // Set a lightweight non-sensitive cookie so middleware can detect logged-in users during SSR.
+      // This cookie does not contain tokens; it's just a presence flag used for redirecting.
+      document.cookie = `omniblox_logged_in=1; path=/; max-age=${
+        60 * 60 * 24 * 7
+      }`; // 7 days
+    } catch (e) {
+      // ignore in environments where document isn't available
+    }
   }
 
   static clearTokens(): void {
@@ -59,6 +68,12 @@ class TokenManager {
     localStorage.removeItem(this.ACCESS_TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
     localStorage.removeItem(this.USER_KEY);
+    try {
+      // Remove the presence cookie
+      document.cookie = "omniblox_logged_in=; path=/; max-age=0";
+    } catch (e) {
+      // ignore
+    }
   }
 
   static isAuthenticated(): boolean {

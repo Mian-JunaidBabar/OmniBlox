@@ -8,7 +8,7 @@ import React, {
   type ReactNode,
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { api, TokenManager, User as ApiUser, ApiError } from "./api";
+import { api, TokenManager, User as ApiUser, ApiError } from "@/lib/api";
 
 type User = ApiUser & {
   permissions?: string[];

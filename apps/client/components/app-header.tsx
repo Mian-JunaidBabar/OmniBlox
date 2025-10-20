@@ -1,11 +1,22 @@
-"use client"
+"use client";
 
-import { Search, Command, Calculator, Calendar, Globe, Moon, Sun, WifiOff, DollarSign, LogOut } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { useCommandMenu } from "./command-menu-provider"
-import { useState, useEffect } from "react"
-import { useTheme } from "next-themes"
+import {
+  Search,
+  Command,
+  Calculator,
+  Calendar,
+  Globe,
+  Moon,
+  Sun,
+  WifiOff,
+  DollarSign,
+  LogOut,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { useCommandMenu } from "./command-menu-provider";
+import { useState, useEffect } from "react";
+import { useTheme } from "next-themes";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,49 +24,54 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { useAuth } from "@/lib/auth-context"
+} from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { useAuth } from "@/contexts/auth-context";
 
 type AppHeaderProps = {
-  sidebarCollapsed: boolean
-}
+  sidebarCollapsed: boolean;
+};
 
 export function AppHeader({ sidebarCollapsed }: AppHeaderProps) {
-  const { setOpen } = useCommandMenu()
-  const { logout } = useAuth()
-  const [isOnline, setIsOnline] = useState(true)
-  const [showCalculator, setShowCalculator] = useState(false)
-  const [showCalendar, setShowCalendar] = useState(false)
-  const [calculatorValue, setCalculatorValue] = useState("")
-  const [todaysProfit, setTodaysProfit] = useState(2847.5)
+  const { setOpen } = useCommandMenu();
+  const { logout } = useAuth();
+  const [isOnline, setIsOnline] = useState(true);
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [calculatorValue, setCalculatorValue] = useState("");
+  const [todaysProfit, setTodaysProfit] = useState(2847.5);
 
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true)
-    const handleOffline = () => setIsOnline(false)
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
 
-    window.addEventListener("online", handleOnline)
-    window.addEventListener("offline", handleOffline)
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
 
     return () => {
-      window.removeEventListener("online", handleOnline)
-      window.removeEventListener("offline", handleOffline)
-    }
-  }, [])
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
 
   const handleCalculatorClick = (value: string) => {
     if (value === "=") {
       try {
-        setCalculatorValue(eval(calculatorValue).toString())
+        setCalculatorValue(eval(calculatorValue).toString());
       } catch {
-        setCalculatorValue("Error")
+        setCalculatorValue("Error");
       }
     } else if (value === "C") {
-      setCalculatorValue("")
+      setCalculatorValue("");
     } else {
-      setCalculatorValue(calculatorValue + value)
+      setCalculatorValue(calculatorValue + value);
     }
-  }
+  };
 
   return (
     <>
@@ -93,12 +109,22 @@ export function AppHeader({ sidebarCollapsed }: AppHeaderProps) {
           )}
 
           {/* Calculator */}
-          <Button variant="ghost" size="icon" onClick={() => setShowCalculator(true)} title="Calculator">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowCalculator(true)}
+            title="Calculator"
+          >
             <Calculator className="h-4 w-4" />
           </Button>
 
           {/* Calendar */}
-          <Button variant="ghost" size="icon" onClick={() => setShowCalendar(true)} title="Calendar">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setShowCalendar(true)}
+            title="Calendar"
+          >
             <Calendar className="h-4 w-4" />
           </Button>
 
@@ -135,14 +161,43 @@ export function AppHeader({ sidebarCollapsed }: AppHeaderProps) {
             <DialogTitle>Calculator</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <Input value={calculatorValue} readOnly className="text-right text-2xl font-mono" />
+            <Input
+              value={calculatorValue}
+              readOnly
+              className="text-right text-2xl font-mono"
+            />
             <div className="grid grid-cols-4 gap-2">
-              {["7", "8", "9", "/", "4", "5", "6", "*", "1", "2", "3", "-", "0", ".", "=", "+"].map((btn) => (
-                <Button key={btn} variant="outline" onClick={() => handleCalculatorClick(btn)}>
+              {[
+                "7",
+                "8",
+                "9",
+                "/",
+                "4",
+                "5",
+                "6",
+                "*",
+                "1",
+                "2",
+                "3",
+                "-",
+                "0",
+                ".",
+                "=",
+                "+",
+              ].map((btn) => (
+                <Button
+                  key={btn}
+                  variant="outline"
+                  onClick={() => handleCalculatorClick(btn)}
+                >
                   {btn}
                 </Button>
               ))}
-              <Button variant="destructive" className="col-span-4" onClick={() => handleCalculatorClick("C")}>
+              <Button
+                variant="destructive"
+                className="col-span-4"
+                onClick={() => handleCalculatorClick("C")}
+              >
                 Clear
               </Button>
             </div>
@@ -156,31 +211,35 @@ export function AppHeader({ sidebarCollapsed }: AppHeaderProps) {
             <DialogTitle>Calendar</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
-            <p className="text-sm text-muted-foreground">Calendar integration coming soon...</p>
+            <p className="text-sm text-muted-foreground">
+              Calendar integration coming soon...
+            </p>
             <div className="rounded-md border border-border p-4">
-              <p className="text-center text-sm font-medium">{new Date().toLocaleDateString()}</p>
+              <p className="text-center text-sm font-medium">
+                {new Date().toLocaleDateString()}
+              </p>
             </div>
           </div>
         </DialogContent>
       </Dialog>
     </>
-  )
+  );
 }
 
 function ThemeToggle() {
-  const [mounted, setMounted] = useState(false)
-  const { theme, setTheme } = useTheme()
+  const [mounted, setMounted] = useState(false);
+  const { theme, setTheme } = useTheme();
 
   useEffect(() => {
-    setMounted(true)
-  }, [])
+    setMounted(true);
+  }, []);
 
   if (!mounted) {
     return (
       <Button variant="ghost" size="icon">
         <Sun className="h-4 w-4" />
       </Button>
-    )
+    );
   }
 
   return (
@@ -190,7 +249,11 @@ function ThemeToggle() {
       onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
       title="Toggle theme"
     >
-      {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+      {theme === "dark" ? (
+        <Sun className="h-4 w-4" />
+      ) : (
+        <Moon className="h-4 w-4" />
+      )}
     </Button>
-  )
+  );
 }

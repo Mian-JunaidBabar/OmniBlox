@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Package, Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { useAuth } from "@/lib/auth-context";
+import { useAuth } from "@/contexts/auth-context";
 import { GuestRoute } from "@/lib/route-guard";
 
 export default function LoginPage() {

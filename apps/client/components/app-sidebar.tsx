@@ -1,7 +1,7 @@
-"use client"
+"use client";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Package,
   FileText,
@@ -18,12 +18,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Building,
-} from "lucide-react"
-import { cn } from "@/lib/utils"
-import { Button } from "@/components/ui/button"
-import { useState } from "react"
-import { useAuth } from "@/lib/auth-context"
-import { motion, AnimatePresence } from "framer-motion"
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { useState } from "react";
+import { useAuth } from "@/contexts/auth-context";
+import { motion, AnimatePresence } from "framer-motion";
 
 const navigation = [
   {
@@ -119,23 +119,26 @@ const navigation = [
     href: "/settings",
     icon: Settings,
   },
-]
+];
 
 type AppSidebarProps = {
-  collapsed: boolean
-  onCollapsedChange: (collapsed: boolean) => void
-}
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
+};
 
 export function AppSidebar({ collapsed, onCollapsedChange }: AppSidebarProps) {
-  const pathname = usePathname()
-  const { user } = useAuth()
-  const [openSections, setOpenSections] = useState<string[]>(["Products", "Sales"])
+  const pathname = usePathname();
+  const { user } = useAuth();
+  const [openSections, setOpenSections] = useState<string[]>([
+    "Products",
+    "Sales",
+  ]);
 
   const toggleSection = (name: string) => {
     setOpenSections((prev) =>
       prev.includes(name) ? prev.filter((s) => s !== name) : [...prev, name]
-    )
-  }
+    );
+  };
 
   return (
     <div
@@ -147,7 +150,10 @@ export function AppSidebar({ collapsed, onCollapsedChange }: AppSidebarProps) {
       {/* Top Logo & Toggle */}
       <div className="flex h-14 items-center justify-between border-b border-border px-4">
         {!collapsed && (
-          <Link href="/dashboard" className="flex items-center gap-2 font-semibold">
+          <Link
+            href="/dashboard"
+            className="flex items-center gap-2 font-semibold"
+          >
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
               <Package className="h-4 w-4" />
             </div>
@@ -175,10 +181,10 @@ export function AppSidebar({ collapsed, onCollapsedChange }: AppSidebarProps) {
           const isActive =
             item.href === "/dashboard"
               ? pathname === "/dashboard" || pathname === "/"
-              : pathname === item.href || pathname.startsWith(item.href + "/")
+              : pathname === item.href || pathname.startsWith(item.href + "/");
 
-          const Icon = item.icon
-          const isOpen = openSections.includes(item.name)
+          const Icon = item.icon;
+          const isOpen = openSections.includes(item.name);
 
           if (item.children && !collapsed) {
             return (
@@ -215,7 +221,7 @@ export function AppSidebar({ collapsed, onCollapsedChange }: AppSidebarProps) {
                     >
                       <div className="space-y-1 pl-7 pt-1">
                         {item.children.map((child) => {
-                          const isChildActive = pathname === child.href
+                          const isChildActive = pathname === child.href;
                           return (
                             <Link key={child.href} href={child.href}>
                               <Button
@@ -229,14 +235,14 @@ export function AppSidebar({ collapsed, onCollapsedChange }: AppSidebarProps) {
                                 {child.name}
                               </Button>
                             </Link>
-                          )
+                          );
                         })}
                       </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
-            )
+            );
           }
 
           return (
@@ -257,7 +263,7 @@ export function AppSidebar({ collapsed, onCollapsedChange }: AppSidebarProps) {
                 {!collapsed && <span>{item.name}</span>}
               </Button>
             </Link>
-          )
+          );
         })}
       </nav>
 
@@ -292,5 +298,5 @@ export function AppSidebar({ collapsed, onCollapsedChange }: AppSidebarProps) {
         )}
       </div>
     </div>
-  )
+  );
 }
