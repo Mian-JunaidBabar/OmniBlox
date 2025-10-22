@@ -1,11 +1,22 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Badge } from "@/components/ui/badge"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,23 +25,76 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Package, AlertTriangle } from "lucide-react"
+import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Package, AlertTriangle, Loader2 } from "lucide-react"
 import Link from "next/link"
-import { mockProducts } from "@/lib/mock-data"
+import { useProductApi } from "@/hooks/use-product-api"
+import { useToast } from "@/hooks/use-toast"
 import type { Product } from "@/lib/types"
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>(mockProducts)
+  const [products, setProducts] = useState<Product[]>([])
   const [searchQuery, setSearchQuery] = useState("")
+  const [loading, setLoading] = useState(true)
+  const { getProducts, deleteProduct } = useProductApi()
+  const { toast } = useToast()
+
+  // Load products on component mount
+  useEffect(() => {
+    loadProducts()
+  }, [])
+
+  const loadProducts = async () => {
+    try {
+      setLoading(true)
+      const response = await getProducts()
+      setProducts(response.products)
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load products. Please try again.",
+        variant: "destructive",
+      })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDeleteProduct = async (id: string) => {
+    try {
+      await deleteProduct(id)
+      setProducts(products.filter(p => p.id !== id))
+      toast({
+        title: "Success",
+        description: "Product deleted successfully.",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to delete product. Please try again.",
+        variant: "destructive",
+      })
+    }
+  }
 
   const filteredProducts = products.filter(
     (product) =>
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      product.category.toLowerCase().includes(searchQuery.toLowerCase()),
+      product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (product.brand && product.brand.toLowerCase().includes(searchQuery.toLowerCase())),
   )
 
   const lowStockCount = products.filter((p) => p.stock <= p.reorderLevel).length
+
+  if (loading) {
+    return (
+      <div className="p-6 space-y-6">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <Loader2 className="h-8 w-8 animate-spin" />
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="p-6 space-y-6">
@@ -39,7 +103,7 @@ export default function ProductsPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Products</h1>
           <p className="text-sm text-muted-foreground">Manage your product inventory and pricing</p>
         </div>
-        <Link href="/products/new">
+        <Link href="/dashboard/products/new">
           <Button className="gap-2">
             <Plus className="h-4 w-4" />
             Add Product
@@ -77,7 +141,7 @@ export default function ProductsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold">
-              ${products.reduce((sum, p) => sum + p.price * p.stock, 0).toLocaleString()}
+              ${products.reduce((sum, p) => sum + p.salePrice * p.stock, 0).toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">At retail price</p>
           </CardContent>
@@ -131,19 +195,23 @@ export default function ProductsPage() {
               {filteredProducts.map((product) => (
                 <TableRow key={product.id}>
                   <TableCell className="font-mono text-xs">{product.sku}</TableCell>
-                  <TableCell className="font-medium">{product.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <Link href={`/dashboard/products/${product.id}`} className="hover:underline">
+                      {product.name}
+                    </Link>
+                  </TableCell>
                   <TableCell>
                     <Badge variant="outline">{product.category}</Badge>
                   </TableCell>
-                  <TableCell className="text-right">${product.price.toFixed(2)}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">${product.cost.toFixed(2)}</TableCell>
+                  <TableCell className="text-right">${product.salePrice.toFixed(2)}</TableCell>
+                  <TableCell className="text-right text-muted-foreground">${product.costPrice.toFixed(2)}</TableCell>
                   <TableCell className="text-right">
                     <span className={product.stock <= product.reorderLevel ? "font-semibold text-warning" : ""}>
                       {product.stock}
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={product.status === "active" ? "default" : "secondary"}>{product.status}</Badge>
+                    <Badge variant={product.status === "ACTIVE" ? "default" : "secondary"}>{product.status}</Badge>
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -156,22 +224,44 @@ export default function ProductsPage() {
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem asChild>
-                          <Link href={`/products/${product.id}`}>
+                          <Link href={`/dashboard/products/${product.id}`}>
                             <Eye className="mr-2 h-4 w-4" />
                             View Details
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link href={`/products/${product.id}/edit`}>
+                          <Link href={`/dashboard/products/${product.id}/edit`}>
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem className="text-destructive">
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                              <Trash2 className="mr-2 h-4 w-4" />
+                              Delete
+                            </DropdownMenuItem>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                This action cannot be undone. This will permanently delete the product "{product.name}" 
+                                and remove all associated data from our servers.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleDeleteProduct(product.id)} 
+                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              >
+                                Delete Product
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
@@ -184,3 +274,4 @@ export default function ProductsPage() {
     </div>
   )
 }
+

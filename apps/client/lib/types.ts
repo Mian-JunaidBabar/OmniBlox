@@ -2,12 +2,14 @@ export interface Product {
   id: string
   sku: string
   name: string
+  description?: string
   category: string
-  price: number
-  cost: number
+  brand?: string
+  salePrice: number
+  costPrice: number
   stock: number
   reorderLevel: number
-  status: "active" | "inactive" | "discontinued"
+  status: "ACTIVE" | "INACTIVE" | "DISCONTINUED"
   createdAt: string
   updatedAt: string
 }

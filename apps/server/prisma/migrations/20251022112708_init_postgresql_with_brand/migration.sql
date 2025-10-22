@@ -7,6 +7,9 @@ CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'COMPLETED', 'CANCELLED');
 -- CreateEnum
 CREATE TYPE "PaymentStatus" AS ENUM ('PAID', 'PENDING', 'PARTIAL');
 
+-- CreateEnum
+CREATE TYPE "ProductStatus" AS ENUM ('ACTIVE', 'INACTIVE', 'DISCONTINUED');
+
 -- CreateTable
 CREATE TABLE "users" (
     "id" TEXT NOT NULL,
@@ -59,8 +62,13 @@ CREATE TABLE "products" (
     "name" TEXT NOT NULL,
     "sku" TEXT NOT NULL,
     "description" TEXT,
+    "category" TEXT NOT NULL,
+    "brand" TEXT,
     "salePrice" DECIMAL(10,2) NOT NULL,
     "costPrice" DECIMAL(10,2) NOT NULL,
+    "stock" INTEGER NOT NULL DEFAULT 0,
+    "reorderLevel" INTEGER NOT NULL DEFAULT 0,
+    "status" "ProductStatus" NOT NULL DEFAULT 'ACTIVE',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 

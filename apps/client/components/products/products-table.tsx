@@ -17,9 +17,21 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { ArrowUpDown, Search } from "lucide-react"
-import { mockProducts } from "@/lib/mock-data"
+import { ArrowUpDown, Search, MoreHorizontal, Edit, Trash2, Eye } from "lucide-react"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import type { Product } from "@/lib/types"
+
+interface ProductsTableProps {
+  products: Product[]
+  onRefresh?: () => void
+}
 
 const columns: ColumnDef<Product>[] = [
   {
@@ -33,7 +45,7 @@ const columns: ColumnDef<Product>[] = [
       )
     },
     cell: ({ row }) => (
-      <Link href={`/products/${row.original.id}`} className="font-mono text-sm font-medium hover:underline">
+      <Link href={`/dashboard/products/${row.original.id}`} className="font-mono text-sm font-medium hover:underline">
         {row.getValue("sku")}
       </Link>
     ),
@@ -56,17 +68,25 @@ const columns: ColumnDef<Product>[] = [
     cell: ({ row }) => <div className="text-sm text-muted-foreground">{row.getValue("category")}</div>,
   },
   {
-    accessorKey: "price",
+    accessorKey: "brand",
+    header: "Brand",
+    cell: ({ row }) => {
+      const brand = row.getValue("brand") as string
+      return <div className="text-sm text-muted-foreground">{brand || "—"}</div>
+    },
+  },
+  {
+    accessorKey: "salePrice",
     header: ({ column }) => {
       return (
         <Button variant="ghost" onClick={() => column.toggleSorting(column.getIsSorted() === "asc")}>
-          Price
+          Sale Price
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
       )
     },
     cell: ({ row }) => {
-      const price = Number.parseFloat(row.getValue("price"))
+      const price = Number.parseFloat(row.getValue("salePrice"))
       const formatted = new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: "USD",
@@ -106,21 +126,60 @@ const columns: ColumnDef<Product>[] = [
     header: "Status",
     cell: ({ row }) => {
       const status = row.getValue("status") as string
+      const variant = status === "ACTIVE" ? "default" : status === "INACTIVE" ? "secondary" : "destructive"
       return (
-        <Badge variant={status === "active" ? "default" : "secondary"} className="capitalize">
-          {status}
+        <Badge variant={variant} className="capitalize">
+          {status.toLowerCase()}
         </Badge>
+      )
+    },
+  },
+  {
+    id: "actions",
+    header: "Actions",
+    cell: ({ row }) => {
+      const product = row.original
+
+      return (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" className="h-8 w-8 p-0">
+              <span className="sr-only">Open menu</span>
+              <MoreHorizontal className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuLabel>Actions</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <Link href={`/dashboard/products/${product.id}`}>
+              <DropdownMenuItem className="cursor-pointer">
+                <Eye className="mr-2 h-4 w-4" />
+                View
+              </DropdownMenuItem>
+            </Link>
+            <Link href={`/dashboard/products/${product.id}/edit`}>
+              <DropdownMenuItem className="cursor-pointer">
+                <Edit className="mr-2 h-4 w-4" />
+                Edit
+              </DropdownMenuItem>
+            </Link>
+            <DropdownMenuItem className="cursor-pointer text-destructive">
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )
     },
   },
 ]
 
-export function ProductsTable() {
+export function ProductsTable({ products, onRefresh }: ProductsTableProps) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
 
   const table = useReactTable({
-    data: mockProducts,
+    data: products,
     columns,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
