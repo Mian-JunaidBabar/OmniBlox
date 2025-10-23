@@ -3,11 +3,11 @@ import {
   IsOptional,
   IsNumber,
   IsInt,
-  IsEnum,
+  IsIn,
   Min,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
-import { ProductStatus } from '@prisma/client';
+import type { ProductStatus } from '@prisma/client';
 
 export class UpdateProductDto {
   @IsString()
@@ -54,7 +54,7 @@ export class UpdateProductDto {
   @IsOptional()
   reorderLevel?: number;
 
-  @IsEnum(ProductStatus)
+  @IsIn(['ACTIVE', 'INACTIVE', 'DISCONTINUED'])
   @IsOptional()
   status?: ProductStatus;
 }
