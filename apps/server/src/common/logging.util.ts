@@ -16,7 +16,7 @@ export function maskSensitive(obj: any, maxString = 120) {
     const out: any = {};
     for (const key of Object.keys(obj)) {
       const lower = key.toLowerCase();
-      const val = (obj as any)[key];
+      const val = obj[key];
 
       // Don't log sensitive keys
       if (

@@ -37,8 +37,14 @@ export class ProductController {
   ) {
     const pageNum = page ? parseInt(page) : 1;
     const limitNum = limit ? parseInt(limit) : 10;
-    
-    return this.productService.findAll(pageNum, limitNum, search, category, status);
+
+    return this.productService.findAll(
+      pageNum,
+      limitNum,
+      search,
+      category,
+      status,
+    );
   }
 
   @Get('categories')

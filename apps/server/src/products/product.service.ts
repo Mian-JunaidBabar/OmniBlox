@@ -13,7 +13,9 @@ import { ProductResponseDto } from './dto/product-response.dto';
 export class ProductService {
   constructor(private prisma: PrismaService) {}
 
-  async create(createProductDto: CreateProductDto): Promise<ProductResponseDto> {
+  async create(
+    createProductDto: CreateProductDto,
+  ): Promise<ProductResponseDto> {
     const { sku, ...productData } = createProductDto;
 
     // Check if SKU already exists
@@ -47,9 +49,9 @@ export class ProductService {
     status?: string,
   ): Promise<{ products: ProductResponseDto[]; total: number; pages: number }> {
     const skip = (page - 1) * limit;
-    
+
     const where: any = {};
-    
+
     if (search) {
       where.OR = [
         { name: { contains: search, mode: 'insensitive' } },
@@ -57,11 +59,11 @@ export class ProductService {
         { description: { contains: search, mode: 'insensitive' } },
       ];
     }
-    
+
     if (category) {
       where.category = category;
     }
-    
+
     if (status) {
       where.status = status;
     }
@@ -77,7 +79,7 @@ export class ProductService {
     ]);
 
     return {
-      products: products.map(product => this.transformToDto(product)),
+      products: products.map((product) => this.transformToDto(product)),
       total,
       pages: Math.ceil(total / limit),
     };
@@ -107,7 +109,10 @@ export class ProductService {
     return this.transformToDto(product);
   }
 
-  async update(id: string, updateProductDto: UpdateProductDto): Promise<ProductResponseDto> {
+  async update(
+    id: string,
+    updateProductDto: UpdateProductDto,
+  ): Promise<ProductResponseDto> {
     const existingProduct = await this.prisma.product.findUnique({
       where: { id },
     });
@@ -153,11 +158,17 @@ export class ProductService {
         where: { id },
       });
     } catch (error) {
-      throw new BadRequestException('Failed to delete product. It may be referenced by other records.');
+      throw new BadRequestException(
+        'Failed to delete product. It may be referenced by other records.',
+      );
     }
   }
 
-  async updateStock(id: string, quantity: number, operation: 'add' | 'subtract'): Promise<ProductResponseDto> {
+  async updateStock(
+    id: string,
+    quantity: number,
+    operation: 'add' | 'subtract',
+  ): Promise<ProductResponseDto> {
     const product = await this.prisma.product.findUnique({
       where: { id },
     });
@@ -166,9 +177,8 @@ export class ProductService {
       throw new NotFoundException('Product not found');
     }
 
-    const newStock = operation === 'add' 
-      ? product.stock + quantity 
-      : product.stock - quantity;
+    const newStock =
+      operation === 'add' ? product.stock + quantity : product.stock - quantity;
 
     if (newStock < 0) {
       throw new BadRequestException('Insufficient stock');
@@ -191,11 +201,11 @@ export class ProductService {
     });
 
     // Filter products where stock is less than or equal to reorder level
-    const lowStockProducts = products.filter(product => 
-      product.stock <= product.reorderLevel
+    const lowStockProducts = products.filter(
+      (product) => product.stock <= product.reorderLevel,
     );
 
-    return lowStockProducts.map(product => this.transformToDto(product));
+    return lowStockProducts.map((product) => this.transformToDto(product));
   }
 
   async getCategories(): Promise<string[]> {
@@ -204,7 +214,7 @@ export class ProductService {
       distinct: ['category'],
     });
 
-    return products.map(product => product.category);
+    return products.map((product) => product.category);
   }
 
   async getBrands(): Promise<string[]> {

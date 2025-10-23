@@ -76,10 +76,10 @@ export class AuthService {
 
     // Generate JWT tokens
     const payload = {
-      sub: (user as any).id,
-      email: (user as any).email,
-      role: (user as any).role,
-      workspaceUrl: (user as any).workspaceUrl,
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      workspaceUrl: user.workspaceUrl,
     } as any;
 
     const accessToken = this.jwtService.sign(payload);
@@ -114,7 +114,7 @@ export class AuthService {
     // Verify password
     const isPasswordValid = await bcrypt.compare(
       password,
-      (user as any).password as string,
+      user.password as string,
     );
 
     if (!isPasswordValid) {
@@ -123,10 +123,10 @@ export class AuthService {
 
     // Generate JWT tokens
     const payload = {
-      sub: (user as any).id,
-      email: (user as any).email,
-      role: (user as any).role,
-      workspaceUrl: (user as any).workspaceUrl,
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      workspaceUrl: user.workspaceUrl,
     } as any;
 
     const accessToken = this.jwtService.sign(payload);
@@ -136,12 +136,12 @@ export class AuthService {
       accessToken,
       refreshToken,
       user: {
-        id: (user as any).id,
-        email: (user as any).email,
-        name: (user as any).name,
-        role: (user as any).role,
-        companyName: (user as any).companyName,
-        workspaceUrl: (user as any).workspaceUrl,
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        companyName: user.companyName,
+        workspaceUrl: user.workspaceUrl,
       },
     };
   }

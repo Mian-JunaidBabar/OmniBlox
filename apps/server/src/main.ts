@@ -3,7 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import cookieParser from 'cookie-parser'; // Import cookie-parser correctly
 import { LoggingMiddleware } from './common/logging.middleware';
-import { createClient } from '@supabase/supabase-js';
+import { PrismaClient } from '@prisma/client';
 import dotenv from 'dotenv';
 
 // Load environment variables from .env (if present)
@@ -12,43 +12,39 @@ dotenv.config();
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
-  // Initialize Supabase client (MCP)
-  const supabaseUrl = process.env.SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_KEY;
+  // Initialize database connection check
+  const databaseUrl =
+    process.env.DATABASE_URL_POOLED || process.env.DATABASE_URL;
 
-  if (!supabaseUrl || !supabaseKey) {
+  if (!databaseUrl) {
     console.warn(
-      '[main.ts] SUPABASE_URL or SUPABASE_KEY is not set. Skipping Supabase connection check.',
+      '[main.ts] DATABASE_URL is not set. Skipping database connection check.',
     );
   } else {
+    const prisma = new PrismaClient({
+      datasources: {
+        db: {
+          url: databaseUrl,
+        },
+      },
+    });
+
     try {
-      const supabase = createClient(supabaseUrl, supabaseKey, {
-        auth: { persistSession: false },
-      });
+      // Perform a simple database connection check
+      await prisma.$connect();
 
-      // Perform a light-weight health check: fetch the postgres version via a simple RPC or list of tables.
-      // We'll call `rpc` 'pg_version' if available, otherwise do a simple `from('pg_tables')` query guard.
-      // The simplest portable approach is to call `from('pg_tables').select('tablename').limit(1)`.
-      const { data, error } = await supabase
-        .from('pg_tables')
-        .select('tablename')
-        .limit(1);
+      // Test with a simple query to verify connection
+      const result = await prisma.$queryRaw`SELECT 1 as test`;
+      console.log(
+        '[main.ts] Database connection successful. Test query result:',
+        result,
+      );
 
-      if (error) {
-        console.error(
-          '[main.ts] Supabase connection check failed:',
-          error.message ?? error,
-        );
-      } else {
-        console.log(
-          '[main.ts] Supabase connection successful. Sample response:',
-          Array.isArray(data) ? `rows=${data.length}` : data,
-        );
-      }
-    } catch (err) {
+      await prisma.$disconnect();
+    } catch (error) {
       console.error(
-        '[main.ts] Supabase check error:',
-        err instanceof Error ? err.message : err,
+        '[main.ts] Database connection check failed:',
+        error instanceof Error ? error.message : String(error),
       );
     }
   }

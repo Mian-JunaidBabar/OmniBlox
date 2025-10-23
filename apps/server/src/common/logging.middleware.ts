@@ -33,7 +33,7 @@ export class LoggingMiddleware implements NestMiddleware {
       let responseBody: any = undefined;
 
       // Override res.json
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       (res as any).json = function (body: any) {
         responseBody = body;
         // call original
@@ -41,7 +41,7 @@ export class LoggingMiddleware implements NestMiddleware {
       };
 
       // Override res.send
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
       (res as any).send = function (body: any) {
         responseBody = body;
         return oldSend.call(this, body);
