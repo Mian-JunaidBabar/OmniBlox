@@ -1,35 +1,58 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Save, Plus, Trash2 } from "lucide-react"
-import Link from "next/link"
-import { mockProducts } from "@/lib/mock-data"
-import { useRouter } from "next/navigation"
+import { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ArrowLeft, Save, Plus, Trash2, Loader2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useAllProducts } from "@/hooks/use-products";
 
 type AdjustmentItem = {
-  id: string
-  productId: string
-  currentStock: number
-  newStock: number
-  difference: number
-}
+  id: string;
+  productId: string;
+  currentStock: number;
+  newStock: number;
+  difference: number;
+};
 
 export default function StockAdjustmentPage() {
-  const router = useRouter()
-  const [items, setItems] = useState<AdjustmentItem[]>([])
-  const [notes, setNotes] = useState("")
+  const router = useRouter();
+  const [items, setItems] = useState<AdjustmentItem[]>([]);
+  const [notes, setNotes] = useState("");
+  const {
+    products,
+    loading: productsLoading,
+    refreshing: productsRefreshing,
+    error: productsError,
+    reload: reloadProducts,
+  } = useAllProducts();
 
   const addItem = () => {
-    setItems([
-      ...items,
+    if (productsLoading || products.length === 0) {
+      return;
+    }
+
+    setItems((prev) => [
+      ...prev,
       {
         id: Date.now().toString(),
         productId: "",
@@ -37,37 +60,47 @@ export default function StockAdjustmentPage() {
         newStock: 0,
         difference: 0,
       },
-    ])
-  }
+    ]);
+  };
 
   const removeItem = (id: string) => {
-    setItems(items.filter((item) => item.id !== id))
-  }
+    setItems((prev) => prev.filter((item) => item.id !== id));
+  };
 
-  const updateItem = (id: string, field: keyof AdjustmentItem, value: any) => {
-    setItems(
-      items.map((item) => {
-        if (item.id === id) {
-          const updated = { ...item, [field]: value }
-          if (field === "productId") {
-            const product = mockProducts.find((p) => p.id === value)
-            updated.currentStock = product?.stock || 0
-          }
-          if (field === "newStock" || field === "productId") {
-            updated.difference = updated.newStock - updated.currentStock
-          }
-          return updated
+  const updateItem = (
+    id: string,
+    field: keyof AdjustmentItem,
+    value: unknown
+  ) => {
+    setItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== id) {
+          return item;
         }
-        return item
-      }),
-    )
-  }
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    console.log("Saving adjustment:", { items, notes })
-    router.push("/products")
-  }
+        const updated: AdjustmentItem = { ...item };
+
+        if (field === "productId") {
+          const nextProductId = value as string;
+          updated.productId = nextProductId;
+          const product = products.find((p) => p.id === nextProductId);
+          updated.currentStock = product?.stock ?? 0;
+        } else if (field === "newStock") {
+          const parsed = Number(value);
+          updated.newStock = Number.isFinite(parsed) ? parsed : 0;
+        }
+
+        updated.difference = updated.newStock - updated.currentStock;
+        return updated;
+      })
+    );
+  };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    console.log("Saving adjustment:", { items, notes });
+    router.push("/products");
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -78,8 +111,12 @@ export default function StockAdjustmentPage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">Stock Adjustment</h1>
-          <p className="text-sm text-muted-foreground">Adjust inventory levels for products</p>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            Stock Adjustment
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Adjust inventory levels for products
+          </p>
         </div>
       </div>
 
@@ -90,9 +127,17 @@ export default function StockAdjustmentPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <CardTitle>Adjustment Items</CardTitle>
-                  <CardDescription>Select products and set new stock levels</CardDescription>
+                  <CardDescription>
+                    Select products and set new stock levels
+                  </CardDescription>
                 </div>
-                <Button type="button" onClick={addItem} size="sm" className="gap-2">
+                <Button
+                  type="button"
+                  onClick={addItem}
+                  size="sm"
+                  className="gap-2"
+                  disabled={products.length === 0}
+                >
                   <Plus className="h-4 w-4" />
                   Add Item
                 </Button>
@@ -100,30 +145,79 @@ export default function StockAdjustmentPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
+                {productsError && (
+                  <div className="mb-4 rounded-md border border-destructive/50 bg-destructive/10 p-3 text-sm text-destructive">
+                    {productsError}
+                    <Button
+                      variant="link"
+                      type="button"
+                      onClick={() => reloadProducts()}
+                      className="ml-2 h-auto p-0"
+                    >
+                      Retry
+                    </Button>
+                  </div>
+                )}
                 {items.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-8">
-                    No items added yet. Click "Add Item" to start.
+                    {products.length === 0
+                      ? productsLoading
+                        ? "Loading products..."
+                        : "No products available. Add products before creating adjustments."
+                      : 'No items added yet. Click "Add Item" to start.'}
                   </p>
                 ) : (
                   items.map((item) => (
-                    <div key={item.id} className="border border-border rounded-lg p-4 space-y-4">
+                    <div
+                      key={item.id}
+                      className="border border-border rounded-lg p-4 space-y-4"
+                    >
                       <div className="flex items-start justify-between">
                         <div className="flex-1 grid gap-4 md:grid-cols-4">
                           <div className="space-y-2">
                             <Label>Product</Label>
                             <Select
                               value={item.productId}
-                              onValueChange={(value) => updateItem(item.id, "productId", value)}
+                              onValueChange={(value) =>
+                                updateItem(item.id, "productId", value)
+                              }
+                              disabled={products.length === 0}
                             >
                               <SelectTrigger>
-                                <SelectValue placeholder="Select product" />
+                                <SelectValue
+                                  placeholder={
+                                    products.length === 0
+                                      ? productsLoading
+                                        ? "Loading..."
+                                        : "No products available"
+                                      : productsRefreshing
+                                      ? "Refreshing products..."
+                                      : "Select product"
+                                  }
+                                />
                               </SelectTrigger>
                               <SelectContent>
-                                {mockProducts.map((product) => (
-                                  <SelectItem key={product.id} value={product.id}>
-                                    {product.name}
+                                {products.length === 0 && productsLoading ? (
+                                  <SelectItem value="__loading" disabled>
+                                    <span className="flex items-center gap-2">
+                                      <Loader2 className="h-3 w-3 animate-spin" />{" "}
+                                      Loading products...
+                                    </span>
                                   </SelectItem>
-                                ))}
+                                ) : products.length > 0 ? (
+                                  products.map((product) => (
+                                    <SelectItem
+                                      key={product.id}
+                                      value={product.id}
+                                    >
+                                      {product.name}
+                                    </SelectItem>
+                                  ))
+                                ) : (
+                                  <SelectItem value="__empty" disabled>
+                                    No products available
+                                  </SelectItem>
+                                )}
                               </SelectContent>
                             </Select>
                           </div>
@@ -136,7 +230,9 @@ export default function StockAdjustmentPage() {
                             <Input
                               type="number"
                               value={item.newStock}
-                              onChange={(e) => updateItem(item.id, "newStock", Number(e.target.value))}
+                              onChange={(e) =>
+                                updateItem(item.id, "newStock", e.target.value)
+                              }
                             />
                           </div>
                           <div className="space-y-2">
@@ -145,7 +241,11 @@ export default function StockAdjustmentPage() {
                               value={item.difference}
                               disabled
                               className={
-                                item.difference > 0 ? "text-success" : item.difference < 0 ? "text-destructive" : ""
+                                item.difference > 0
+                                  ? "text-success"
+                                  : item.difference < 0
+                                  ? "text-destructive"
+                                  : ""
                               }
                             />
                           </div>
@@ -193,18 +293,28 @@ export default function StockAdjustmentPage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium">Net Change</p>
-                  <p className="text-2xl font-semibold">{items.reduce((sum, item) => sum + item.difference, 0)}</p>
+                  <p className="text-2xl font-semibold">
+                    {items.reduce((sum, item) => sum + item.difference, 0)}
+                  </p>
                 </div>
               </CardContent>
             </Card>
 
             <div className="flex flex-col gap-2">
-              <Button type="submit" disabled={items.length === 0} className="gap-2">
+              <Button
+                type="submit"
+                disabled={items.length === 0 || products.length === 0}
+                className="gap-2"
+              >
                 <Save className="h-4 w-4" />
                 Save Adjustment
               </Button>
               <Link href="/products">
-                <Button type="button" variant="outline" className="w-full bg-transparent">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full bg-transparent"
+                >
                   Cancel
                 </Button>
               </Link>
@@ -213,5 +323,5 @@ export default function StockAdjustmentPage() {
         </div>
       </form>
     </div>
-  )
+  );
 }

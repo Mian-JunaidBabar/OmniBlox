@@ -16,7 +16,7 @@ export class ProductService {
   async create(
     createProductDto: CreateProductDto,
   ): Promise<ProductResponseDto> {
-    const { sku, ...productData } = createProductDto;
+    const { sku, category, brand, stock, ...productData } = createProductDto;
 
     // Check if SKU already exists
     const existingProduct = await this.prisma.product.findUnique({
@@ -28,14 +28,75 @@ export class ProductService {
     }
 
     try {
+      // Find or create category
+      let categoryRecord = await this.prisma.productCategory.findUnique({
+        where: { name: category },
+      });
+
+      if (!categoryRecord) {
+        categoryRecord = await this.prisma.productCategory.create({
+          data: { name: category },
+        });
+      }
+
+      // Find or create brand if provided
+      let brandRecord: { id: string; name: string } | null = null;
+      if (brand) {
+        brandRecord = await this.prisma.brand.findUnique({
+          where: { name: brand },
+        });
+
+        if (!brandRecord) {
+          brandRecord = await this.prisma.brand.create({
+            data: { name: brand },
+          });
+        }
+      }
+
+      // Create product
       const product = await this.prisma.product.create({
         data: {
           sku,
           ...productData,
+          categoryId: categoryRecord.id,
+          brandId: brandRecord?.id || null,
+        },
+        include: {
+          category: true,
+          brand: true,
         },
       });
 
-      return this.transformToDto(product);
+      // Create inventory entry (assume default warehouse for now)
+      // TODO: Handle multiple warehouses
+      const defaultWarehouse = await this.prisma.warehouse.findFirst();
+      if (!defaultWarehouse) {
+        // Create a default warehouse if none exists
+        const warehouse = await this.prisma.warehouse.create({
+          data: {
+            name: 'Default Warehouse',
+            location: 'Default Location',
+          },
+        });
+
+        await this.prisma.inventory.create({
+          data: {
+            productId: product.id,
+            warehouseId: warehouse.id,
+            quantity: stock,
+          },
+        });
+      } else {
+        await this.prisma.inventory.create({
+          data: {
+            productId: product.id,
+            warehouseId: defaultWarehouse.id,
+            quantity: stock,
+          },
+        });
+      }
+
+      return this.transformToDto(product, stock);
     } catch (error) {
       throw new BadRequestException('Failed to create product');
     }
@@ -61,7 +122,9 @@ export class ProductService {
     }
 
     if (category) {
-      where.category = category;
+      where.category = {
+        name: category,
+      };
     }
 
     if (status) {
@@ -74,12 +137,27 @@ export class ProductService {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
+        include: {
+          category: true,
+          brand: true,
+          inventory: {
+            include: {
+              warehouse: true,
+            },
+          },
+        },
       }),
       this.prisma.product.count({ where }),
     ]);
 
     return {
-      products: products.map((product) => this.transformToDto(product)),
+      products: products.map((product) => {
+        const totalStock = product.inventory.reduce(
+          (sum, inv) => sum + inv.quantity,
+          0,
+        );
+        return this.transformToDto(product, totalStock);
+      }),
       total,
       pages: Math.ceil(total / limit),
     };
@@ -88,25 +166,51 @@ export class ProductService {
   async findOne(id: string): Promise<ProductResponseDto> {
     const product = await this.prisma.product.findUnique({
       where: { id },
+      include: {
+        category: true,
+        brand: true,
+        inventory: {
+          include: {
+            warehouse: true,
+          },
+        },
+      },
     });
 
     if (!product) {
       throw new NotFoundException('Product not found');
     }
 
-    return this.transformToDto(product);
+    const totalStock = product.inventory.reduce(
+      (sum, inv) => sum + inv.quantity,
+      0,
+    );
+    return this.transformToDto(product, totalStock);
   }
 
   async findBySku(sku: string): Promise<ProductResponseDto> {
     const product = await this.prisma.product.findUnique({
       where: { sku },
+      include: {
+        category: true,
+        brand: true,
+        inventory: {
+          include: {
+            warehouse: true,
+          },
+        },
+      },
     });
 
     if (!product) {
       throw new NotFoundException('Product not found');
     }
 
-    return this.transformToDto(product);
+    const totalStock = product.inventory.reduce(
+      (sum, inv) => sum + inv.quantity,
+      0,
+    );
+    return this.transformToDto(product, totalStock);
   }
 
   async update(
@@ -115,6 +219,11 @@ export class ProductService {
   ): Promise<ProductResponseDto> {
     const existingProduct = await this.prisma.product.findUnique({
       where: { id },
+      include: {
+        category: true,
+        brand: true,
+        inventory: true,
+      },
     });
 
     if (!existingProduct) {
@@ -133,12 +242,85 @@ export class ProductService {
     }
 
     try {
+      const { category, brand, stock, ...productData } = updateProductDto;
+      const updateData: any = { ...productData };
+
+      // Handle category update
+      if (category !== undefined) {
+        let categoryRecord = await this.prisma.productCategory.findUnique({
+          where: { name: category },
+        });
+
+        if (!categoryRecord) {
+          categoryRecord = await this.prisma.productCategory.create({
+            data: { name: category },
+          });
+        }
+        updateData.categoryId = categoryRecord.id;
+      }
+
+      // Handle brand update
+      if (brand !== undefined) {
+        if (brand === null || brand === '') {
+          updateData.brandId = null;
+        } else {
+          let brandRecord = await this.prisma.brand.findUnique({
+            where: { name: brand },
+          });
+
+          if (!brandRecord) {
+            brandRecord = await this.prisma.brand.create({
+              data: { name: brand },
+            });
+          }
+          updateData.brandId = brandRecord.id;
+        }
+      }
+
       const product = await this.prisma.product.update({
         where: { id },
-        data: updateProductDto,
+        data: updateData,
+        include: {
+          category: true,
+          brand: true,
+          inventory: {
+            include: {
+              warehouse: true,
+            },
+          },
+        },
       });
 
-      return this.transformToDto(product);
+      // Handle stock update if provided
+      if (stock !== undefined) {
+        // For now, update the first inventory entry (default warehouse)
+        // TODO: Handle multiple warehouses properly
+        const defaultWarehouse = await this.prisma.warehouse.findFirst();
+        if (defaultWarehouse) {
+          await this.prisma.inventory.upsert({
+            where: {
+              productId_warehouseId: {
+                productId: product.id,
+                warehouseId: defaultWarehouse.id,
+              },
+            },
+            update: {
+              quantity: stock,
+            },
+            create: {
+              productId: product.id,
+              warehouseId: defaultWarehouse.id,
+              quantity: stock,
+            },
+          });
+        }
+      }
+
+      const totalStock = product.inventory.reduce(
+        (sum, inv) => sum + inv.quantity,
+        0,
+      );
+      return this.transformToDto(product, totalStock);
     } catch (error) {
       throw new BadRequestException('Failed to update product');
     }
@@ -171,25 +353,80 @@ export class ProductService {
   ): Promise<ProductResponseDto> {
     const product = await this.prisma.product.findUnique({
       where: { id },
+      include: {
+        category: true,
+        brand: true,
+        inventory: {
+          include: {
+            warehouse: true,
+          },
+        },
+      },
     });
 
     if (!product) {
       throw new NotFoundException('Product not found');
     }
 
+    // For now, work with the first inventory entry (default warehouse)
+    // TODO: Handle multiple warehouses properly
+    const defaultWarehouse = await this.prisma.warehouse.findFirst();
+    if (!defaultWarehouse) {
+      throw new BadRequestException('No warehouse configured');
+    }
+
+    const existingInventory = product.inventory.find(
+      (inv) => inv.warehouseId === defaultWarehouse.id,
+    );
+    const currentStock = existingInventory?.quantity || 0;
     const newStock =
-      operation === 'add' ? product.stock + quantity : product.stock - quantity;
+      operation === 'add' ? currentStock + quantity : currentStock - quantity;
 
     if (newStock < 0) {
       throw new BadRequestException('Insufficient stock');
     }
 
-    const updatedProduct = await this.prisma.product.update({
-      where: { id },
-      data: { stock: newStock },
+    // Upsert inventory
+    await this.prisma.inventory.upsert({
+      where: {
+        productId_warehouseId: {
+          productId: product.id,
+          warehouseId: defaultWarehouse.id,
+        },
+      },
+      update: {
+        quantity: newStock,
+      },
+      create: {
+        productId: product.id,
+        warehouseId: defaultWarehouse.id,
+        quantity: newStock,
+      },
     });
 
-    return this.transformToDto(updatedProduct);
+    // Return updated product
+    const updatedProduct = await this.prisma.product.findUnique({
+      where: { id },
+      include: {
+        category: true,
+        brand: true,
+        inventory: {
+          include: {
+            warehouse: true,
+          },
+        },
+      },
+    });
+
+    if (!updatedProduct) {
+      throw new NotFoundException('Product not found after update');
+    }
+
+    const totalStock = updatedProduct.inventory.reduce(
+      (sum, inv) => sum + inv.quantity,
+      0,
+    );
+    return this.transformToDto(updatedProduct, totalStock);
   }
 
   async getLowStockProducts(): Promise<ProductResponseDto[]> {
@@ -197,24 +434,41 @@ export class ProductService {
       where: {
         status: 'ACTIVE',
       },
-      orderBy: { stock: 'asc' },
+      include: {
+        category: true,
+        brand: true,
+        inventory: {
+          include: {
+            warehouse: true,
+          },
+        },
+      },
     });
 
-    // Filter products where stock is less than or equal to reorder level
-    const lowStockProducts = products.filter(
-      (product) => product.stock <= product.reorderLevel,
-    );
+    // Filter products where total stock is less than or equal to reorder level
+    const lowStockProducts = products.filter((product) => {
+      const totalStock = product.inventory.reduce(
+        (sum, inv) => sum + inv.quantity,
+        0,
+      );
+      return totalStock <= product.reorderLevel;
+    });
 
-    return lowStockProducts.map((product) => this.transformToDto(product));
+    return lowStockProducts.map((product) => {
+      const totalStock = product.inventory.reduce(
+        (sum, inv) => sum + inv.quantity,
+        0,
+      );
+      return this.transformToDto(product, totalStock);
+    });
   }
 
   async getCategories(): Promise<string[]> {
-    const products = await this.prisma.product.findMany({
-      select: { category: true },
-      distinct: ['category'],
+    const categories = await this.prisma.productCategory.findMany({
+      select: { name: true },
     });
 
-    return products.map((product) => product.category);
+    return categories.map((category) => category.name);
   }
 
   async getBrands(): Promise<string[]> {
@@ -226,17 +480,17 @@ export class ProductService {
     return products.map((product: any) => product.brand).filter(Boolean);
   }
 
-  private transformToDto(product: any): ProductResponseDto {
+  private transformToDto(product: any, stock?: number): ProductResponseDto {
     return {
       id: product.id,
       name: product.name,
       sku: product.sku,
       description: product.description,
-      category: product.category,
-      brand: product.brand,
+      category: product.category?.name || '',
+      brand: product.brand?.name || undefined,
       salePrice: Number(product.salePrice),
       costPrice: Number(product.costPrice),
-      stock: product.stock,
+      stock: stock || 0, // Will be calculated from inventory
       reorderLevel: product.reorderLevel,
       status: product.status,
       createdAt: product.createdAt,
