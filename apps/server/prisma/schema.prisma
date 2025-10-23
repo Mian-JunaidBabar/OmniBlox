@@ -1,0 +1,347 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// --- USER & CONTACT MODELS (No changes here) ---
+
+model User {
+  id             String          @id @default(uuid())
+  email          String          @unique
+  password       String
+  name           String
+  firstName      String?
+  lastName       String?
+  role           UserRole        @default(STAFF)
+  companyName    String?
+  workspaceUrl   String?         @unique
+  industry       String?
+  otherIndustry  String?
+  country        String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  expenses       Expense[]
+  purchaseOrders PurchaseOrder[]
+  quotations     Quotation[]
+  sales          Sale[]
+  salesReturns   SalesReturn[]
+
+  @@map("users")
+}
+
+model Customer {
+  id         String      @id @default(uuid())
+  name       String
+  email      String?     @unique
+  phone      String?
+  address    String?
+  createdAt  DateTime    @default(now())
+  updatedAt  DateTime    @updatedAt
+  quotations Quotation[]
+  sales      Sale[]
+
+  @@map("customers")
+}
+
+model Supplier {
+  id             String          @id @default(uuid())
+  name           String
+  email          String?         @unique
+  phone          String?
+  address        String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  purchaseOrders PurchaseOrder[]
+
+  @@map("suppliers")
+}
+
+
+// --- PRODUCT & INVENTORY MODELS (Updated) ---
+
+model Product {
+  id          String    @id @default(uuid())
+  name        String
+  sku         String    @unique
+  description String?
+  salePrice   Decimal   @db.Decimal(10, 2)
+  costPrice   Decimal   @db.Decimal(10, 2)
+  // REMOVED: `stock` field is removed to avoid redundancy. Total stock is calculated from the Inventory model.
+  reorderLevel Int      @default(0)
+  status      ProductStatus @default(ACTIVE)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // MODIFIED: Relations to new Category and Brand models
+  categoryId String
+  category   ProductCategory @relation(fields: [categoryId], references: [id])
+  brandId    String?
+  brand      Brand?          @relation(fields: [brandId], references: [id])
+
+  // Relations
+  inventory          Inventory[]
+  purchaseOrderItems PurchaseOrderItem[]
+  quotationItems     QuotationItem[]
+  saleItems          SaleItem[]
+  salesReturnItems   SalesReturnItem[]
+
+  @@map("products")
+}
+
+// NEW: Model for Product Categories
+model ProductCategory {
+  id       String    @id @default(uuid())
+  name     String    @unique
+  products Product[]
+
+  @@map("product_categories")
+}
+
+// NEW: Model for Brands
+model Brand {
+  id       String    @id @default(uuid())
+  name     String    @unique
+  products Product[]
+
+  @@map("brands")
+}
+
+model Warehouse {
+  id        String      @id @default(uuid())
+  name      String
+  location  String?
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  inventory Inventory[]
+
+  @@map("warehouses")
+}
+
+model Inventory {
+  productId   String
+  warehouseId String
+  quantity    Int
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  product     Product   @relation(fields: [productId], references: [id])
+  warehouse   Warehouse @relation(fields: [warehouseId], references: [id])
+
+  @@id([productId, warehouseId])
+  @@map("inventory")
+}
+
+
+// --- TRANSACTION & EXPENSE MODELS (Updated) ---
+
+model Expense {
+  id          String    @id @default(uuid())
+  reference   String
+  amount      Decimal   @db.Decimal(10, 2)
+  expenseDate DateTime  @default(now())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  // MODIFIED & NEW FIELDS based on your form
+  description   String?         // Renamed from 'notes'
+  vendor        String          // New field for the vendor name
+  status        ExpenseStatus   @default(PENDING) // New status field
+  paymentMethod PaymentMethod?  // New field for payment method
+
+  // Foreign Keys
+  categoryId String
+  userId     String
+
+  // Relations
+  category    ExpenseCategory     @relation(fields: [categoryId], references: [id])
+  user        User                @relation(fields: [userId], references: [id])
+  attachments ExpenseAttachment[] // Relation to new attachments model
+
+  @@map("expenses")
+}
+
+// NEW: Model for expense attachments (receipts, etc.)
+model ExpenseAttachment {
+  id        String   @id @default(uuid())
+  url       String // URL to the file in cloud storage (e.g., Neon/Supabase Storage)
+  fileName  String
+  fileType  String
+  createdAt DateTime @default(now())
+
+  // Relation to Expense
+  expenseId String
+  expense   Expense @relation(fields: [expenseId], references: [id])
+
+  @@map("expense_attachments")
+}
+
+model ExpenseCategory {
+  id       String    @id @default(uuid())
+  name     String    @unique
+  expenses Expense[]
+
+  @@map("expense_categories")
+}
+
+// --- OTHER TRANSACTION MODELS (No changes here) ---
+
+model Sale {
+  id            String        @id @default(uuid())
+  invoiceNumber String        @unique
+  totalAmount   Decimal       @db.Decimal(10, 2)
+  status        OrderStatus   @default(PENDING)
+  paymentStatus PaymentStatus @default(PENDING)
+  saleDate      DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  customerId    String
+  userId        String
+  items         SaleItem[]
+  customer      Customer      @relation(fields: [customerId], references: [id])
+  user          User          @relation(fields: [userId], references: [id])
+
+  @@map("sales")
+}
+
+model SaleItem {
+  id        String  @id @default(uuid())
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  saleId    String
+  productId String
+  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+
+  @@map("sale_items")
+}
+
+model PurchaseOrder {
+  id              String              @id @default(uuid())
+  referenceNumber String              @unique
+  totalAmount     Decimal             @db.Decimal(10, 2)
+  status          OrderStatus         @default(PENDING)
+  orderDate       DateTime            @default(now())
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  supplierId      String
+  userId          String
+  items           PurchaseOrderItem[]
+  supplier        Supplier            @relation(fields: [supplierId], references: [id])
+  user            User                @relation(fields: [userId], references: [id])
+
+  @@map("purchase_orders")
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(uuid())
+  quantity        Int
+  unitCost        Decimal       @db.Decimal(10, 2)
+  purchaseOrderId String
+  productId       String
+  product         Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  @@map("purchase_order_items")
+}
+
+model Quotation {
+  id              String          @id @default(uuid())
+  referenceNumber String          @unique
+  totalAmount     Decimal         @db.Decimal(10, 2)
+  status          OrderStatus     @default(PENDING)
+  quoteDate       DateTime        @default(now())
+  expiryDate      DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  customerId      String
+  userId          String
+  items           QuotationItem[]
+  customer        Customer        @relation(fields: [customerId], references: [id])
+  user            User            @relation(fields: [userId], references: [id])
+
+  @@map("quotations")
+}
+
+model QuotationItem {
+  id          String    @id @default(uuid())
+  quantity    Int
+  unitPrice   Decimal   @db.Decimal(10, 2)
+  quotationId String
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quotation   Quotation @relation(fields: [quotationId], references: [id], onDelete: Cascade)
+
+  @@map("quotation_items")
+}
+
+model SalesReturn {
+  id              String            @id @default(uuid())
+  referenceNumber String            @unique
+  totalAmount     Decimal           @db.Decimal(10, 2)
+  reason          String?
+  returnDate      DateTime          @default(now())
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+  userId          String
+  items           SalesReturnItem[]
+  user            User              @relation(fields: [userId], references: [id])
+
+  @@map("sales_returns")
+}
+
+model SalesReturnItem {
+  id            String      @id @default(uuid())
+  quantity      Int
+  unitPrice     Decimal     @db.Decimal(10, 2)
+  salesReturnId String
+  productId     String
+  product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  salesReturn   SalesReturn @relation(fields: [salesReturnId], references: [id], onDelete: Cascade)
+
+  @@map("sales_return_items")
+}
+
+// --- ENUMS ---
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  STAFF
+}
+
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  PARTIAL
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  DISCONTINUED
+}
+
+// NEW: Enum for Expense Status
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  PAID
+  REJECTED // Added for completeness
+}
+
+// NEW: Enum for Payment Methods
+enum PaymentMethod {
+  CASH
+  CREDIT_CARD
+  BANK_TRANSFER
+  CHECK
+}
