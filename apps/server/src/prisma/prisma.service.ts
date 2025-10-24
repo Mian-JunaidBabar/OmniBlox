@@ -9,14 +9,27 @@ export class PrismaService
   constructor() {
     // The 'super' call invokes the constructor of the PrismaClient.
     // We pass it a configuration object to override the default datasource URL.
-    super({
-      datasources: {
-        db: {
-          // Use the pooled connection string for the running application
-          url: process.env.DATABASE_URL_POOLED || process.env.DATABASE_URL,
+    const databaseUrl =
+      process.env.DATABASE_URL_POOLED || process.env.DATABASE_URL;
+
+    if (databaseUrl) {
+      // If a runtime database URL is available, pass it explicitly to Prisma.
+      super({
+        datasources: {
+          db: {
+            url: databaseUrl,
+          },
         },
-      },
-    });
+      });
+    } else {
+      // If no DB URL is provided, avoid passing `undefined` to PrismaClient.
+      // Let Prisma use its default behavior (read from `schema.prisma` env()).
+      console.warn(
+        '[PrismaService] No DATABASE_URL or DATABASE_URL_POOLED found; creating PrismaClient without explicit datasource override.',
+      );
+
+      super();
+    }
   }
 
   async onModuleInit() {
