@@ -103,7 +103,7 @@ export default function ProductsPage() {
           <h1 className="text-3xl font-semibold tracking-tight">Products</h1>
           <p className="text-sm text-muted-foreground">Manage your product inventory and pricing</p>
         </div>
-        <Link href="/dashboard/products/new">
+  <Link href="/products/new">
           <Button className="gap-2">
             <Plus className="h-4 w-4" />
             Add Product
@@ -196,7 +196,7 @@ export default function ProductsPage() {
                 <TableRow key={product.id}>
                   <TableCell className="font-mono text-xs">{product.sku}</TableCell>
                   <TableCell className="font-medium">
-                    <Link href={`/dashboard/products/${product.id}`} className="hover:underline">
+                    <Link href={`/products/${product.id}`} className="hover:underline">
                       {product.name}
                     </Link>
                   </TableCell>
@@ -224,13 +224,13 @@ export default function ProductsPage() {
                         <DropdownMenuLabel>Actions</DropdownMenuLabel>
                         <DropdownMenuSeparator />
                         <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/products/${product.id}`}>
+                          <Link href={`/products/${product.id}`}>
                             <Eye className="mr-2 h-4 w-4" />
                             View Details
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem asChild>
-                          <Link href={`/dashboard/products/${product.id}/edit`}>
+                          <Link href={`/products/${product.id}/edit`}>
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
                           </Link>

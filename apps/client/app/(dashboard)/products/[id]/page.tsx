@@ -95,7 +95,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
     <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard/products">
+          <Link href="/products">
             <Button variant="ghost" size="sm" className="gap-2">
               <ArrowLeft className="h-4 w-4" />
               Back to Products
@@ -107,7 +107,7 @@ export default function ProductDetailPage({ params }: { params: Promise<{ id: st
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Link href={`/dashboard/products/${productId}/edit`}>
+          <Link href={`/products/${productId}/edit`}>
             <Button variant="outline" className="gap-2">
               <Edit className="h-4 w-4" />
               Edit

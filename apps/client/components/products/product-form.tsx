@@ -134,7 +134,7 @@ export function ProductForm({ initialData, isEdit = false, productId, onSuccess 
       if (onSuccess) {
         onSuccess()
       } else {
-        router.push("/dashboard/products")
+        router.push("/products")
       }
     } catch (error: any) {
       toast({
@@ -343,7 +343,7 @@ export function ProductForm({ initialData, isEdit = false, productId, onSuccess 
                 : (isEdit ? "Update Product" : "Create Product")
               }
             </Button>
-            <Button type="button" variant="outline" onClick={() => router.push("/dashboard/products")}>
+            <Button type="button" variant="outline" onClick={() => router.push("/products")}>
               Cancel
             </Button>
           </div>

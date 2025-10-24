@@ -70,10 +70,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           try {
             const { user: validatedUser } = await api.validateToken();
             setUser({ ...validatedUser, permissions: ["all"] });
-          } catch (error) {
-            // Token is invalid, clear storage
-            TokenManager.clearTokens();
-            setUser(null);
+          } catch (error: any) {
+            // Only clear tokens on authentication errors (401/403)
+            const statusCode = error?.statusCode || error?.status;
+            if (statusCode === 401 || statusCode === 403) {
+              TokenManager.clearTokens();
+              setUser(null);
+            } else {
+              // For non-auth errors (e.g., network/5xx), keep local session and defer
+              setUser(storedUser as any);
+            }
           }
         }
       } catch (error) {

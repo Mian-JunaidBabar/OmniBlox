@@ -11,13 +11,13 @@ export default function NewProductPage() {
   const router = useRouter()
 
   const handleSuccess = () => {
-    router.push("/dashboard/products")
+    router.push("/products")
   }
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/dashboard/products">
+  <Link href="/products">
           <Button variant="ghost" size="sm" className="gap-2">
             <ArrowLeft className="h-4 w-4" />
             Back to Products

@@ -45,7 +45,7 @@ const columns: ColumnDef<Product>[] = [
       )
     },
     cell: ({ row }) => (
-      <Link href={`/dashboard/products/${row.original.id}`} className="font-mono text-sm font-medium hover:underline">
+      <Link href={`/products/${row.original.id}`} className="font-mono text-sm font-medium hover:underline">
         {row.getValue("sku")}
       </Link>
     ),
@@ -151,13 +151,13 @@ const columns: ColumnDef<Product>[] = [
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <Link href={`/dashboard/products/${product.id}`}>
+            <Link href={`/products/${product.id}`}>
               <DropdownMenuItem className="cursor-pointer">
                 <Eye className="mr-2 h-4 w-4" />
                 View
               </DropdownMenuItem>
             </Link>
-            <Link href={`/dashboard/products/${product.id}/edit`}>
+            <Link href={`/products/${product.id}/edit`}>
               <DropdownMenuItem className="cursor-pointer">
                 <Edit className="mr-2 h-4 w-4" />
                 Edit

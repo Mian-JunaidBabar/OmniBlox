@@ -30,7 +30,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
           description: error.message || "Failed to load product",
           variant: "destructive"
         })
-        router.push("/dashboard/products")
+        router.push("/products")
       } finally {
         setLoading(false)
       }
@@ -42,7 +42,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   }, [productId, getProduct, toast, router])
 
   const handleSuccess = () => {
-    router.push("/dashboard/products")
+    router.push("/products")
   }
 
   if (loading) {
@@ -57,7 +57,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
     return (
       <div className="p-6 space-y-6">
         <div className="flex items-center gap-4">
-          <Link href="/dashboard/products">
+          <Link href="/products">
             <Button variant="ghost" size="sm" className="gap-2">
               <ArrowLeft className="h-4 w-4" />
               Back to Products
@@ -75,7 +75,7 @@ export default function EditProductPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-4">
-        <Link href="/dashboard/products">
+        <Link href="/products">
           <Button variant="ghost" size="sm" className="gap-2">
             <ArrowLeft className="h-4 w-4" />
             Back to Products
