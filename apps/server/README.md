@@ -23,25 +23,68 @@
 
 ## Description
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+OmniBlox Server - NestJS backend API for the OmniBlox business management platform.
+
+## Prerequisites
+
+- Node.js 18+ and npm
+- PostgreSQL 14+ database
+- Git
 
 ## Project setup
 
+### 1. Install dependencies
+
 ```bash
-$ npm install
+npm install
+```
+
+### 2. Configure environment variables
+
+```bash
+# Copy the example environment file
+cp .env.example .env
+```
+
+Edit `.env` and configure your database connection:
+
+```env
+DATABASE_URL="postgresql://username:password@localhost:5432/omniblox?schema=public"
+```
+
+### 3. Set up the database
+
+```bash
+# Run migrations to create database tables
+npm run prisma:migrate
+
+# Generate Prisma client
+npm run prisma:generate
 ```
 
 ## Compile and run the project
 
 ```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
+# development (with hot reload)
+npm run start:dev
 
 # production mode
-$ npm run start:prod
+npm run start:prod
+```
+
+The server will start on `http://localhost:5000` by default (or the PORT specified in your `.env` file).
+
+## Database commands
+
+```bash
+# Create a new migration
+npm run prisma:migrate
+
+# Generate Prisma client after schema changes
+npm run prisma:generate
+
+# Reset database (WARNING: deletes all data)
+npm run prisma:reset
 ```
 
 ## Run tests

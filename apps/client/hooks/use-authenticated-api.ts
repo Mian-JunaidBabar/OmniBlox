@@ -35,7 +35,13 @@ export function useAuthenticatedApi() {
         }
       } catch (error: any) {
         // Handle authentication errors seamlessly
-        if (error.message === "Authentication failed" || error.status === 401) {
+        // Only redirect on 401/403 (auth errors), not on 404 (not found) or other errors
+        const statusCode = error.statusCode || error.status;
+        if (
+          error.message === "Authentication failed" ||
+          statusCode === 401 ||
+          statusCode === 403
+        ) {
           // Silently logout and redirect if authentication fails
           await logout();
           router.replace("/login");
