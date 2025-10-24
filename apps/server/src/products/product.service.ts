@@ -336,9 +336,14 @@ export class ProductService {
     }
 
     try {
-      await this.prisma.product.delete({
-        where: { id },
-      });
+      await this.prisma.$transaction([
+        this.prisma.inventory.deleteMany({
+          where: { productId: id },
+        }),
+        this.prisma.product.delete({
+          where: { id },
+        }),
+      ]);
     } catch (error) {
       throw new BadRequestException(
         'Failed to delete product. It may be referenced by other records.',

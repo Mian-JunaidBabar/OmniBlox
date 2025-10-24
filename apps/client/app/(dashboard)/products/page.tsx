@@ -341,7 +341,7 @@ export default function ProductsPage() {
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
                               <AlertDialogAction
                                 onClick={() => handleDeleteProduct(product.id)}
-                                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                className="bg-destructive text-white hover:bg-destructive/90"
                               >
                                 Delete Product
                               </AlertDialogAction>
