@@ -8,7 +8,7 @@ import React, {
   type ReactNode,
 } from "react";
 import { useRouter, usePathname } from "next/navigation";
-import { api, TokenManager, User as ApiUser, ApiError } from "@/lib/api";
+import { api, TokenManager, User as ApiUser } from "@/lib/api";
 
 type User = ApiUser & {
   permissions?: string[];
@@ -64,8 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         const storedUser = TokenManager.getUser();
         const accessToken = TokenManager.getAccessToken();
+        const refreshToken = TokenManager.getRefreshToken();
 
-        if (storedUser && accessToken) {
+        if (storedUser && accessToken && refreshToken) {
           // Validate token with backend
           try {
             const { user: validatedUser } = await api.validateToken();
@@ -81,6 +82,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               setUser(storedUser as any);
             }
           }
+        } else {
+          TokenManager.clearTokens();
+          setUser(null);
         }
       } catch (error) {
         console.error("Auth initialization error:", error);
@@ -147,17 +151,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async (): Promise<void> => {
+    setIsLoading(true);
+
     try {
-      setIsLoading(true);
       await api.logout();
-      setUser(null);
-      router.push("/login");
     } catch (error) {
-      // Even if logout fails on backend, clear local state
+      console.error("Logout request failed:", error);
+    } finally {
       TokenManager.clearTokens();
       setUser(null);
       router.push("/login");
-    } finally {
       setIsLoading(false);
     }
   };

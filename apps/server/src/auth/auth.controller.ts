@@ -39,9 +39,9 @@ export class AuthController {
   }
 
   @Post('refresh')
-  @UseGuards(JwtAuthGuard)
-  async refreshToken(@Req() req: any) {
-    return this.authService.refreshToken(req.user.id);
+  @HttpCode(HttpStatus.OK)
+  async refreshToken(@Body('refreshToken') refreshToken: string) {
+    return this.authService.refreshToken(refreshToken);
   }
 
   @Put('profile')

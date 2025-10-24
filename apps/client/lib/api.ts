@@ -118,8 +118,8 @@ class ApiClient {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${TokenManager.getAccessToken()}`,
         },
+        body: JSON.stringify({ refreshToken }),
       });
 
       if (!response.ok) {

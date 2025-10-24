@@ -4,7 +4,7 @@ import {
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
@@ -75,28 +75,7 @@ export class AuthService {
     }
 
     // Generate JWT tokens
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      workspaceUrl: user.workspaceUrl,
-    } as any;
-
-    const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
-
-    return {
-      accessToken,
-      refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        companyName: user.companyName,
-        workspaceUrl: user.workspaceUrl,
-      },
-    };
+    return this.buildAuthResponse(user);
   }
 
   async login(loginDto: LoginDto) {
@@ -122,28 +101,7 @@ export class AuthService {
     }
 
     // Generate JWT tokens
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      workspaceUrl: user.workspaceUrl,
-    } as any;
-
-    const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
-
-    return {
-      accessToken,
-      refreshToken,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        companyName: user.companyName,
-        workspaceUrl: user.workspaceUrl,
-      },
-    };
+    return this.buildAuthResponse(user);
   }
 
   async validateUser(userId: string) {
@@ -165,24 +123,24 @@ export class AuthService {
     } as any;
   }
 
-  async refreshToken(userId: string) {
-    const user = await this.validateUser(userId);
+  async refreshToken(refreshToken: string) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
 
-    const payload = {
-      sub: user.id,
-      email: user.email,
-      role: user.role,
-      workspaceUrl: user.workspaceUrl,
-    };
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret:
+          process.env.JWT_REFRESH_SECRET ||
+          process.env.JWT_SECRET ||
+          'your-secret-key-change-in-production',
+      }) as any;
 
-    const accessToken = this.jwtService.sign(payload);
-    const refreshToken = this.jwtService.sign(payload, { expiresIn: '7d' });
-
-    return {
-      accessToken,
-      refreshToken,
-      user,
-    };
+      const user = await this.validateUser(payload.sub);
+      return this.buildAuthResponse(user as any);
+    } catch (error) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
   }
 
   async getUserById(userId: string) {
@@ -235,5 +193,40 @@ export class AuthService {
     });
 
     return { message: 'Password updated successfully' };
+  }
+
+  private buildAuthResponse(user: any) {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      workspaceUrl: user.workspaceUrl,
+    } as any;
+
+    const accessToken = this.jwtService.sign(payload, {
+      secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+      expiresIn: (process.env.JWT_EXPIRES_IN as any) || '15m',
+    } as JwtSignOptions);
+
+    const refreshToken = this.jwtService.sign(payload, {
+      secret:
+        process.env.JWT_REFRESH_SECRET ||
+        process.env.JWT_SECRET ||
+        'your-secret-key-change-in-production',
+      expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN as any) || '7d',
+    } as JwtSignOptions);
+
+    return {
+      accessToken,
+      refreshToken,
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        companyName: user.companyName,
+        workspaceUrl: user.workspaceUrl,
+      },
+    };
   }
 }
