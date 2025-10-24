@@ -7,6 +7,25 @@ export function middleware(req: NextRequest) {
     const url = req.nextUrl.clone();
     const path = url.pathname;
 
+    // Skip non-HTML requests and all framework/static assets to avoid interfering with HMR and static files
+    const accept = req.headers.get("accept") || "";
+    const isHtml = accept.includes("text/html");
+    const isAsset =
+      path.startsWith("/_next") ||
+      path.startsWith("/api") ||
+      path.startsWith("/favicon.ico") ||
+      path.startsWith("/static") ||
+      /\.[\w.-]+$/.test(path); // any file with extension (css/js/png/etc)
+
+    if (
+      !isHtml ||
+      isAsset ||
+      req.method === "HEAD" ||
+      req.method === "OPTIONS"
+    ) {
+      return NextResponse.next();
+    }
+
     const hasCookie = req.cookies.get("omniblox_logged_in")?.value === "1";
 
     if (hasCookie) {
@@ -32,6 +51,7 @@ export const config = {
     "/login",
     "/signup",
     "/forgot-password",
-    "/((?!api|_next|static).*)",
+    // Exclude all Next.js internals and static assets explicitly
+    "/((?!api|_next/static|_next/image|_next/webpack-hmr|_next/flight|favicon.ico|robots.txt|sitemap.xml|site.webmanifest|static).*)",
   ],
 };
