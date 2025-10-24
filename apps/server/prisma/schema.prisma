@@ -72,7 +72,7 @@ model User {
 model Customer {
   id        String   @id @default(uuid())
   name      String
-  email     String?  @unique
+  email     String?
   phone     String?
   address   String?
   createdAt DateTime @default(now())
@@ -86,13 +86,14 @@ model Customer {
   quotations Quotation[]
   sales      Sale[]
 
+  @@unique([companyId, email]) // Email unique per company
   @@map("customers")
 }
 
 model Supplier {
   id        String   @id @default(uuid())
   name      String
-  email     String?  @unique
+  email     String?
   phone     String?
   address   String?
   createdAt DateTime @default(now())
@@ -105,6 +106,7 @@ model Supplier {
   // Relations
   purchaseOrders PurchaseOrder[]
 
+  @@unique([companyId, email]) // Email unique per company
   @@map("suppliers")
 }
 
@@ -206,7 +208,7 @@ model Inventory {
 
 model StockAdjustment {
   id              String   @id @default(uuid())
-  referenceNumber String   @unique
+  referenceNumber String
   adjustmentDate  DateTime @default(now())
   notes           String?
   totalItems      Int      @default(0)
@@ -223,6 +225,7 @@ model StockAdjustment {
   user   User                 @relation(fields: [userId], references: [id])
   items  StockAdjustmentItem[]
 
+  @@unique([companyId, referenceNumber]) // Reference number unique per company
   @@map("stock_adjustments")
 }
 
@@ -305,7 +308,7 @@ model ExpenseCategory {
 
 model Sale {
   id            String         @id @default(uuid())
-  invoiceNumber String         @unique
+  invoiceNumber String
   subtotal      Decimal        @db.Decimal(10, 2)
   tax           Decimal        @db.Decimal(10, 2) @default(0)
   discount      Decimal        @db.Decimal(10, 2) @default(0)
@@ -333,6 +336,7 @@ model Sale {
   customer Customer @relation(fields: [customerId], references: [id])
   user     User     @relation(fields: [userId], references: [id])
 
+  @@unique([companyId, invoiceNumber]) // Invoice number unique per company
   @@map("sales")
 }
 
@@ -350,7 +354,7 @@ model SaleItem {
 
 model PurchaseOrder {
   id              String              @id @default(uuid())
-  referenceNumber String              @unique
+  referenceNumber String
   totalAmount     Decimal             @db.Decimal(10, 2)
   status          OrderStatus         @default(PENDING)
   orderDate       DateTime            @default(now())
@@ -370,6 +374,7 @@ model PurchaseOrder {
   supplier Supplier            @relation(fields: [supplierId], references: [id])
   user     User                @relation(fields: [userId], references: [id])
 
+  @@unique([companyId, referenceNumber]) // Reference number unique per company
   @@map("purchase_orders")
 }
 
@@ -387,7 +392,7 @@ model PurchaseOrderItem {
 
 model Quotation {
   id              String          @id @default(uuid())
-  referenceNumber String          @unique
+  referenceNumber String
   totalAmount     Decimal         @db.Decimal(10, 2)
   status          OrderStatus     @default(PENDING)
   quoteDate       DateTime        @default(now())
@@ -408,6 +413,7 @@ model Quotation {
   customer Customer        @relation(fields: [customerId], references: [id])
   user     User            @relation(fields: [userId], references: [id])
 
+  @@unique([companyId, referenceNumber]) // Reference number unique per company
   @@map("quotations")
 }
 
@@ -425,7 +431,7 @@ model QuotationItem {
 
 model SalesReturn {
   id              String            @id @default(uuid())
-  referenceNumber String            @unique
+  referenceNumber String
   totalAmount     Decimal           @db.Decimal(10, 2)
   reason          String?
   returnDate      DateTime          @default(now())
@@ -443,6 +449,7 @@ model SalesReturn {
   items SalesReturnItem[]
   user  User              @relation(fields: [userId], references: [id])
 
+  @@unique([companyId, referenceNumber]) // Reference number unique per company
   @@map("sales_returns")
 }
 

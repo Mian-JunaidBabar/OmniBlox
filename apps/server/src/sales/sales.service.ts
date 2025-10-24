@@ -180,8 +180,10 @@ export class SalesService {
         if (dto.invoiceNumber && dto.invoiceNumber !== existing.invoiceNumber) {
           const duplicate = await tx.sale.findUnique({
             where: {
-              invoiceNumber: dto.invoiceNumber,
-              companyId,
+              companyId_invoiceNumber: {
+                companyId,
+                invoiceNumber: dto.invoiceNumber,
+              },
             },
             select: { id: true },
           });
@@ -408,8 +410,10 @@ export class SalesService {
     if (invoiceNumber) {
       const existing = await tx.sale.findUnique({
         where: {
-          invoiceNumber,
-          companyId,
+          companyId_invoiceNumber: {
+            companyId,
+            invoiceNumber,
+          },
         },
         select: { id: true },
       });
@@ -517,7 +521,12 @@ export class SalesService {
 
     if (normalized.email) {
       const existing = await tx.customer.findUnique({
-        where: { email: normalized.email, companyId },
+        where: {
+          companyId_email: {
+            companyId,
+            email: normalized.email,
+          },
+        },
       });
       if (existing) {
         const updates = this.buildCustomerUpdates(normalized, existing);
