@@ -1,37 +1,74 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft, Save, Plus, Trash2 } from "lucide-react"
-import Link from "next/link"
-import { mockProducts } from "@/lib/mock-data"
-import { useRouter } from "next/navigation"
+import { useEffect, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ArrowLeft, Save, Plus, Trash2 } from "lucide-react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useProductApi } from "@/hooks/use-product-api";
+import type { Product } from "@/lib/types";
 
 type PurchaseItem = {
-  id: string
-  productId: string
-  productName: string
-  quantity: number
-  cost: number
-  total: number
-}
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  cost: number;
+  total: number;
+};
 
 export default function NewPurchasePage() {
-  const router = useRouter()
+  const router = useRouter();
+  const { getProducts } = useProductApi();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     supplierName: "",
     date: new Date().toISOString().split("T")[0],
     dueDate: "",
     status: "draft",
-  })
-  const [items, setItems] = useState<PurchaseItem[]>([])
-  const [taxRate, setTaxRate] = useState(10)
+  });
+  const [items, setItems] = useState<PurchaseItem[]>([]);
+  const [taxRate, setTaxRate] = useState(10);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        setLoadingProducts(true);
+        setLoadError(null);
+        const { products: list } = await getProducts({ page: 1, limit: 200 });
+        if (!cancelled) setProducts(list || []);
+      } catch (e: any) {
+        if (!cancelled) setLoadError(e?.message || "Failed to load products");
+      } finally {
+        if (!cancelled) setLoadingProducts(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [getProducts]);
 
   const addItem = () => {
     setItems([
@@ -44,44 +81,48 @@ export default function NewPurchasePage() {
         cost: 0,
         total: 0,
       },
-    ])
-  }
+    ]);
+  };
 
   const removeItem = (id: string) => {
-    setItems(items.filter((item) => item.id !== id))
-  }
+    setItems(items.filter((item) => item.id !== id));
+  };
 
   const updateItem = (id: string, field: keyof PurchaseItem, value: any) => {
     setItems(
       items.map((item) => {
         if (item.id === id) {
-          const updated = { ...item, [field]: value }
+          const updated = { ...item, [field]: value };
           if (field === "productId") {
-            const product = mockProducts.find((p) => p.id === value)
+            const product = products.find((p) => p.id === value);
             if (product) {
-              updated.productName = product.name
-              updated.cost = product.cost
+              updated.productName = product.name;
+              updated.cost = product.costPrice;
             }
           }
-          if (field === "quantity" || field === "cost" || field === "productId") {
-            updated.total = updated.quantity * updated.cost
+          if (
+            field === "quantity" ||
+            field === "cost" ||
+            field === "productId"
+          ) {
+            updated.total = updated.quantity * updated.cost;
           }
-          return updated
+          return updated;
         }
-        return item
-      }),
-    )
-  }
+        return item;
+      })
+    );
+  };
 
-  const subtotal = items.reduce((sum, item) => sum + item.total, 0)
-  const tax = (subtotal * taxRate) / 100
-  const total = subtotal + tax
+  const subtotal = items.reduce((sum, item) => sum + item.total, 0);
+  const tax = (subtotal * taxRate) / 100;
+  const total = subtotal + tax;
 
   const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    console.log("Saving purchase:", { formData, items, subtotal, tax, total })
-    router.push("/purchases")
-  }
+    e.preventDefault();
+    console.log("Saving purchase:", { formData, items, subtotal, tax, total });
+    router.push("/purchases");
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -92,8 +133,12 @@ export default function NewPurchasePage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">New Purchase</h1>
-          <p className="text-sm text-muted-foreground">Create a new purchase order</p>
+          <h1 className="text-3xl font-semibold tracking-tight">
+            New Purchase
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Create a new purchase order
+          </p>
         </div>
       </div>
 
@@ -103,7 +148,9 @@ export default function NewPurchasePage() {
             <Card>
               <CardHeader>
                 <CardTitle>Supplier Information</CardTitle>
-                <CardDescription>Enter supplier and order details</CardDescription>
+                <CardDescription>
+                  Enter supplier and order details
+                </CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-4 md:grid-cols-2">
@@ -113,7 +160,12 @@ export default function NewPurchasePage() {
                       id="supplierName"
                       placeholder="Enter supplier name"
                       value={formData.supplierName}
-                      onChange={(e) => setFormData({ ...formData, supplierName: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({
+                          ...formData,
+                          supplierName: e.target.value,
+                        })
+                      }
                       required
                     />
                   </div>
@@ -121,7 +173,9 @@ export default function NewPurchasePage() {
                     <Label htmlFor="status">Status</Label>
                     <Select
                       value={formData.status}
-                      onValueChange={(value) => setFormData({ ...formData, status: value })}
+                      onValueChange={(value) =>
+                        setFormData({ ...formData, status: value })
+                      }
                     >
                       <SelectTrigger>
                         <SelectValue />
@@ -142,7 +196,9 @@ export default function NewPurchasePage() {
                       id="date"
                       type="date"
                       value={formData.date}
-                      onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, date: e.target.value })
+                      }
                       required
                     />
                   </div>
@@ -152,7 +208,9 @@ export default function NewPurchasePage() {
                       id="dueDate"
                       type="date"
                       value={formData.dueDate}
-                      onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                      onChange={(e) =>
+                        setFormData({ ...formData, dueDate: e.target.value })
+                      }
                       required
                     />
                   </div>
@@ -165,9 +223,16 @@ export default function NewPurchasePage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>Order Items</CardTitle>
-                    <CardDescription>Add products to this purchase order</CardDescription>
+                    <CardDescription>
+                      Add products to this purchase order
+                    </CardDescription>
                   </div>
-                  <Button type="button" onClick={addItem} size="sm" className="gap-2">
+                  <Button
+                    type="button"
+                    onClick={addItem}
+                    size="sm"
+                    className="gap-2"
+                  >
                     <Plus className="h-4 w-4" />
                     Add Item
                   </Button>
@@ -181,24 +246,51 @@ export default function NewPurchasePage() {
                     </p>
                   ) : (
                     items.map((item) => (
-                      <div key={item.id} className="border border-border rounded-lg p-4 space-y-4">
+                      <div
+                        key={item.id}
+                        className="border border-border rounded-lg p-4 space-y-4"
+                      >
                         <div className="flex items-start justify-between">
                           <div className="flex-1 grid gap-4 md:grid-cols-4">
                             <div className="space-y-2">
                               <Label>Product</Label>
                               <Select
                                 value={item.productId}
-                                onValueChange={(value) => updateItem(item.id, "productId", value)}
+                                onValueChange={(value) =>
+                                  updateItem(item.id, "productId", value)
+                                }
                               >
                                 <SelectTrigger>
                                   <SelectValue placeholder="Select product" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {mockProducts.map((product) => (
-                                    <SelectItem key={product.id} value={product.id}>
-                                      {product.name}
+                                  {loadingProducts && (
+                                    <SelectItem value="" disabled>
+                                      Loading products...
                                     </SelectItem>
-                                  ))}
+                                  )}
+                                  {!loadingProducts && loadError && (
+                                    <SelectItem value="" disabled>
+                                      {loadError}
+                                    </SelectItem>
+                                  )}
+                                  {!loadingProducts &&
+                                    !loadError &&
+                                    products.length === 0 && (
+                                      <SelectItem value="" disabled>
+                                        No products available
+                                      </SelectItem>
+                                    )}
+                                  {!loadingProducts &&
+                                    !loadError &&
+                                    products.map((product) => (
+                                      <SelectItem
+                                        key={product.id}
+                                        value={product.id}
+                                      >
+                                        {product.name}
+                                      </SelectItem>
+                                    ))}
                                 </SelectContent>
                               </Select>
                             </div>
@@ -208,7 +300,13 @@ export default function NewPurchasePage() {
                                 type="number"
                                 min="1"
                                 value={item.quantity}
-                                onChange={(e) => updateItem(item.id, "quantity", Number(e.target.value))}
+                                onChange={(e) =>
+                                  updateItem(
+                                    item.id,
+                                    "quantity",
+                                    Number(e.target.value)
+                                  )
+                                }
                               />
                             </div>
                             <div className="space-y-2">
@@ -217,12 +315,21 @@ export default function NewPurchasePage() {
                                 type="number"
                                 step="0.01"
                                 value={item.cost}
-                                onChange={(e) => updateItem(item.id, "cost", Number(e.target.value))}
+                                onChange={(e) =>
+                                  updateItem(
+                                    item.id,
+                                    "cost",
+                                    Number(e.target.value)
+                                  )
+                                }
                               />
                             </div>
                             <div className="space-y-2">
                               <Label>Total</Label>
-                              <Input value={`$${item.total.toFixed(2)}`} disabled />
+                              <Input
+                                value={`$${item.total.toFixed(2)}`}
+                                disabled
+                              />
                             </div>
                           </div>
                           <Button
@@ -269,7 +376,9 @@ export default function NewPurchasePage() {
                 <div className="border-t border-border pt-4">
                   <div className="flex justify-between">
                     <span className="font-semibold">Total</span>
-                    <span className="text-2xl font-semibold">${total.toFixed(2)}</span>
+                    <span className="text-2xl font-semibold">
+                      ${total.toFixed(2)}
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -286,18 +395,28 @@ export default function NewPurchasePage() {
                 </div>
                 <div>
                   <p className="text-sm font-medium">Total Units</p>
-                  <p className="text-2xl font-semibold">{items.reduce((sum, item) => sum + item.quantity, 0)}</p>
+                  <p className="text-2xl font-semibold">
+                    {items.reduce((sum, item) => sum + item.quantity, 0)}
+                  </p>
                 </div>
               </CardContent>
             </Card>
 
             <div className="flex flex-col gap-2">
-              <Button type="submit" disabled={items.length === 0} className="gap-2">
+              <Button
+                type="submit"
+                disabled={items.length === 0}
+                className="gap-2"
+              >
                 <Save className="h-4 w-4" />
                 Save Purchase
               </Button>
               <Link href="/purchases">
-                <Button type="button" variant="outline" className="w-full bg-transparent">
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full bg-transparent"
+                >
                   Cancel
                 </Button>
               </Link>
@@ -306,5 +425,5 @@ export default function NewPurchasePage() {
         </div>
       </form>
     </div>
-  )
+  );
 }

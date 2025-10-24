@@ -1,60 +1,104 @@
-"use client"
+"use client";
 
-import type React from "react"
+import type React from "react";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Plus, Trash2, AlertCircle } from "lucide-react"
-import { mockProducts } from "@/lib/mock-data"
-import { Alert, AlertDescription } from "@/components/ui/alert"
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Plus, Trash2, AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { useProductApi } from "@/hooks/use-product-api";
+import type { Product } from "@/lib/types";
 
 interface InvoiceLineItem {
-  id: string
-  productId: string
-  productName: string
-  quantity: number
-  price: number
-  total: number
-  availableStock: number
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  price: number;
+  total: number;
+  availableStock: number;
 }
 
 export function InvoiceForm() {
-  const router = useRouter()
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [lineItems, setLineItems] = useState<InvoiceLineItem[]>([])
-  const [selectedProduct, setSelectedProduct] = useState("")
-  const [quantity, setQuantity] = useState(1)
+  const router = useRouter();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [lineItems, setLineItems] = useState<InvoiceLineItem[]>([]);
+  const [selectedProduct, setSelectedProduct] = useState("");
+  const [quantity, setQuantity] = useState(1);
+  const { getProducts } = useProductApi();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        setLoadingProducts(true);
+        setLoadError(null);
+        const { products: list } = await getProducts({ page: 1, limit: 100 });
+        if (!cancelled) setProducts(list || []);
+      } catch (e: any) {
+        if (!cancelled) setLoadError(e?.message || "Failed to load products");
+      } finally {
+        if (!cancelled) setLoadingProducts(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [getProducts]);
 
   const addLineItem = () => {
-    if (!selectedProduct) return
+    if (!selectedProduct) return;
 
-    const product = mockProducts.find((p) => p.id === selectedProduct)
-    if (!product) return
+    const product = products.find((p) => p.id === selectedProduct);
+    if (!product) return;
 
     const newItem: InvoiceLineItem = {
       id: Math.random().toString(),
       productId: product.id,
       productName: product.name,
       quantity,
-      price: product.price,
-      total: product.price * quantity,
+      price: product.salePrice,
+      total: product.salePrice * quantity,
       availableStock: product.stock,
-    }
+    };
 
-    setLineItems([...lineItems, newItem])
-    setSelectedProduct("")
-    setQuantity(1)
-  }
+    setLineItems([...lineItems, newItem]);
+    setSelectedProduct("");
+    setQuantity(1);
+  };
 
   const removeLineItem = (id: string) => {
-    setLineItems(lineItems.filter((item) => item.id !== id))
-  }
+    setLineItems(lineItems.filter((item) => item.id !== id));
+  };
 
   const updateQuantity = (id: string, newQuantity: number) => {
     setLineItems(
@@ -64,28 +108,30 @@ export function InvoiceForm() {
             ...item,
             quantity: newQuantity,
             total: item.price * newQuantity,
-          }
+          };
         }
-        return item
-      }),
-    )
-  }
+        return item;
+      })
+    );
+  };
 
-  const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0)
-  const taxRate = 0.1
-  const tax = subtotal * taxRate
-  const total = subtotal + tax
+  const subtotal = lineItems.reduce((sum, item) => sum + item.total, 0);
+  const taxRate = 0.1;
+  const tax = subtotal * taxRate;
+  const total = subtotal + tax;
 
-  const hasStockIssues = lineItems.some((item) => item.quantity > item.availableStock)
+  const hasStockIssues = lineItems.some(
+    (item) => item.quantity > item.availableStock
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (hasStockIssues) return
+    e.preventDefault();
+    if (hasStockIssues) return;
 
-    setIsSubmitting(true)
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    router.push("/sales")
-  }
+    setIsSubmitting(true);
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    router.push("/sales");
+  };
 
   return (
     <form onSubmit={handleSubmit}>
@@ -100,7 +146,11 @@ export function InvoiceForm() {
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="customer">Customer Name</Label>
-                  <Input id="customer" placeholder="Enter customer name" required />
+                  <Input
+                    id="customer"
+                    placeholder="Enter customer name"
+                    required
+                  />
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="invoiceNumber">Invoice Number</Label>
@@ -129,16 +179,39 @@ export function InvoiceForm() {
             <CardContent className="space-y-4">
               <div className="flex gap-2">
                 <div className="flex-1">
-                  <Select value={selectedProduct} onValueChange={setSelectedProduct}>
+                  <Select
+                    value={selectedProduct}
+                    onValueChange={setSelectedProduct}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Select product" />
                     </SelectTrigger>
                     <SelectContent>
-                      {mockProducts.map((product) => (
-                        <SelectItem key={product.id} value={product.id}>
-                          {product.name} - ${product.price} (Stock: {product.stock})
+                      {loadingProducts && (
+                        <SelectItem value="" disabled>
+                          Loading products...
                         </SelectItem>
-                      ))}
+                      )}
+                      {!loadingProducts && loadError && (
+                        <SelectItem value="" disabled>
+                          {loadError}
+                        </SelectItem>
+                      )}
+                      {!loadingProducts &&
+                        !loadError &&
+                        products.length === 0 && (
+                          <SelectItem value="" disabled>
+                            No products available
+                          </SelectItem>
+                        )}
+                      {!loadingProducts &&
+                        !loadError &&
+                        products.map((product) => (
+                          <SelectItem key={product.id} value={product.id}>
+                            {product.name} - ${product.salePrice} (Stock:{" "}
+                            {product.stock})
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
@@ -146,11 +219,17 @@ export function InvoiceForm() {
                   type="number"
                   min="1"
                   value={quantity}
-                  onChange={(e) => setQuantity(Number.parseInt(e.target.value) || 1)}
+                  onChange={(e) =>
+                    setQuantity(Number.parseInt(e.target.value) || 1)
+                  }
                   className="w-24"
                   placeholder="Qty"
                 />
-                <Button type="button" onClick={addLineItem} disabled={!selectedProduct}>
+                <Button
+                  type="button"
+                  onClick={addLineItem}
+                  disabled={!selectedProduct}
+                >
                   <Plus className="h-4 w-4" />
                 </Button>
               </div>
@@ -159,7 +238,8 @@ export function InvoiceForm() {
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>
-                    Some items exceed available stock. Please adjust quantities before saving.
+                    Some items exceed available stock. Please adjust quantities
+                    before saving.
                   </AlertDescription>
                 </Alert>
               )}
@@ -178,15 +258,22 @@ export function InvoiceForm() {
                     </TableHeader>
                     <TableBody>
                       {lineItems.map((item) => {
-                        const exceedsStock = item.quantity > item.availableStock
+                        const exceedsStock =
+                          item.quantity > item.availableStock;
                         return (
-                          <TableRow key={item.id} className={exceedsStock ? "bg-destructive/10" : ""}>
+                          <TableRow
+                            key={item.id}
+                            className={exceedsStock ? "bg-destructive/10" : ""}
+                          >
                             <TableCell>
                               <div>
-                                <div className="font-medium">{item.productName}</div>
+                                <div className="font-medium">
+                                  {item.productName}
+                                </div>
                                 {exceedsStock && (
                                   <div className="text-xs text-destructive">
-                                    Only {item.availableStock} available in stock
+                                    Only {item.availableStock} available in
+                                    stock
                                   </div>
                                 )}
                               </div>
@@ -196,26 +283,44 @@ export function InvoiceForm() {
                                 type="number"
                                 min="1"
                                 value={item.quantity}
-                                onChange={(e) => updateQuantity(item.id, Number.parseInt(e.target.value) || 1)}
-                                className={exceedsStock ? "border-destructive" : ""}
+                                onChange={(e) =>
+                                  updateQuantity(
+                                    item.id,
+                                    Number.parseInt(e.target.value) || 1
+                                  )
+                                }
+                                className={
+                                  exceedsStock ? "border-destructive" : ""
+                                }
                               />
                             </TableCell>
-                            <TableCell className="text-right">${item.price.toFixed(2)}</TableCell>
-                            <TableCell className="text-right font-medium">${item.total.toFixed(2)}</TableCell>
+                            <TableCell className="text-right">
+                              ${item.price.toFixed(2)}
+                            </TableCell>
+                            <TableCell className="text-right font-medium">
+                              ${item.total.toFixed(2)}
+                            </TableCell>
                             <TableCell>
-                              <Button type="button" variant="ghost" size="sm" onClick={() => removeLineItem(item.id)}>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => removeLineItem(item.id)}
+                              >
                                 <Trash2 className="h-4 w-4 text-destructive" />
                               </Button>
                             </TableCell>
                           </TableRow>
-                        )
+                        );
                       })}
                     </TableBody>
                   </Table>
                 </div>
               ) : (
                 <div className="flex h-32 items-center justify-center rounded-md border border-dashed">
-                  <p className="text-sm text-muted-foreground">No items added yet</p>
+                  <p className="text-sm text-muted-foreground">
+                    No items added yet
+                  </p>
                 </div>
               )}
             </CardContent>
@@ -240,7 +345,9 @@ export function InvoiceForm() {
               <div className="border-t pt-4">
                 <div className="flex justify-between">
                   <span className="font-semibold">Total</span>
-                  <span className="text-2xl font-semibold">${total.toFixed(2)}</span>
+                  <span className="text-2xl font-semibold">
+                    ${total.toFixed(2)}
+                  </span>
                 </div>
               </div>
             </CardContent>
@@ -266,15 +373,24 @@ export function InvoiceForm() {
           </Card>
 
           <div className="flex flex-col gap-2">
-            <Button type="submit" disabled={isSubmitting || lineItems.length === 0 || hasStockIssues}>
+            <Button
+              type="submit"
+              disabled={
+                isSubmitting || lineItems.length === 0 || hasStockIssues
+              }
+            >
               {isSubmitting ? "Creating..." : "Create Invoice"}
             </Button>
-            <Button type="button" variant="outline" onClick={() => router.push("/sales")}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => router.push("/sales")}
+            >
               Cancel
             </Button>
           </div>
         </div>
       </div>
     </form>
-  )
+  );
 }

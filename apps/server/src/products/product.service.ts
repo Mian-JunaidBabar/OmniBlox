@@ -493,22 +493,24 @@ export class ProductService {
     });
 
     const totalProducts = products.length;
-    const { lowStockCount, totalValue } = products.reduce(
-      (acc, product) => {
-        const totalStock = product.inventory.reduce(
-          (sum, inv) => sum + inv.quantity,
-          0,
-        );
+    let totalValue = 0;
+    let lowStockCount = 0;
 
-        if (totalStock <= product.reorderLevel) {
-          acc.lowStockCount += 1;
-        }
+    for (const product of products) {
+      // Calculate total stock across all warehouses for this product
+      const totalStock = product.inventory.reduce(
+        (sum, inv) => sum + inv.quantity,
+        0,
+      );
 
-        acc.totalValue += Number(product.salePrice) * totalStock;
-        return acc;
-      },
-      { lowStockCount: 0, totalValue: 0 },
-    );
+      if (totalStock <= product.reorderLevel) {
+        lowStockCount += 1;
+      }
+
+      // Calculate inventory value at retail price (salePrice × total stock)
+      const productValue = Number(product.salePrice) * totalStock;
+      totalValue += productValue;
+    }
 
     const categoriesCount = await this.prisma.productCategory.count();
 

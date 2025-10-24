@@ -1,10 +1,29 @@
-"use client"
+"use client";
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { mockProducts, mockInvoices } from "@/lib/mock-data"
-import { DollarSign, Package, ShoppingCart, TrendingUp, TrendingDown } from "lucide-react"
+import { useEffect, useMemo, useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { mockInvoices } from "@/lib/mock-data";
+import {
+  DollarSign,
+  Package,
+  ShoppingCart,
+  TrendingUp,
+  TrendingDown,
+} from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -18,26 +37,84 @@ import {
   YAxis,
   CartesianGrid,
   Legend,
-} from "recharts"
-import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart"
+} from "recharts";
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from "@/components/ui/chart";
+import { useProductApi } from "@/hooks/use-product-api";
+import type { Product } from "@/lib/types";
 
 export function ReportsDashboard() {
+  const { getProducts } = useProductApi();
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      try {
+        setLoading(true);
+        setError(null);
+        const { products: list } = await getProducts({ page: 1, limit: 500 });
+        if (!cancelled) setProducts(list || []);
+      } catch (e: any) {
+        if (!cancelled) setError(e?.message || "Failed to load products");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, [getProducts]);
+
   // Calculate metrics
-  const totalRevenue = mockInvoices.reduce((sum, inv) => sum + inv.total, 0)
-  const paidRevenue = mockInvoices.filter((inv) => inv.status === "paid").reduce((sum, inv) => sum + inv.total, 0)
-  const pendingRevenue = mockInvoices.filter((inv) => inv.status === "pending").reduce((sum, inv) => sum + inv.total, 0)
-  const totalOrders = mockInvoices.length
-  const totalProducts = mockProducts.length
-  const totalStock = mockProducts.reduce((sum, p) => sum + p.stock, 0)
-  const stockValue = mockProducts.reduce((sum, p) => sum + p.stock * p.cost, 0)
+  const totalRevenue = mockInvoices.reduce((sum, inv) => sum + inv.total, 0);
+  const paidRevenue = mockInvoices
+    .filter((inv) => inv.status === "paid")
+    .reduce((sum, inv) => sum + inv.total, 0);
+  const pendingRevenue = mockInvoices
+    .filter((inv) => inv.status === "pending")
+    .reduce((sum, inv) => sum + inv.total, 0);
+  const totalOrders = mockInvoices.length;
+  const totalProducts = products.length;
+  const totalStock = useMemo(
+    () => products.reduce((sum, p) => sum + (p.stock || 0), 0),
+    [products]
+  );
+  const stockValue = useMemo(
+    () =>
+      products.reduce((sum, p) => sum + (p.stock || 0) * (p.costPrice || 0), 0),
+    [products]
+  );
 
   // Sales by status
   const salesByStatus = [
-    { name: "Paid", value: mockInvoices.filter((i) => i.status === "paid").length, fill: "hsl(var(--chart-1))" },
-    { name: "Pending", value: mockInvoices.filter((i) => i.status === "pending").length, fill: "hsl(var(--chart-2))" },
-    { name: "Overdue", value: mockInvoices.filter((i) => i.status === "overdue").length, fill: "hsl(var(--chart-3))" },
-    { name: "Draft", value: mockInvoices.filter((i) => i.status === "draft").length, fill: "hsl(var(--chart-4))" },
-  ]
+    {
+      name: "Paid",
+      value: mockInvoices.filter((i) => i.status === "paid").length,
+      fill: "hsl(var(--chart-1))",
+    },
+    {
+      name: "Pending",
+      value: mockInvoices.filter((i) => i.status === "pending").length,
+      fill: "hsl(var(--chart-2))",
+    },
+    {
+      name: "Overdue",
+      value: mockInvoices.filter((i) => i.status === "overdue").length,
+      fill: "hsl(var(--chart-3))",
+    },
+    {
+      name: "Draft",
+      value: mockInvoices.filter((i) => i.status === "draft").length,
+      fill: "hsl(var(--chart-4))",
+    },
+  ];
 
   // Revenue trend (mock monthly data)
   const revenueTrend = [
@@ -47,38 +124,39 @@ export function ReportsDashboard() {
     { month: "Apr", revenue: 16400, orders: 58 },
     { month: "May", revenue: 21300, orders: 75 },
     { month: "Jun", revenue: 19800, orders: 71 },
-  ]
+  ];
 
-  // Top products by revenue
-  const topProducts = mockProducts
-    .map((product) => {
-      const productSales = mockInvoices.reduce((sum, invoice) => {
-        const item = invoice.items.find((i) => i.productId === product.id)
-        return sum + (item ? item.total : 0)
-      }, 0)
-      return { name: product.name, revenue: productSales }
-    })
-    .sort((a, b) => b.revenue - a.revenue)
-    .slice(0, 5)
-
-  // Stock by category
-  const stockByCategory = mockProducts.reduce(
-    (acc, product) => {
-      const existing = acc.find((item) => item.category === product.category)
-      if (existing) {
-        existing.stock += product.stock
-        existing.value += product.stock * product.cost
-      } else {
-        acc.push({
-          category: product.category,
-          stock: product.stock,
-          value: product.stock * product.cost,
+  // Top products by revenue (using live products with mock invoices for now)
+  const topProducts = useMemo(
+    () =>
+      products
+        .map((product) => {
+          const productSales = mockInvoices.reduce((sum, invoice) => {
+            const item = invoice.items.find((i) => i.productId === product.id);
+            return sum + (item ? item.total : 0);
+          }, 0);
+          return { name: product.name, revenue: productSales };
         })
-      }
-      return acc
-    },
-    [] as Array<{ category: string; stock: number; value: number }>,
-  )
+        .sort((a, b) => b.revenue - a.revenue)
+        .slice(0, 5),
+    [products]
+  );
+
+  // Stock by category (live products)
+  const stockByCategory = products.reduce((acc, product) => {
+    const existing = acc.find((item) => item.category === product.category);
+    if (existing) {
+      existing.stock += product.stock;
+      existing.value += product.stock * product.costPrice;
+    } else {
+      acc.push({
+        category: product.category,
+        stock: product.stock,
+        value: product.stock * product.costPrice,
+      });
+    }
+    return acc;
+  }, [] as Array<{ category: string; stock: number; value: number }>);
 
   return (
     <div className="space-y-6">
@@ -108,7 +186,10 @@ export function ReportsDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold">
-              ${totalRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              $
+              {totalRevenue.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+              })}
             </div>
             <p className="text-xs text-muted-foreground">
               <span className="text-green-600 inline-flex items-center">
@@ -144,7 +225,8 @@ export function ReportsDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold">
-              ${stockValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              $
+              {stockValue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
             </div>
             <p className="text-xs text-muted-foreground">
               <span className="text-red-600 inline-flex items-center">
@@ -158,15 +240,21 @@ export function ReportsDashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Pending Revenue</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Pending Revenue
+            </CardTitle>
             <DollarSign className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold">
-              ${pendingRevenue.toLocaleString("en-US", { minimumFractionDigits: 2 })}
+              $
+              {pendingRevenue.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+              })}
             </div>
             <p className="text-xs text-muted-foreground">
-              {mockInvoices.filter((i) => i.status === "pending").length} pending invoices
+              {mockInvoices.filter((i) => i.status === "pending").length}{" "}
+              pending invoices
             </p>
           </CardContent>
         </Card>
@@ -199,11 +287,19 @@ export function ReportsDashboard() {
                 >
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={revenueTrend}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        className="stroke-muted"
+                      />
                       <XAxis dataKey="month" className="text-xs" />
                       <YAxis className="text-xs" />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Line type="monotone" dataKey="revenue" stroke="hsl(var(--chart-1))" strokeWidth={2} />
+                      <Line
+                        type="monotone"
+                        dataKey="revenue"
+                        stroke="hsl(var(--chart-1))"
+                        strokeWidth={2}
+                      />
                     </LineChart>
                   </ResponsiveContainer>
                 </ChartContainer>
@@ -227,7 +323,15 @@ export function ReportsDashboard() {
                 >
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
-                      <Pie data={salesByStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                      <Pie
+                        data={salesByStatus}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={80}
+                        label
+                      >
                         {salesByStatus.map((entry, index) => (
                           <Cell key={`cell-${index}`} fill={entry.fill} />
                         ))}
@@ -258,11 +362,18 @@ export function ReportsDashboard() {
               >
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={topProducts}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      className="stroke-muted"
+                    />
                     <XAxis dataKey="name" className="text-xs" />
                     <YAxis className="text-xs" />
                     <ChartTooltip content={<ChartTooltipContent />} />
-                    <Bar dataKey="revenue" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                    <Bar
+                      dataKey="revenue"
+                      fill="hsl(var(--chart-2))"
+                      radius={[4, 4, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
@@ -289,11 +400,18 @@ export function ReportsDashboard() {
                 >
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={stockByCategory}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        className="stroke-muted"
+                      />
                       <XAxis dataKey="category" className="text-xs" />
                       <YAxis className="text-xs" />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="stock" fill="hsl(var(--chart-3))" radius={[4, 4, 0, 0]} />
+                      <Bar
+                        dataKey="stock"
+                        fill="hsl(var(--chart-3))"
+                        radius={[4, 4, 0, 0]}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartContainer>
@@ -317,11 +435,18 @@ export function ReportsDashboard() {
                 >
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={stockByCategory}>
-                      <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                      <CartesianGrid
+                        strokeDasharray="3 3"
+                        className="stroke-muted"
+                      />
                       <XAxis dataKey="category" className="text-xs" />
                       <YAxis className="text-xs" />
                       <ChartTooltip content={<ChartTooltipContent />} />
-                      <Bar dataKey="value" fill="hsl(var(--chart-4))" radius={[4, 4, 0, 0]} />
+                      <Bar
+                        dataKey="value"
+                        fill="hsl(var(--chart-4))"
+                        radius={[4, 4, 0, 0]}
+                      />
                     </BarChart>
                   </ResponsiveContainer>
                 </ChartContainer>
@@ -336,27 +461,51 @@ export function ReportsDashboard() {
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
-                {mockProducts.map((product) => {
-                  const stockPercentage = (product.stock / (product.reorderLevel * 3)) * 100
-                  const isLow = product.stock <= product.reorderLevel
+                {loading && (
+                  <div className="text-sm text-muted-foreground">
+                    Loading products...
+                  </div>
+                )}
+                {!loading && error && (
+                  <div className="text-sm text-destructive">{error}</div>
+                )}
+                {!loading &&
+                  !error &&
+                  products.map((product) => {
+                    const denom = Math.max((product.reorderLevel || 0) * 3, 1);
+                    const stockPercentage =
+                      ((product.stock || 0) / denom) * 100;
+                    const isLow =
+                      (product.stock || 0) <= (product.reorderLevel || 0);
 
-                  return (
-                    <div key={product.id} className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">{product.name}</span>
-                        <span className={isLow ? "text-destructive" : "text-muted-foreground"}>
-                          {product.stock} / {product.reorderLevel * 3} units
-                        </span>
+                    return (
+                      <div key={product.id} className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">{product.name}</span>
+                          <span
+                            className={
+                              isLow
+                                ? "text-destructive"
+                                : "text-muted-foreground"
+                            }
+                          >
+                            {product.stock} / {(product.reorderLevel || 0) * 3}{" "}
+                            units
+                          </span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                          <div
+                            className={`h-full transition-all ${
+                              isLow ? "bg-destructive" : "bg-primary"
+                            }`}
+                            style={{
+                              width: `${Math.min(stockPercentage, 100)}%`,
+                            }}
+                          />
+                        </div>
                       </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                        <div
-                          className={`h-full transition-all ${isLow ? "bg-destructive" : "bg-primary"}`}
-                          style={{ width: `${Math.min(stockPercentage, 100)}%` }}
-                        />
-                      </div>
-                    </div>
-                  )
-                })}
+                    );
+                  })}
               </div>
             </CardContent>
           </Card>
@@ -375,14 +524,18 @@ export function ReportsDashboard() {
                     <div className="h-3 w-3 rounded-full bg-chart-1" />
                     <span className="text-sm">Paid Revenue</span>
                   </div>
-                  <span className="text-sm font-medium">${paidRevenue.toFixed(2)}</span>
+                  <span className="text-sm font-medium">
+                    ${paidRevenue.toFixed(2)}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <div className="h-3 w-3 rounded-full bg-chart-2" />
                     <span className="text-sm">Pending Revenue</span>
                   </div>
-                  <span className="text-sm font-medium">${pendingRevenue.toFixed(2)}</span>
+                  <span className="text-sm font-medium">
+                    ${pendingRevenue.toFixed(2)}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
@@ -400,7 +553,9 @@ export function ReportsDashboard() {
                 <div className="border-t pt-4">
                   <div className="flex items-center justify-between">
                     <span className="font-semibold">Total Revenue</span>
-                    <span className="text-lg font-semibold">${totalRevenue.toFixed(2)}</span>
+                    <span className="text-lg font-semibold">
+                      ${totalRevenue.toFixed(2)}
+                    </span>
                   </div>
                 </div>
               </CardContent>
@@ -412,21 +567,35 @@ export function ReportsDashboard() {
                 <CardDescription>Product profitability</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                {mockProducts.slice(0, 5).map((product) => {
-                  const margin = ((product.price - product.cost) / product.price) * 100
+                {loading && (
+                  <div className="text-sm text-muted-foreground">
+                    Loading products...
+                  </div>
+                )}
+                {!loading &&
+                  !error &&
+                  products.slice(0, 5).map((product) => {
+                    const sale = product.salePrice || 0;
+                    const cost = product.costPrice || 0;
+                    const margin = sale > 0 ? ((sale - cost) / sale) * 100 : 0;
 
-                  return (
-                    <div key={product.id} className="space-y-2">
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="font-medium">{product.name}</span>
-                        <span className="text-muted-foreground">{margin.toFixed(1)}%</span>
+                    return (
+                      <div key={product.id} className="space-y-2">
+                        <div className="flex items-center justify-between text-sm">
+                          <span className="font-medium">{product.name}</span>
+                          <span className="text-muted-foreground">
+                            {margin.toFixed(1)}%
+                          </span>
+                        </div>
+                        <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                          <div
+                            className="h-full bg-green-500 transition-all"
+                            style={{ width: `${margin}%` }}
+                          />
+                        </div>
                       </div>
-                      <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
-                        <div className="h-full bg-green-500 transition-all" style={{ width: `${margin}%` }} />
-                      </div>
-                    </div>
-                  )
-                })}
+                    );
+                  })}
               </CardContent>
             </Card>
           </div>
@@ -452,13 +621,24 @@ export function ReportsDashboard() {
               >
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart data={revenueTrend}>
-                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                    <CartesianGrid
+                      strokeDasharray="3 3"
+                      className="stroke-muted"
+                    />
                     <XAxis dataKey="month" className="text-xs" />
                     <YAxis className="text-xs" />
                     <ChartTooltip content={<ChartTooltipContent />} />
                     <Legend />
-                    <Bar dataKey="revenue" fill="hsl(var(--chart-1))" radius={[4, 4, 0, 0]} />
-                    <Bar dataKey="orders" fill="hsl(var(--chart-2))" radius={[4, 4, 0, 0]} />
+                    <Bar
+                      dataKey="revenue"
+                      fill="hsl(var(--chart-1))"
+                      radius={[4, 4, 0, 0]}
+                    />
+                    <Bar
+                      dataKey="orders"
+                      fill="hsl(var(--chart-2))"
+                      radius={[4, 4, 0, 0]}
+                    />
                   </BarChart>
                 </ResponsiveContainer>
               </ChartContainer>
@@ -467,5 +647,5 @@ export function ReportsDashboard() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

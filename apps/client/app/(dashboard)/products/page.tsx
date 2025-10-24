@@ -124,7 +124,11 @@ export default function ProductsPage() {
   const totalProducts = stats?.totalProducts ?? products.length;
   const categoriesCount =
     stats?.categoriesCount ?? new Set(products.map((p) => p.category)).size;
-  const totalInventoryValue = stats?.totalValue ?? 0;
+  // Compute inventory value on the client: sum of retail price (salePrice) * total stock
+  const totalInventoryValue = products.reduce(
+    (sum, p) => sum + p.salePrice * p.stock,
+    0
+  );
   const formattedInventoryValue = totalInventoryValue.toLocaleString(
     undefined,
     {
