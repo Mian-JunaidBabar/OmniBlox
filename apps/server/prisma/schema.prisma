@@ -189,19 +189,25 @@ model ExpenseCategory {
 // --- OTHER TRANSACTION MODELS (No changes here) ---
 
 model Sale {
-  id            String        @id @default(uuid())
-  invoiceNumber String        @unique
-  totalAmount   Decimal       @db.Decimal(10, 2)
-  status        OrderStatus   @default(PENDING)
-  paymentStatus PaymentStatus @default(PENDING)
-  saleDate      DateTime      @default(now())
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id            String         @id @default(uuid())
+  invoiceNumber String         @unique
+  subtotal      Decimal        @db.Decimal(10, 2)
+  tax           Decimal        @db.Decimal(10, 2) @default(0)
+  discount      Decimal        @db.Decimal(10, 2) @default(0)
+  totalAmount   Decimal        @db.Decimal(10, 2)
+  status        OrderStatus    @default(PENDING)
+  paymentStatus PaymentStatus  @default(PENDING)
+  paymentMethod PaymentMethod?
+  saleDate      DateTime       @default(now())
+  dueDate       DateTime
+  notes         String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
   customerId    String
   userId        String
   items         SaleItem[]
-  customer      Customer      @relation(fields: [customerId], references: [id])
-  user          User          @relation(fields: [userId], references: [id])
+  customer      Customer       @relation(fields: [customerId], references: [id])
+  user          User           @relation(fields: [userId], references: [id])
 
   @@map("sales")
 }
@@ -313,6 +319,7 @@ enum UserRole {
 }
 
 enum OrderStatus {
+  DRAFT
   PENDING
   COMPLETED
   CANCELLED

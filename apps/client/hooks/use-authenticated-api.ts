@@ -16,7 +16,7 @@ export function useAuthenticatedApi() {
   // Create authenticated API wrapper
   const makeRequest = useCallback(
     async (
-      method: "GET" | "POST" | "PUT" | "DELETE",
+      method: "GET" | "POST" | "PUT" | "DELETE" | "PATCH",
       endpoint: string,
       data?: any
     ) => {
@@ -28,6 +28,8 @@ export function useAuthenticatedApi() {
             return await api.post(endpoint, data);
           case "PUT":
             return await api.put(endpoint, data);
+          case "PATCH":
+            return await api.patch(endpoint, data);
           case "DELETE":
             return await api.delete(endpoint);
           default:
@@ -75,6 +77,13 @@ export function useAuthenticatedApi() {
     [makeRequest]
   );
 
+  const patch = useCallback(
+    (endpoint: string, data?: any) => {
+      return makeRequest("PATCH", endpoint, data);
+    },
+    [makeRequest]
+  );
+
   const del = useCallback(
     (endpoint: string) => {
       return makeRequest("DELETE", endpoint);
@@ -86,6 +95,7 @@ export function useAuthenticatedApi() {
     get,
     post,
     put,
+    patch,
     delete: del,
     makeRequest,
     isAuthenticated,
