@@ -1,4 +1,5 @@
 import { useAuthenticatedApi } from "./use-authenticated-api";
+import { useCallback } from "react";
 import type { Product } from "@/lib/types";
 
 interface CreateProductData {
@@ -40,71 +41,87 @@ interface ProductFilters {
 export function useProductApi() {
   const { post, get, put, delete: del } = useAuthenticatedApi();
 
-  const createProduct = async (data: CreateProductData): Promise<Product> => {
-    return post("/products", data) as Promise<Product>;
-  };
+  const createProduct = useCallback(
+    async (data: CreateProductData): Promise<Product> => {
+      return post("/products", data) as Promise<Product>;
+    },
+    [post]
+  );
 
-  const getProducts = async (
-    filters: ProductFilters = {}
-  ): Promise<ProductListResponse> => {
-    const params = new URLSearchParams();
-    if (filters.page) params.set("page", filters.page.toString());
-    if (filters.limit) params.set("limit", filters.limit.toString());
-    if (filters.search) params.set("search", filters.search);
-    if (filters.category) params.set("category", filters.category);
-    if (filters.status) params.set("status", filters.status);
+  const getProducts = useCallback(
+    async (filters: ProductFilters = {}): Promise<ProductListResponse> => {
+      const params = new URLSearchParams();
+      if (filters.page) params.set("page", filters.page.toString());
+      if (filters.limit) params.set("limit", filters.limit.toString());
+      if (filters.search) params.set("search", filters.search);
+      if (filters.category) params.set("category", filters.category);
+      if (filters.status) params.set("status", filters.status);
 
-    const query = params.toString();
-    return get(
-      `/products${query ? `?${query}` : ""}`
-    ) as Promise<ProductListResponse>;
-  };
+      const query = params.toString();
+      return get(
+        `/products${query ? `?${query}` : ""}`
+      ) as Promise<ProductListResponse>;
+    },
+    [get]
+  );
 
-  const getProduct = async (id: string): Promise<Product> => {
-    return get(`/products/${id}`) as Promise<Product>;
-  };
+  const getProduct = useCallback(
+    async (id: string): Promise<Product> => {
+      return get(`/products/${id}`) as Promise<Product>;
+    },
+    [get]
+  );
 
-  const getProductBySku = async (sku: string): Promise<Product> => {
-    return get(`/products/sku/${sku}`) as Promise<Product>;
-  };
+  const getProductBySku = useCallback(
+    async (sku: string): Promise<Product> => {
+      return get(`/products/sku/${sku}`) as Promise<Product>;
+    },
+    [get]
+  );
 
-  const updateProduct = async (
-    id: string,
-    data: UpdateProductData
-  ): Promise<Product> => {
-    return put(`/products/${id}`, data) as Promise<Product>;
-  };
+  const updateProduct = useCallback(
+    async (id: string, data: UpdateProductData): Promise<Product> => {
+      return put(`/products/${id}`, data) as Promise<Product>;
+    },
+    [put]
+  );
 
-  const deleteProduct = async (id: string): Promise<void> => {
-    await del(`/products/${id}`);
-  };
+  const deleteProduct = useCallback(
+    async (id: string): Promise<void> => {
+      await del(`/products/${id}`);
+    },
+    [del]
+  );
 
-  const updateStock = async (
-    id: string,
-    quantity: number,
-    operation: "add" | "subtract"
-  ): Promise<Product> => {
-    return put(`/products/${id}/stock`, {
-      quantity,
-      operation,
-    }) as Promise<Product>;
-  };
+  const updateStock = useCallback(
+    async (
+      id: string,
+      quantity: number,
+      operation: "add" | "subtract"
+    ): Promise<Product> => {
+      return put(`/products/${id}/stock`, {
+        quantity,
+        operation,
+      }) as Promise<Product>;
+    },
+    [put]
+  );
 
-  const getCategories = async (): Promise<string[]> => {
+  const getCategories = useCallback(async (): Promise<string[]> => {
     return get("/products/categories") as Promise<string[]>;
-  };
+  }, [get]);
 
-  const getBrands = async (): Promise<string[]> => {
+  const getBrands = useCallback(async (): Promise<string[]> => {
     return get("/products/brands") as Promise<string[]>;
-  };
+  }, [get]);
 
-  const getLowStockProducts = async (): Promise<Product[]> => {
+  const getLowStockProducts = useCallback(async (): Promise<Product[]> => {
     return get("/products/low-stock") as Promise<Product[]>;
-  };
+  }, [get]);
 
-  const getProductStats = async (): Promise<ProductStats> => {
+  const getProductStats = useCallback(async (): Promise<ProductStats> => {
     return get("/products/stats") as Promise<ProductStats>;
-  };
+  }, [get]);
 
   return {
     createProduct,

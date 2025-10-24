@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -62,6 +62,49 @@ export function ProductForm({
   const [brands, setBrands] = useState<string[]>([]);
   const [showCustomCategory, setShowCustomCategory] = useState(false);
 
+  const defaultCategoryOptions = useMemo(
+    () => [
+      "Electronics",
+      "Accessories",
+      "Furniture",
+      "Office Supplies",
+      "Food & Beverages",
+      "Health & Beauty",
+      "Clothing",
+      "Books",
+      "Other",
+    ],
+    []
+  );
+
+  const categoryOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const merged: string[] = [];
+
+    const addCategory = (category: string) => {
+      const key = category.trim().toLowerCase();
+      if (!key || seen.has(key)) {
+        return;
+      }
+      seen.add(key);
+      merged.push(category);
+    };
+
+    categories.forEach(addCategory);
+    defaultCategoryOptions.forEach(addCategory);
+
+    // Ensure "Other" option stays last if present
+    const otherIndex = merged.findIndex(
+      (category) => category.trim().toLowerCase() === "other"
+    );
+    if (otherIndex >= 0 && otherIndex !== merged.length - 1) {
+      const [other] = merged.splice(otherIndex, 1);
+      merged.push(other);
+    }
+
+    return merged;
+  }, [categories, defaultCategoryOptions]);
+
   const [formData, setFormData] = useState<ProductFormData>({
     name: initialData?.name || "",
     sku: initialData?.sku || "",
@@ -107,6 +150,11 @@ export function ProductForm({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (isSubmitting) {
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -121,6 +169,7 @@ export function ProductForm({
           description: "Please provide a category",
           variant: "destructive",
         });
+        setIsSubmitting(false);
         return;
       }
 
@@ -212,26 +261,11 @@ export function ProductForm({
                     <SelectValue placeholder="Select category" />
                   </SelectTrigger>
                   <SelectContent>
-                    {categories.map((category) => (
+                    {categoryOptions.map((category) => (
                       <SelectItem key={category} value={category}>
                         {category}
                       </SelectItem>
                     ))}
-                    <SelectItem value="Electronics">Electronics</SelectItem>
-                    <SelectItem value="Accessories">Accessories</SelectItem>
-                    <SelectItem value="Furniture">Furniture</SelectItem>
-                    <SelectItem value="Office Supplies">
-                      Office Supplies
-                    </SelectItem>
-                    <SelectItem value="Food & Beverages">
-                      Food & Beverages
-                    </SelectItem>
-                    <SelectItem value="Health & Beauty">
-                      Health & Beauty
-                    </SelectItem>
-                    <SelectItem value="Clothing">Clothing</SelectItem>
-                    <SelectItem value="Books">Books</SelectItem>
-                    <SelectItem value="Other">Other</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
