@@ -22,6 +22,13 @@ export interface ProductListResponse {
   pages: number;
 }
 
+export interface ProductStats {
+  totalProducts: number;
+  lowStockCount: number;
+  totalValue: number;
+  categoriesCount: number;
+}
+
 interface ProductFilters {
   page?: number;
   limit?: number;
@@ -95,6 +102,10 @@ export function useProductApi() {
     return get("/products/low-stock") as Promise<Product[]>;
   };
 
+  const getProductStats = async (): Promise<ProductStats> => {
+    return get("/products/stats") as Promise<ProductStats>;
+  };
+
   return {
     createProduct,
     getProducts,
@@ -106,5 +117,6 @@ export function useProductApi() {
     getCategories,
     getBrands,
     getLowStockProducts,
+    getProductStats,
   };
 }

@@ -472,12 +472,47 @@ export class ProductService {
   }
 
   async getBrands(): Promise<string[]> {
-    const products = await this.prisma.product.findMany({
-      select: { brand: true } as any,
-      distinct: ['brand'] as any,
+    const brands = await this.prisma.brand.findMany({
+      select: { name: true },
+      orderBy: { name: 'asc' },
     });
 
-    return products.map((product: any) => product.brand).filter(Boolean);
+    return brands.map((brand) => brand.name);
+  }
+
+  async getStats() {
+    const products = await this.prisma.product.findMany({
+      include: {
+        inventory: true,
+      },
+    });
+
+    const totalProducts = products.length;
+    const { lowStockCount, totalValue } = products.reduce(
+      (acc, product) => {
+        const totalStock = product.inventory.reduce(
+          (sum, inv) => sum + inv.quantity,
+          0,
+        );
+
+        if (totalStock <= product.reorderLevel) {
+          acc.lowStockCount += 1;
+        }
+
+        acc.totalValue += Number(product.salePrice) * totalStock;
+        return acc;
+      },
+      { lowStockCount: 0, totalValue: 0 },
+    );
+
+    const categoriesCount = await this.prisma.productCategory.count();
+
+    return {
+      totalProducts,
+      lowStockCount,
+      totalValue,
+      categoriesCount,
+    };
   }
 
   private transformToDto(product: any, stock?: number): ProductResponseDto {

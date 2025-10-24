@@ -62,6 +62,11 @@ export class ProductController {
     return this.productService.getLowStockProducts();
   }
 
+  @Get('stats')
+  async getStats() {
+    return this.productService.getStats();
+  }
+
   @Get('sku/:sku')
   async findBySku(@Param('sku') sku: string) {
     return this.productService.findBySku(sku);

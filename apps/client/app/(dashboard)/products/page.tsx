@@ -50,7 +50,7 @@ import {
   Loader2,
 } from "lucide-react";
 import Link from "next/link";
-import { useProductApi } from "@/hooks/use-product-api";
+import { useProductApi, type ProductStats } from "@/hooks/use-product-api";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@/lib/types";
 
@@ -58,7 +58,8 @@ export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [loading, setLoading] = useState(true);
-  const { getProducts, deleteProduct } = useProductApi();
+  const [stats, setStats] = useState<ProductStats | null>(null);
+  const { getProducts, deleteProduct, getProductStats } = useProductApi();
   const { toast } = useToast();
 
   // Load products on component mount
@@ -66,11 +67,20 @@ export default function ProductsPage() {
     loadProducts();
   }, []);
 
-  const loadProducts = async () => {
+  const loadProducts = async ({ showSpinner = true } = {}) => {
     try {
-      setLoading(true);
-      const response = await getProducts();
-      setProducts(response.products);
+      if (showSpinner) {
+        setLoading(true);
+      }
+
+      const statsResponse = await getProductStats();
+      const totalProductCount = Math.max(statsResponse.totalProducts, 1);
+      const productsResponse = await getProducts({
+        limit: totalProductCount,
+      });
+
+      setProducts(productsResponse.products);
+      setStats(statsResponse);
     } catch (error) {
       toast({
         title: "Error",
@@ -85,7 +95,8 @@ export default function ProductsPage() {
   const handleDeleteProduct = async (id: string) => {
     try {
       await deleteProduct(id);
-      setProducts(products.filter((p) => p.id !== id));
+      setProducts((prev) => prev.filter((p) => p.id !== id));
+      await loadProducts({ showSpinner: false });
       toast({
         title: "Success",
         description: "Product deleted successfully.",
@@ -108,9 +119,19 @@ export default function ProductsPage() {
         product.brand.toLowerCase().includes(searchQuery.toLowerCase()))
   );
 
-  const lowStockCount = products.filter(
-    (p) => p.stock <= p.reorderLevel
-  ).length;
+  const lowStockCount = stats?.lowStockCount ?? 0;
+
+  const totalProducts = stats?.totalProducts ?? products.length;
+  const categoriesCount =
+    stats?.categoriesCount ?? new Set(products.map((p) => p.category)).size;
+  const totalInventoryValue = stats?.totalValue ?? 0;
+  const formattedInventoryValue = totalInventoryValue.toLocaleString(
+    undefined,
+    {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }
+  );
 
   if (loading) {
     return (
@@ -148,7 +169,7 @@ export default function ProductsPage() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold">{products.length}</div>
+            <div className="text-2xl font-semibold">{totalProducts}</div>
             <p className="text-xs text-muted-foreground">
               Active inventory items
             </p>
@@ -177,10 +198,7 @@ export default function ProductsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold">
-              $
-              {products
-                .reduce((sum, p) => sum + p.salePrice * p.stock, 0)
-                .toLocaleString()}
+              ${formattedInventoryValue}
             </div>
             <p className="text-xs text-muted-foreground">At retail price</p>
           </CardContent>
@@ -192,9 +210,7 @@ export default function ProductsPage() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold">
-              {new Set(products.map((p) => p.category)).size}
-            </div>
+            <div className="text-2xl font-semibold">{categoriesCount}</div>
             <p className="text-xs text-muted-foreground">Product categories</p>
           </CardContent>
         </Card>
