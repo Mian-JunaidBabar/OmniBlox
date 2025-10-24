@@ -6,14 +6,27 @@ export interface User {
   email: string;
   name: string;
   role: string;
-  companyName?: string;
-  workspaceUrl?: string;
+  companyId: string;
+  company?: {
+    id: string;
+    name: string;
+    workspaceUrl: string;
+    industry?: string;
+    country?: string;
+  };
 }
 
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
   user: User;
+  company: {
+    id: string;
+    name: string;
+    workspaceUrl: string;
+    industry?: string;
+    country?: string;
+  };
 }
 
 export interface ApiError {

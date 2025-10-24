@@ -8,9 +8,10 @@ import { SalesModule } from './sales/sales.module';
 import { CustomersModule } from './customers/customers.module';
 import { SuppliersModule } from './suppliers/suppliers.module';
 import { WarehousesModule } from './warehouses/warehouses.module';
+import { ExpensesModule } from './expenses/expenses.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, ProductModule, SalesModule, CustomersModule, SuppliersModule, WarehousesModule],
+  imports: [PrismaModule, AuthModule, ProductModule, SalesModule, CustomersModule, SuppliersModule, WarehousesModule, ExpensesModule],
   controllers: [AppController],
   providers: [AppService],
 })

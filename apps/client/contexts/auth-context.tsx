@@ -14,8 +14,17 @@ type User = ApiUser & {
   permissions?: string[];
 };
 
+interface Company {
+  id: string;
+  name: string;
+  workspaceUrl: string;
+  industry?: string;
+  country?: string;
+}
+
 interface AuthContextType {
   user: User | null;
+  company: Company | null;
   isLoading: boolean;
   isAuthenticated: boolean;
   login: (email: string, password: string) => Promise<void>;
@@ -32,7 +41,8 @@ interface AuthContextType {
 interface SignupData {
   email: string;
   password: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   companyName: string;
   workspaceUrl: string;
   industry: string;
@@ -41,17 +51,15 @@ interface SignupData {
 }
 
 interface UpdateProfileData {
-  name?: string;
-  companyName?: string;
-  industry?: string;
-  otherIndustry?: string;
-  country?: string;
+  firstName?: string;
+  lastName?: string;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
+  const [company, setCompany] = useState<Company | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
@@ -71,25 +79,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           try {
             const { user: validatedUser } = await api.validateToken();
             setUser({ ...validatedUser, permissions: ["all"] });
+            setCompany(validatedUser.company || null);
           } catch (error: any) {
             // Only clear tokens on authentication errors (401/403)
             const statusCode = error?.statusCode || error?.status;
             if (statusCode === 401 || statusCode === 403) {
               TokenManager.clearTokens();
               setUser(null);
+              setCompany(null);
             } else {
               // For non-auth errors (e.g., network/5xx), keep local session and defer
               setUser(storedUser as any);
+              setCompany(storedUser.company || null);
             }
           }
         } else {
           TokenManager.clearTokens();
           setUser(null);
+          setCompany(null);
         }
       } catch (error) {
         console.error("Auth initialization error:", error);
         TokenManager.clearTokens();
         setUser(null);
+        setCompany(null);
       } finally {
         setIsLoading(false);
       }
@@ -129,6 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       const response = await api.login(email, password);
       setUser({ ...response.user, permissions: ["all"] });
+      setCompany(response.company);
       router.push("/dashboard");
     } catch (error) {
       throw error;
@@ -140,8 +154,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signup = async (data: SignupData): Promise<void> => {
     try {
       setIsLoading(true);
-      const response = await api.signup(data);
+      // Transform the signup data to match the new API structure
+      const signupData = {
+        email: data.email,
+        password: data.password,
+        name: `${data.firstName} ${data.lastName}`,
+        companyName: data.companyName,
+        workspaceUrl: data.workspaceUrl,
+        industry: data.industry,
+        otherIndustry: data.otherIndustry,
+        country: data.country,
+      };
+      const response = await api.signup(signupData);
       setUser({ ...response.user, permissions: ["all"] });
+      setCompany(response.company);
       router.push("/dashboard");
     } catch (error) {
       throw error;
@@ -160,6 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } finally {
       TokenManager.clearTokens();
       setUser(null);
+      setCompany(null);
       router.push("/login");
       setIsLoading(false);
     }
@@ -167,7 +194,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const updateProfile = async (data: UpdateProfileData): Promise<void> => {
     try {
-      const updatedUser = await api.updateProfile(data);
+      // Transform the profile data to match the API structure
+      const profileData = {
+        name:
+          data.firstName && data.lastName
+            ? `${data.firstName} ${data.lastName}`
+            : undefined,
+      };
+      const updatedUser = await api.updateProfile(profileData);
       setUser({ ...updatedUser, permissions: user?.permissions || ["all"] });
     } catch (error) {
       throw error;
@@ -189,6 +223,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const refreshedUser = await api.getProfile();
       setUser({ ...refreshedUser, permissions: user?.permissions || ["all"] });
+      setCompany(refreshedUser.company || null);
     } catch (error) {
       console.error("Failed to refresh user:", error);
       throw error;
@@ -197,6 +232,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const value: AuthContextType = {
     user,
+    company,
     isLoading,
     isAuthenticated,
     login,
