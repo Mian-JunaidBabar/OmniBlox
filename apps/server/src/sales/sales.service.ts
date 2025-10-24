@@ -20,7 +20,11 @@ import {
 export class SalesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(dto: CreateSaleDto, userId: string): Promise<SaleResponseDto> {
+  async create(
+    dto: CreateSaleDto,
+    userId: string,
+    companyId: string,
+  ): Promise<SaleResponseDto> {
     if (!dto.items?.length) {
       throw new BadRequestException('A sale must include at least one item');
     }
@@ -30,11 +34,16 @@ export class SalesService {
         const invoiceNumber = await this.ensureInvoiceNumber(
           tx,
           dto.invoiceNumber,
+          companyId,
         );
-        const productMap = await this.fetchProducts(tx, dto.items);
-        await this.ensureStock(tx, dto.items, productMap);
+        const productMap = await this.fetchProducts(tx, dto.items, companyId);
+        await this.ensureStock(tx, dto.items, productMap, companyId);
 
-        const customer = await this.resolveCustomer(tx, dto.customer);
+        const customer = await this.resolveCustomer(
+          tx,
+          dto.customer,
+          companyId,
+        );
         const providedEmail = dto.customer.email?.trim();
         const totals = this.calculateTotals(
           dto.items,
@@ -59,6 +68,7 @@ export class SalesService {
             customerId: customer.id,
             customerEmail: providedEmail ?? customer.email ?? null,
             userId,
+            companyId,
             items: {
               create: dto.items.map((item) => ({
                 productId: item.productId,
@@ -76,7 +86,7 @@ export class SalesService {
           },
         });
 
-        await this.adjustInventory(tx, dto.items, 'decrement');
+        await this.adjustInventory(tx, dto.items, 'decrement', companyId);
         return this.transformSale(sale);
       },
       { timeout: 20000 },
@@ -84,6 +94,7 @@ export class SalesService {
   }
 
   async findAll(
+    companyId: string,
     page = 1,
     limit = 10,
     search?: string,
@@ -91,7 +102,7 @@ export class SalesService {
     paymentStatus?: PaymentStatus | string,
   ): Promise<SalesListResponseDto> {
     const skip = (page - 1) * limit;
-    const where: Record<string, unknown> = {};
+    const where: Record<string, unknown> = { companyId };
 
     if (search) {
       where.OR = [
@@ -131,9 +142,9 @@ export class SalesService {
     };
   }
 
-  async findOne(id: string): Promise<SaleResponseDto> {
+  async findOne(id: string, companyId: string): Promise<SaleResponseDto> {
     const sale = await this.prisma.sale.findUnique({
-      where: { id },
+      where: { id, companyId },
       include: {
         customer: true,
         items: { include: { product: true } },
@@ -147,11 +158,15 @@ export class SalesService {
     return this.transformSale(sale);
   }
 
-  async update(id: string, dto: UpdateSaleDto): Promise<SaleResponseDto> {
+  async update(
+    id: string,
+    dto: UpdateSaleDto,
+    companyId: string,
+  ): Promise<SaleResponseDto> {
     return this.prisma.$transaction(
       async (tx) => {
         const existing = await tx.sale.findUnique({
-          where: { id },
+          where: { id, companyId },
           include: {
             customer: true,
             items: true,
@@ -164,7 +179,10 @@ export class SalesService {
 
         if (dto.invoiceNumber && dto.invoiceNumber !== existing.invoiceNumber) {
           const duplicate = await tx.sale.findUnique({
-            where: { invoiceNumber: dto.invoiceNumber },
+            where: {
+              invoiceNumber: dto.invoiceNumber,
+              companyId,
+            },
             select: { id: true },
           });
           if (duplicate) {
@@ -173,7 +191,7 @@ export class SalesService {
         }
 
         const productMap = dto.items
-          ? await this.fetchProducts(tx, dto.items)
+          ? await this.fetchProducts(tx, dto.items, companyId)
           : null;
         if (dto.items) {
           await this.adjustInventory(
@@ -183,12 +201,13 @@ export class SalesService {
               quantity: item.quantity,
             })),
             'increment',
+            companyId,
           );
-          await this.ensureStock(tx, dto.items, productMap!);
+          await this.ensureStock(tx, dto.items, productMap!, companyId);
         }
 
         const resolvedCustomer = dto.customer
-          ? await this.resolveCustomer(tx, dto.customer)
+          ? await this.resolveCustomer(tx, dto.customer, companyId)
           : null;
         const providedEmail =
           dto.customer?.email !== undefined
@@ -274,7 +293,7 @@ export class SalesService {
         });
 
         if (dto.items) {
-          await this.adjustInventory(tx, dto.items, 'decrement');
+          await this.adjustInventory(tx, dto.items, 'decrement', companyId);
         }
 
         return this.transformSale(updated);
@@ -283,11 +302,11 @@ export class SalesService {
     );
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, companyId: string): Promise<void> {
     await this.prisma.$transaction(
       async (tx) => {
         const sale = await tx.sale.findUnique({
-          where: { id },
+          where: { id, companyId },
           include: { items: true },
         });
 
@@ -302,6 +321,7 @@ export class SalesService {
             quantity: item.quantity,
           })),
           'increment',
+          companyId,
         );
 
         await tx.sale.delete({ where: { id } });
@@ -310,9 +330,9 @@ export class SalesService {
     );
   }
 
-  async markAsPaid(id: string): Promise<SaleResponseDto> {
+  async markAsPaid(id: string, companyId: string): Promise<SaleResponseDto> {
     const sale = await this.prisma.sale.update({
-      where: { id },
+      where: { id, companyId },
       data: {
         paymentStatus: PaymentStatus.PAID,
         status: OrderStatus.COMPLETED,
@@ -326,7 +346,7 @@ export class SalesService {
     return this.transformSale(sale);
   }
 
-  async getStats(): Promise<SalesStatsDto> {
+  async getStats(companyId: string): Promise<SalesStatsDto> {
     const now = new Date();
     const [
       totalSales,
@@ -337,28 +357,32 @@ export class SalesService {
       pendingInvoices,
       overdueInvoices,
     ] = await Promise.all([
-      this.prisma.sale.count(),
+      this.prisma.sale.count({ where: { companyId } }),
       this.prisma.sale.aggregate({
         _sum: { totalAmount: true },
-        where: { paymentStatus: PaymentStatus.PAID },
+        where: { companyId, paymentStatus: PaymentStatus.PAID },
       }),
       this.prisma.sale.aggregate({
         _sum: { totalAmount: true },
-        where: { paymentStatus: { not: PaymentStatus.PAID } },
+        where: { companyId, paymentStatus: { not: PaymentStatus.PAID } },
       }),
       this.prisma.sale.aggregate({
         _sum: { totalAmount: true },
         where: {
+          companyId,
           dueDate: { lt: now },
           paymentStatus: { not: PaymentStatus.PAID },
         },
       }),
-      this.prisma.sale.count({ where: { paymentStatus: PaymentStatus.PAID } }),
       this.prisma.sale.count({
-        where: { paymentStatus: PaymentStatus.PENDING },
+        where: { companyId, paymentStatus: PaymentStatus.PAID },
+      }),
+      this.prisma.sale.count({
+        where: { companyId, paymentStatus: PaymentStatus.PENDING },
       }),
       this.prisma.sale.count({
         where: {
+          companyId,
           dueDate: { lt: now },
           paymentStatus: { not: PaymentStatus.PAID },
         },
@@ -379,10 +403,14 @@ export class SalesService {
   private async ensureInvoiceNumber(
     tx: any,
     invoiceNumber?: string,
+    companyId?: string,
   ): Promise<string> {
     if (invoiceNumber) {
       const existing = await tx.sale.findUnique({
-        where: { invoiceNumber },
+        where: {
+          invoiceNumber,
+          companyId,
+        },
         select: { id: true },
       });
       if (existing) {
@@ -391,7 +419,7 @@ export class SalesService {
       return invoiceNumber;
     }
 
-    const count = await tx.sale.count();
+    const count = await tx.sale.count({ where: { companyId } });
     const nextNumber = (count + 1).toString().padStart(5, '0');
     return `INV-${nextNumber}`;
   }
@@ -399,12 +427,13 @@ export class SalesService {
   private async fetchProducts(
     tx: any,
     items: CreateSaleItemDto[],
+    companyId: string,
   ): Promise<Map<string, any>> {
     const uniqueProductIds = Array.from(
       new Set(items.map((item) => item.productId)),
     );
     const products = await tx.product.findMany({
-      where: { id: { in: uniqueProductIds } },
+      where: { id: { in: uniqueProductIds }, companyId },
     });
 
     if (products.length !== uniqueProductIds.length) {
@@ -418,6 +447,7 @@ export class SalesService {
     tx: any,
     items: CreateSaleItemDto[],
     productMap: Map<string, any>,
+    companyId: string,
   ): Promise<void> {
     const aggregated = this.aggregateQuantities(items);
 
@@ -425,7 +455,10 @@ export class SalesService {
       async ([productId, quantity]) => {
         const total = await tx.inventory.aggregate({
           _sum: { quantity: true },
-          where: { productId },
+          where: {
+            productId,
+            warehouse: { companyId },
+          },
         });
         const available = total._sum.quantity ?? 0;
         if (available < quantity) {
@@ -454,6 +487,7 @@ export class SalesService {
   private async resolveCustomer(
     tx: any,
     customer: CreateSaleDto['customer'],
+    companyId: string,
   ): Promise<{ id: string; email: string | null }> {
     const normalized = {
       ...customer,
@@ -465,7 +499,7 @@ export class SalesService {
 
     if (customer.id) {
       const existing = await tx.customer.findUnique({
-        where: { id: customer.id },
+        where: { id: customer.id, companyId },
       });
       if (!existing) {
         throw new BadRequestException('Customer not found');
@@ -483,7 +517,7 @@ export class SalesService {
 
     if (normalized.email) {
       const existing = await tx.customer.findUnique({
-        where: { email: normalized.email },
+        where: { email: normalized.email, companyId },
       });
       if (existing) {
         const updates = this.buildCustomerUpdates(normalized, existing);
@@ -499,7 +533,7 @@ export class SalesService {
     }
 
     const byName = await tx.customer.findFirst({
-      where: { name: normalized.name },
+      where: { name: normalized.name, companyId },
     });
     if (byName) {
       const updates = this.buildCustomerUpdates(normalized, byName);
@@ -519,6 +553,7 @@ export class SalesService {
         email: normalized.email,
         phone: normalized.phone,
         address: normalized.address,
+        companyId,
       },
     });
 
@@ -656,12 +691,23 @@ export class SalesService {
     tx: any,
     items: { productId: string; quantity: number }[],
     direction: 'increment' | 'decrement',
+    companyId: string,
   ): Promise<void> {
     for (const item of items) {
       if (direction === 'decrement') {
-        await this.decrementInventory(tx, item.productId, item.quantity);
+        await this.decrementInventory(
+          tx,
+          item.productId,
+          item.quantity,
+          companyId,
+        );
       } else {
-        await this.incrementInventory(tx, item.productId, item.quantity);
+        await this.incrementInventory(
+          tx,
+          item.productId,
+          item.quantity,
+          companyId,
+        );
       }
     }
   }
@@ -670,13 +716,17 @@ export class SalesService {
     tx: any,
     productId: string,
     quantity: number,
+    companyId: string,
   ) {
     if (quantity <= 0) {
       return;
     }
 
     const inventoryRecords = await tx.inventory.findMany({
-      where: { productId },
+      where: {
+        productId,
+        warehouse: { companyId },
+      },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -721,13 +771,17 @@ export class SalesService {
     tx: any,
     productId: string,
     quantity: number,
+    companyId: string,
   ) {
     if (quantity <= 0) {
       return;
     }
 
     const existing = await tx.inventory.findMany({
-      where: { productId },
+      where: {
+        productId,
+        warehouse: { companyId },
+      },
       orderBy: { createdAt: 'asc' },
     });
 
@@ -748,11 +802,15 @@ export class SalesService {
     }
 
     const warehouse =
-      (await tx.warehouse.findFirst({ orderBy: { createdAt: 'asc' } })) ??
+      (await tx.warehouse.findFirst({
+        where: { companyId },
+        orderBy: { createdAt: 'asc' },
+      })) ??
       (await tx.warehouse.create({
         data: {
           name: 'Default Warehouse',
           location: 'Default Location',
+          companyId,
         },
       }));
 

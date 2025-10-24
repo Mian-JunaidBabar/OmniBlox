@@ -4,7 +4,6 @@ import {
   Body,
   Get,
   UseGuards,
-  Req,
   Put,
   HttpStatus,
   HttpCode,
@@ -15,6 +14,11 @@ import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { JwtAuthGuard } from './jwt-auth.guard';
+import {
+  GetCurrentUser,
+  GetCurrentUserId,
+  GetCurrentCompanyId,
+} from './decorators/current-user.decorator';
 
 @Controller('auth')
 export class AuthController {
@@ -34,8 +38,8 @@ export class AuthController {
 
   @Get('me')
   @UseGuards(JwtAuthGuard)
-  async getProfile(@Req() req: any) {
-    return this.authService.getUserById(req.user.id);
+  async getProfile(@GetCurrentUserId() userId: string) {
+    return this.authService.getUserById(userId);
   }
 
   @Post('refresh')
@@ -47,21 +51,21 @@ export class AuthController {
   @Put('profile')
   @UseGuards(JwtAuthGuard)
   async updateProfile(
-    @Req() req: any,
+    @GetCurrentUserId() userId: string,
     @Body() updateProfileDto: UpdateProfileDto,
   ) {
-    return this.authService.updateUserProfile(req.user.id, updateProfileDto);
+    return this.authService.updateUserProfile(userId, updateProfileDto);
   }
 
   @Put('change-password')
   @UseGuards(JwtAuthGuard)
   @HttpCode(HttpStatus.OK)
   async changePassword(
-    @Req() req: any,
+    @GetCurrentUserId() userId: string,
     @Body() changePasswordDto: ChangePasswordDto,
   ) {
     return this.authService.changePassword(
-      req.user.id,
+      userId,
       changePasswordDto.currentPassword,
       changePasswordDto.newPassword,
     );
@@ -78,10 +82,17 @@ export class AuthController {
 
   @Get('validate')
   @UseGuards(JwtAuthGuard)
-  async validateToken(@Req() req: any) {
+  async validateToken(@GetCurrentUser() user: any) {
     return {
       valid: true,
-      user: req.user,
+      user,
     };
+  }
+
+  @Get('company')
+  @UseGuards(JwtAuthGuard)
+  async getCurrentCompany(@GetCurrentCompanyId() companyId: string) {
+    // This endpoint can be used to get current company info if needed
+    return { companyId };
   }
 }

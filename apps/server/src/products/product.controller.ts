@@ -10,13 +10,16 @@ import {
   UseGuards,
   HttpStatus,
   HttpCode,
-  Request,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateStockAdjustmentDto } from './dto/create-stock-adjustment.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import {
+  GetCurrentCompanyId,
+  GetCurrentUserId,
+} from '../auth/decorators/current-user.decorator';
 
 @Controller('products')
 @UseGuards(JwtAuthGuard)
@@ -25,12 +28,16 @@ export class ProductController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() createProductDto: CreateProductDto) {
-    return this.productService.create(createProductDto);
+  async create(
+    @Body() createProductDto: CreateProductDto,
+    @GetCurrentCompanyId() companyId: string,
+  ) {
+    return this.productService.create(createProductDto, companyId);
   }
 
   @Get()
   async findAll(
+    @GetCurrentCompanyId() companyId: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
@@ -41,6 +48,7 @@ export class ProductController {
     const limitNum = limit ? parseInt(limit) : 10;
 
     return this.productService.findAll(
+      companyId,
       pageNum,
       limitNum,
       search,
@@ -50,82 +58,102 @@ export class ProductController {
   }
 
   @Get('categories')
-  async getCategories() {
-    return this.productService.getCategories();
+  async getCategories(@GetCurrentCompanyId() companyId: string) {
+    return this.productService.getCategories(companyId);
   }
 
   @Get('brands')
-  async getBrands() {
-    return this.productService.getBrands();
+  async getBrands(@GetCurrentCompanyId() companyId: string) {
+    return this.productService.getBrands(companyId);
   }
 
   @Get('low-stock')
-  async getLowStockProducts() {
-    return this.productService.getLowStockProducts();
+  async getLowStockProducts(@GetCurrentCompanyId() companyId: string) {
+    return this.productService.getLowStockProducts(companyId);
   }
 
   @Get('stats')
-  async getStats() {
-    return this.productService.getStats();
+  async getStats(@GetCurrentCompanyId() companyId: string) {
+    return this.productService.getStats(companyId);
   }
 
   @Get('sku/:sku')
-  async findBySku(@Param('sku') sku: string) {
-    return this.productService.findBySku(sku);
+  async findBySku(
+    @Param('sku') sku: string,
+    @GetCurrentCompanyId() companyId: string,
+  ) {
+    return this.productService.findBySku(sku, companyId);
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.productService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @GetCurrentCompanyId() companyId: string,
+  ) {
+    return this.productService.findOne(id, companyId);
   }
 
   @Put(':id')
   async update(
     @Param('id') id: string,
     @Body() updateProductDto: UpdateProductDto,
+    @GetCurrentCompanyId() companyId: string,
   ) {
-    return this.productService.update(id, updateProductDto);
+    return this.productService.update(id, updateProductDto, companyId);
   }
 
   @Put(':id/stock')
   async updateStock(
     @Param('id') id: string,
     @Body() body: { quantity: number; operation: 'add' | 'subtract' },
+    @GetCurrentCompanyId() companyId: string,
   ) {
-    return this.productService.updateStock(id, body.quantity, body.operation);
+    return this.productService.updateStock(
+      id,
+      body.quantity,
+      body.operation,
+      companyId,
+    );
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string) {
-    return this.productService.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @GetCurrentCompanyId() companyId: string,
+  ) {
+    return this.productService.remove(id, companyId);
   }
 
   @Post('adjustments')
   @HttpCode(HttpStatus.CREATED)
   async createStockAdjustment(
     @Body() createStockAdjustmentDto: CreateStockAdjustmentDto,
-    @Request() req: any,
+    @GetCurrentUserId() userId: string,
+    @GetCurrentCompanyId() companyId: string,
   ) {
-    const userId = req.user?.userId;
     return this.productService.createStockAdjustment(
       createStockAdjustmentDto,
       userId,
+      companyId,
     );
   }
 
   @Get('adjustments')
-  async getStockAdjustments() {
-    return this.productService.getStockAdjustments();
+  async getStockAdjustments(@GetCurrentCompanyId() companyId: string) {
+    return this.productService.getStockAdjustments(companyId);
   }
 
   @Get('adjustments/:id')
-  async getStockAdjustment(@Param('id') id: string) {
-    return this.productService.getStockAdjustment(id);
+  async getStockAdjustment(
+    @Param('id') id: string,
+    @GetCurrentCompanyId() companyId: string,
+  ) {
+    return this.productService.getStockAdjustment(id, companyId);
   }
 
   @Get('warehouses')
-  async getWarehouses() {
-    return this.productService.getWarehouses();
+  async getWarehouses(@GetCurrentCompanyId() companyId: string) {
+    return this.productService.getWarehouses(companyId);
   }
 }

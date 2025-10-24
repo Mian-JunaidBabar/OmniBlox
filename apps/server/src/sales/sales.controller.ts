@@ -10,11 +10,13 @@ import {
   Post,
   Put,
   Query,
-  Req,
-  UnauthorizedException,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import {
+  GetCurrentCompanyId,
+  GetCurrentUserId,
+} from '../auth/decorators/current-user.decorator';
 import { SalesService } from './sales.service';
 import { CreateSaleDto } from './dto/create-sale.dto';
 import { UpdateSaleDto } from './dto/update-sale.dto';
@@ -26,18 +28,17 @@ export class SalesController {
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(@Body() dto: CreateSaleDto, @Req() req: any) {
-    const userId = req?.user?.id;
-    if (!userId) {
-      throw new UnauthorizedException(
-        'Authenticated user not found in request context',
-      );
-    }
-    return this.salesService.create(dto, userId);
+  async create(
+    @Body() dto: CreateSaleDto,
+    @GetCurrentUserId() userId: string,
+    @GetCurrentCompanyId() companyId: string,
+  ) {
+    return this.salesService.create(dto, userId, companyId);
   }
 
   @Get()
   async findAll(
+    @GetCurrentCompanyId() companyId: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
@@ -47,6 +48,7 @@ export class SalesController {
     const pageNum = page ? parseInt(page, 10) : 1;
     const limitNum = limit ? parseInt(limit, 10) : 10;
     return this.salesService.findAll(
+      companyId,
       pageNum,
       limitNum,
       search,
@@ -56,28 +58,41 @@ export class SalesController {
   }
 
   @Get('stats')
-  async stats() {
-    return this.salesService.getStats();
+  async stats(@GetCurrentCompanyId() companyId: string) {
+    return this.salesService.getStats(companyId);
   }
 
   @Get(':id')
-  async findOne(@Param('id') id: string) {
-    return this.salesService.findOne(id);
+  async findOne(
+    @Param('id') id: string,
+    @GetCurrentCompanyId() companyId: string,
+  ) {
+    return this.salesService.findOne(id, companyId);
   }
 
   @Put(':id')
-  async update(@Param('id') id: string, @Body() dto: UpdateSaleDto) {
-    return this.salesService.update(id, dto);
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateSaleDto,
+    @GetCurrentCompanyId() companyId: string,
+  ) {
+    return this.salesService.update(id, dto, companyId);
   }
 
   @Patch(':id/mark-paid')
-  async markAsPaid(@Param('id') id: string) {
-    return this.salesService.markAsPaid(id);
+  async markAsPaid(
+    @Param('id') id: string,
+    @GetCurrentCompanyId() companyId: string,
+  ) {
+    return this.salesService.markAsPaid(id, companyId);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(@Param('id') id: string) {
-    await this.salesService.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @GetCurrentCompanyId() companyId: string,
+  ) {
+    await this.salesService.remove(id, companyId);
   }
 }

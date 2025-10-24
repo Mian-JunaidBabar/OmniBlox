@@ -20,7 +20,8 @@
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "prisma:migrate": "dotenv -e .env -o -- npx prisma migrate dev",
     "prisma:generate": "npx prisma generate",
-    "prisma:reset": "npx prisma migrate reset --force"
+    "prisma:reset": "npx prisma migrate reset --force",
+    "prisma:seed": "ts-node prisma/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

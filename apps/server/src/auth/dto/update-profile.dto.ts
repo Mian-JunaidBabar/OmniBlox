@@ -1,23 +1,11 @@
-import { IsOptional, IsString } from 'class-validator';
+import { IsOptional, IsString, IsEmail } from 'class-validator';
 
 export class UpdateProfileDto {
   @IsString()
   @IsOptional()
   name?: string;
 
-  @IsString()
+  @IsEmail()
   @IsOptional()
-  companyName?: string;
-
-  @IsString()
-  @IsOptional()
-  industry?: string;
-
-  @IsString()
-  @IsOptional()
-  otherIndustry?: string;
-
-  @IsString()
-  @IsOptional()
-  country?: string;
+  email?: string;
 }

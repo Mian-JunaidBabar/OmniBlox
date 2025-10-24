@@ -7,41 +7,82 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// --- USER & CONTACT MODELS (No changes here) ---
+// --- THE CORE OF MULTI-TENANCY ---
+
+model Company {
+  id           String @id @default(uuid())
+  name         String
+  workspaceUrl String @unique
+  industry     String?
+  otherIndustry String?
+  country      String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  ownerId String @unique // ID of the user who created the company
+  owner   User   @relation("CompanyOwner", fields: [ownerId], references: [id])
+  users   User[] @relation("CompanyUsers") // All users belonging to this company
+
+  // All business data models link back to this Company
+  products            Product[]
+  productCategories   ProductCategory[]
+  brands              Brand[]
+  warehouses          Warehouse[]
+  customers           Customer[]
+  suppliers           Supplier[]
+  sales               Sale[]
+  purchaseOrders      PurchaseOrder[]
+  quotations          Quotation[]
+  salesReturns        SalesReturn[]
+  expenses            Expense[]
+  expenseCategories   ExpenseCategory[]
+  stockAdjustments    StockAdjustment[]
+
+  @@map("companies")
+}
+
+// --- MODIFIED USER & CONTACT MODELS ---
 
 model User {
-  id             String          @id @default(uuid())
-  email          String          @unique
-  password       String
-  name           String
-  firstName      String?
-  lastName       String?
-  role           UserRole        @default(STAFF)
-  companyName    String?
-  workspaceUrl   String?         @unique
-  industry       String?
-  otherIndustry  String?
-  country        String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  expenses       Expense[]
-  purchaseOrders PurchaseOrder[]
-  quotations     Quotation[]
-  sales          Sale[]
-  salesReturns   SalesReturn[]
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      UserRole @default(STAFF) // Role *within* the company
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // MODIFIED: User now belongs to a Company
+  companyId String
+  company   Company @relation("CompanyUsers", fields: [companyId], references: [id])
+
+  // Relations
+  ownedCompany     Company?        @relation("CompanyOwner")
+  expenses         Expense[]
+  purchaseOrders   PurchaseOrder[]
+  quotations       Quotation[]
+  sales            Sale[]
+  salesReturns     SalesReturn[]
   stockAdjustments StockAdjustment[]
 
   @@map("users")
 }
 
 model Customer {
-  id         String      @id @default(uuid())
-  name       String
-  email      String?     @unique
-  phone      String?
-  address    String?
-  createdAt  DateTime    @default(now())
-  updatedAt  DateTime    @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  email     String?  @unique
+  phone     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // NEW: Link to Company
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  // Relations
   quotations Quotation[]
   sales      Sale[]
 
@@ -49,72 +90,102 @@ model Customer {
 }
 
 model Supplier {
-  id             String          @id @default(uuid())
-  name           String
-  email          String?         @unique
-  phone          String?
-  address        String?
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  id        String   @id @default(uuid())
+  name      String
+  email     String?  @unique
+  phone     String?
+  address   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // NEW: Link to Company
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  // Relations
   purchaseOrders PurchaseOrder[]
 
   @@map("suppliers")
 }
 
 
-// --- PRODUCT & INVENTORY MODELS (Updated) ---
+// --- MODIFIED PRODUCT & INVENTORY MODELS ---
 
 model Product {
-  id          String    @id @default(uuid())
-  name        String
-  sku         String    @unique
-  description String?
-  salePrice   Decimal   @db.Decimal(10, 2)
-  costPrice   Decimal   @db.Decimal(10, 2)
-  reorderLevel Int      @default(0)
-  status      ProductStatus @default(ACTIVE)
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id           String        @id @default(uuid())
+  name         String
+  sku          String        // SKU should be unique *per company*
+  description  String?
+  salePrice    Decimal       @db.Decimal(10, 2)
+  costPrice    Decimal       @db.Decimal(10, 2)
+  reorderLevel Int           @default(0)
+  status       ProductStatus @default(ACTIVE)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
 
-  categoryId String
-  category   ProductCategory @relation(fields: [categoryId], references: [id])
-  brandId    String?
-  brand      Brand?          @relation(fields: [brandId], references: [id])
+  // NEW: Link to Company
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
 
   // Relations
-  inventory          Inventory[]
-  purchaseOrderItems PurchaseOrderItem[]
-  quotationItems     QuotationItem[]
-  saleItems          SaleItem[]
-  salesReturnItems   SalesReturnItem[]
+  categoryId           String
+  category             ProductCategory       @relation(fields: [categoryId], references: [id])
+  brandId              String?
+  brand                Brand?                @relation(fields: [brandId], references: [id])
+  inventory            Inventory[]
+  purchaseOrderItems   PurchaseOrderItem[]
+  quotationItems       QuotationItem[]
+  saleItems            SaleItem[]
+  salesReturnItems     SalesReturnItem[]
   stockAdjustmentItems StockAdjustmentItem[]
 
+  @@unique([companyId, sku]) // Ensures SKU is unique only within a company
   @@map("products")
 }
 
 model ProductCategory {
-  id       String    @id @default(uuid())
-  name     String    @unique
+  id   String @id @default(uuid())
+  name String
+
+  // NEW: Link to Company
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  // Relations
   products Product[]
 
+  @@unique([companyId, name]) // Category names unique per company
   @@map("product_categories")
 }
 
 model Brand {
-  id       String    @id @default(uuid())
-  name     String    @unique
+  id   String @id @default(uuid())
+  name String
+
+  // NEW: Link to Company
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  // Relations
   products Product[]
 
+  @@unique([companyId, name]) // Brand names unique per company
   @@map("brands")
 }
 
 model Warehouse {
-  id        String      @id @default(uuid())
+  id        String   @id @default(uuid())
   name      String
   location  String?
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  inventory Inventory[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // NEW: Link to Company
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  // Relations
+  inventory            Inventory[]
   stockAdjustmentItems StockAdjustmentItem[]
 
   @@map("warehouses")
@@ -134,17 +205,23 @@ model Inventory {
 }
 
 model StockAdjustment {
-  id               String               @id @default(uuid())
-  referenceNumber  String               @unique
-  adjustmentDate   DateTime             @default(now())
-  notes            String?
-  totalItems       Int                  @default(0)
-  netChange        Int                  @default(0)
-  createdAt        DateTime             @default(now())
-  updatedAt        DateTime             @updatedAt
-  userId           String
-  user             User                 @relation(fields: [userId], references: [id])
-  items            StockAdjustmentItem[]
+  id              String   @id @default(uuid())
+  referenceNumber String   @unique
+  adjustmentDate  DateTime @default(now())
+  notes           String?
+  totalItems      Int      @default(0)
+  netChange       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // NEW: Link to Company
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  // Relations
+  userId String
+  user   User                 @relation(fields: [userId], references: [id])
+  items  StockAdjustmentItem[]
 
   @@map("stock_adjustments")
 }
@@ -165,7 +242,7 @@ model StockAdjustmentItem {
 }
 
 
-// --- TRANSACTION & EXPENSE MODELS (Updated) ---
+// --- MODIFIED TRANSACTION & EXPENSE MODELS ---
 
 model Expense {
   id          String    @id @default(uuid())
@@ -174,11 +251,14 @@ model Expense {
   expenseDate DateTime  @default(now())
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-
-  description   String?         // Renamed from 'notes'
-  vendor        String          // New field for the vendor name
-  status        ExpenseStatus   @default(PENDING) // New status field
+  description String?   // Renamed from 'notes'
+  vendor      String    // New field for the vendor name
+  status      ExpenseStatus   @default(PENDING) // New status field
   paymentMethod PaymentMethod?  // New field for payment method
+
+  // NEW: Link to Company
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
 
   // Foreign Keys
   categoryId String
@@ -207,14 +287,21 @@ model ExpenseAttachment {
 }
 
 model ExpenseCategory {
-  id       String    @id @default(uuid())
-  name     String    @unique
+  id   String @id @default(uuid())
+  name String
+
+  // NEW: Link to Company
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  // Relations
   expenses Expense[]
 
+  @@unique([companyId, name]) // Category names unique per company
   @@map("expense_categories")
 }
 
-// --- OTHER TRANSACTION MODELS (No changes here) ---
+// --- OTHER TRANSACTION MODELS ---
 
 model Sale {
   id            String         @id @default(uuid())
@@ -231,12 +318,20 @@ model Sale {
   notes         String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
-  customerId    String
   customerEmail String?
-  userId        String
-  items         SaleItem[]
-  customer      Customer       @relation(fields: [customerId], references: [id])
-  user          User           @relation(fields: [userId], references: [id])
+
+  // NEW: Link to Company
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  // Foreign Keys
+  customerId String
+  userId     String
+
+  // Relations
+  items    SaleItem[]
+  customer Customer @relation(fields: [customerId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
 
   @@map("sales")
 }
@@ -261,11 +356,19 @@ model PurchaseOrder {
   orderDate       DateTime            @default(now())
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
-  supplierId      String
-  userId          String
-  items           PurchaseOrderItem[]
-  supplier        Supplier            @relation(fields: [supplierId], references: [id])
-  user            User                @relation(fields: [userId], references: [id])
+
+  // NEW: Link to Company
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  // Foreign Keys
+  supplierId String
+  userId     String
+
+  // Relations
+  items    PurchaseOrderItem[]
+  supplier Supplier            @relation(fields: [supplierId], references: [id])
+  user     User                @relation(fields: [userId], references: [id])
 
   @@map("purchase_orders")
 }
@@ -291,11 +394,19 @@ model Quotation {
   expiryDate      DateTime?
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
-  customerId      String
-  userId          String
-  items           QuotationItem[]
-  customer        Customer        @relation(fields: [customerId], references: [id])
-  user            User            @relation(fields: [userId], references: [id])
+
+  // NEW: Link to Company
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  // Foreign Keys
+  customerId String
+  userId     String
+
+  // Relations
+  items    QuotationItem[]
+  customer Customer        @relation(fields: [customerId], references: [id])
+  user     User            @relation(fields: [userId], references: [id])
 
   @@map("quotations")
 }
@@ -320,9 +431,17 @@ model SalesReturn {
   returnDate      DateTime          @default(now())
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
-  userId          String
-  items           SalesReturnItem[]
-  user            User              @relation(fields: [userId], references: [id])
+
+  // NEW: Link to Company
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  // Foreign Keys
+  userId String
+
+  // Relations
+  items SalesReturnItem[]
+  user  User              @relation(fields: [userId], references: [id])
 
   @@map("sales_returns")
 }
@@ -342,6 +461,7 @@ model SalesReturnItem {
 // --- ENUMS ---
 
 enum UserRole {
+  OWNER   // NEW: Add OWNER role for the company creator
   ADMIN
   MANAGER
   STAFF

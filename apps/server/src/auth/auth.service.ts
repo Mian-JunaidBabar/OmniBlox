@@ -39,51 +39,62 @@ export class AuthService {
     }
 
     // Check if workspace URL is already taken
-    const existingWorkspace = await this.prisma.user.findFirst({
-      where: { workspaceUrl } as any,
-    } as any);
+    const existingCompany = await this.prisma.company.findUnique({
+      where: { workspaceUrl },
+    });
 
-    if (existingWorkspace) {
+    if (existingCompany) {
       throw new ConflictException('Workspace URL is already taken');
     }
 
     // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // Create user with ADMIN role (first user for their workspace)
-    const created = await this.prisma.user.create({
-      data: {
-        email,
-        password: hashedPassword,
-        name,
-        role: 'ADMIN' as any,
-        companyName,
-        workspaceUrl,
-        industry,
-        otherIndustry: industry === 'other' ? otherIndustry : null,
-        country,
-      } as any,
-    });
+    // Use transaction to create company and owner user
+    const result = await this.prisma.$transaction(async (tx) => {
+      // Create company first (with temporary owner)
+      const company = await tx.company.create({
+        data: {
+          name: companyName,
+          workspaceUrl,
+          industry,
+          otherIndustry: industry === 'other' ? otherIndustry : null,
+          country,
+          ownerId: 'temp-owner', // Temporary value
+        },
+      });
 
-    // Fetch the created user record (cast to any to avoid generated type mismatches)
-    const user = await this.prisma.user.findUnique({
-      where: { id: created.id },
-    });
+      // Create owner user
+      const user = await tx.user.create({
+        data: {
+          email,
+          password: hashedPassword,
+          name,
+          role: 'OWNER',
+          companyId: company.id,
+        },
+      });
 
-    if (!user) {
-      throw new ConflictException('Failed to create user');
-    }
+      // Update company with real owner ID
+      const updatedCompany = await tx.company.update({
+        where: { id: company.id },
+        data: { ownerId: user.id },
+      });
+
+      return { user, company: updatedCompany };
+    });
 
     // Generate JWT tokens
-    return this.buildAuthResponse(user);
+    return this.buildAuthResponse(result.user, result.company);
   }
 
   async login(loginDto: LoginDto) {
     const { email, password } = loginDto;
 
-    // Fetch user by email and include password (cast to any)
+    // Fetch user by email with company information
     const user = await this.prisma.user.findUnique({
       where: { email },
+      include: { company: true },
     });
 
     if (!user) {
@@ -101,12 +112,13 @@ export class AuthService {
     }
 
     // Generate JWT tokens
-    return this.buildAuthResponse(user);
+    return this.buildAuthResponse(user, user.company);
   }
 
   async validateUser(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
+      include: { company: true },
     });
 
     if (!user) {
@@ -118,9 +130,15 @@ export class AuthService {
       email: user.email,
       name: user.name,
       role: user.role,
-      companyName: user.companyName,
-      workspaceUrl: user.workspaceUrl,
-    } as any;
+      companyId: user.companyId,
+      company: {
+        id: user.company.id,
+        name: user.company.name,
+        workspaceUrl: user.company.workspaceUrl,
+        industry: user.company.industry,
+        country: user.company.country,
+      },
+    };
   }
 
   async refreshToken(refreshToken: string) {
@@ -137,7 +155,7 @@ export class AuthService {
       });
 
       const user = await this.validateUser(payload.sub);
-      return this.buildAuthResponse(user);
+      return this.buildAuthResponse(user, user.company);
     } catch (error) {
       throw new UnauthorizedException('Invalid refresh token');
     }
@@ -147,10 +165,14 @@ export class AuthService {
     return this.validateUser(userId);
   }
 
-  async updateUserProfile(userId: string, updateData: Partial<SignupDto>) {
+  async updateUserProfile(
+    userId: string,
+    updateData: { name?: string; email?: string },
+  ) {
     const user = await this.prisma.user.update({
       where: { id: userId },
-      data: updateData as any,
+      data: updateData,
+      include: { company: true },
     });
 
     return {
@@ -158,8 +180,14 @@ export class AuthService {
       email: user.email,
       name: user.name,
       role: user.role,
-      companyName: user.companyName,
-      workspaceUrl: user.workspaceUrl,
+      companyId: user.companyId,
+      company: {
+        id: user.company.id,
+        name: user.company.name,
+        workspaceUrl: user.company.workspaceUrl,
+        industry: user.company.industry,
+        country: user.company.country,
+      },
     };
   }
 
@@ -189,19 +217,20 @@ export class AuthService {
 
     await this.prisma.user.update({
       where: { id: userId },
-      data: { password: hashedNewPassword } as any,
+      data: { password: hashedNewPassword },
     });
 
     return { message: 'Password updated successfully' };
   }
 
-  private buildAuthResponse(user: any) {
+  private buildAuthResponse(user: any, company: any) {
     const payload = {
       sub: user.id,
       email: user.email,
       role: user.role,
-      workspaceUrl: user.workspaceUrl,
-    } as any;
+      companyId: user.companyId,
+      workspaceUrl: company.workspaceUrl,
+    };
 
     const accessToken = this.jwtService.sign(payload, {
       secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
@@ -224,8 +253,14 @@ export class AuthService {
         email: user.email,
         name: user.name,
         role: user.role,
-        companyName: user.companyName,
-        workspaceUrl: user.workspaceUrl,
+        companyId: user.companyId,
+      },
+      company: {
+        id: company.id,
+        name: company.name,
+        workspaceUrl: company.workspaceUrl,
+        industry: company.industry,
+        country: company.country,
       },
     };
   }

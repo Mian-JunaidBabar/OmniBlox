@@ -17,51 +17,76 @@ export class ProductService {
 
   async create(
     createProductDto: CreateProductDto,
+    companyId: string,
   ): Promise<ProductResponseDto> {
     const { sku, category, brand, stock, ...productData } = createProductDto;
 
-    // Check if SKU already exists
+    // Check if SKU already exists within this company (Golden Rule applied)
     const existingProduct = await this.prisma.product.findUnique({
-      where: { sku },
+      where: {
+        companyId_sku: {
+          companyId,
+          sku,
+        },
+      },
     });
 
     if (existingProduct) {
-      throw new ConflictException('Product with this SKU already exists');
+      throw new ConflictException(
+        'Product with this SKU already exists in your company',
+      );
     }
 
     try {
-      // Find or create category
+      // Find or create category within this company (Golden Rule applied)
       let categoryRecord = await this.prisma.productCategory.findUnique({
-        where: { name: category },
+        where: {
+          companyId_name: {
+            companyId,
+            name: category,
+          },
+        },
       });
 
       if (!categoryRecord) {
         categoryRecord = await this.prisma.productCategory.create({
-          data: { name: category },
+          data: {
+            name: category,
+            companyId, // Golden Rule: always include companyId
+          },
         });
       }
 
-      // Find or create brand if provided
+      // Find or create brand if provided within this company (Golden Rule applied)
       let brandRecord: { id: string; name: string } | null = null;
       if (brand) {
         brandRecord = await this.prisma.brand.findUnique({
-          where: { name: brand },
+          where: {
+            companyId_name: {
+              companyId,
+              name: brand,
+            },
+          },
         });
 
         if (!brandRecord) {
           brandRecord = await this.prisma.brand.create({
-            data: { name: brand },
+            data: {
+              name: brand,
+              companyId, // Golden Rule: always include companyId
+            },
           });
         }
       }
 
-      // Create product
+      // Create product with companyId (Golden Rule applied)
       const product = await this.prisma.product.create({
         data: {
           sku,
           ...productData,
           categoryId: categoryRecord.id,
           brandId: brandRecord?.id || null,
+          companyId, // Golden Rule: always include companyId
         },
         include: {
           category: true,
@@ -69,15 +94,18 @@ export class ProductService {
         },
       });
 
-      // Create inventory entry (assume default warehouse for now)
-      // TODO: Handle multiple warehouses
-      const defaultWarehouse = await this.prisma.warehouse.findFirst();
+      // Find a warehouse for this company (Golden Rule applied)
+      const defaultWarehouse = await this.prisma.warehouse.findFirst({
+        where: { companyId }, // Golden Rule: filter by companyId
+      });
+
       if (!defaultWarehouse) {
-        // Create a default warehouse if none exists
+        // Create a default warehouse for this company if none exists
         const warehouse = await this.prisma.warehouse.create({
           data: {
             name: 'Default Warehouse',
             location: 'Default Location',
+            companyId, // Golden Rule: always include companyId
           },
         });
 
@@ -105,6 +133,7 @@ export class ProductService {
   }
 
   async findAll(
+    companyId: string, // Golden Rule: always require companyId
     page: number = 1,
     limit: number = 10,
     search?: string,
@@ -113,7 +142,9 @@ export class ProductService {
   ): Promise<{ products: ProductResponseDto[]; total: number; pages: number }> {
     const skip = (page - 1) * limit;
 
-    const where: any = {};
+    const where: any = {
+      companyId, // Golden Rule: always filter by companyId
+    };
 
     if (search) {
       where.OR = [
@@ -126,6 +157,7 @@ export class ProductService {
     if (category) {
       where.category = {
         name: category,
+        companyId, // Golden Rule: filter category by companyId too
       };
     }
 
@@ -165,9 +197,12 @@ export class ProductService {
     };
   }
 
-  async findOne(id: string): Promise<ProductResponseDto> {
-    const product = await this.prisma.product.findUnique({
-      where: { id },
+  async findOne(id: string, companyId: string): Promise<ProductResponseDto> {
+    const product = await this.prisma.product.findFirst({
+      where: {
+        id,
+        companyId, // Golden Rule: always filter by companyId
+      },
       include: {
         category: true,
         brand: true,
@@ -190,9 +225,12 @@ export class ProductService {
     return this.transformToDto(product, totalStock);
   }
 
-  async findBySku(sku: string): Promise<ProductResponseDto> {
-    const product = await this.prisma.product.findUnique({
-      where: { sku },
+  async findBySku(sku: string, companyId: string): Promise<ProductResponseDto> {
+    const product = await this.prisma.product.findFirst({
+      where: {
+        sku,
+        companyId, // Golden Rule: always filter by companyId
+      },
       include: {
         category: true,
         brand: true,
@@ -218,9 +256,13 @@ export class ProductService {
   async update(
     id: string,
     updateProductDto: UpdateProductDto,
+    companyId: string,
   ): Promise<ProductResponseDto> {
-    const existingProduct = await this.prisma.product.findUnique({
-      where: { id },
+    const existingProduct = await this.prisma.product.findFirst({
+      where: {
+        id,
+        companyId, // Golden Rule: always filter by companyId
+      },
       include: {
         category: true,
         brand: true,
@@ -232,14 +274,21 @@ export class ProductService {
       throw new NotFoundException('Product not found');
     }
 
-    // Check if SKU is being updated and if it conflicts with existing product
+    // Check if SKU is being updated and if it conflicts with existing product within the company
     if (updateProductDto.sku && updateProductDto.sku !== existingProduct.sku) {
       const existingSkuProduct = await this.prisma.product.findUnique({
-        where: { sku: updateProductDto.sku },
+        where: {
+          companyId_sku: {
+            companyId,
+            sku: updateProductDto.sku,
+          },
+        },
       });
 
       if (existingSkuProduct) {
-        throw new ConflictException('Product with this SKU already exists');
+        throw new ConflictException(
+          'Product with this SKU already exists in your company',
+        );
       }
     }
 
@@ -247,32 +296,48 @@ export class ProductService {
       const { category, brand, stock, ...productData } = updateProductDto;
       const updateData: any = { ...productData };
 
-      // Handle category update
+      // Handle category update within company scope
       if (category !== undefined) {
         let categoryRecord = await this.prisma.productCategory.findUnique({
-          where: { name: category },
+          where: {
+            companyId_name: {
+              companyId,
+              name: category,
+            },
+          },
         });
 
         if (!categoryRecord) {
           categoryRecord = await this.prisma.productCategory.create({
-            data: { name: category },
+            data: {
+              name: category,
+              companyId, // Golden Rule: always include companyId
+            },
           });
         }
         updateData.categoryId = categoryRecord.id;
       }
 
-      // Handle brand update
+      // Handle brand update within company scope
       if (brand !== undefined) {
         if (brand === null || brand === '') {
           updateData.brandId = null;
         } else {
           let brandRecord = await this.prisma.brand.findUnique({
-            where: { name: brand },
+            where: {
+              companyId_name: {
+                companyId,
+                name: brand,
+              },
+            },
           });
 
           if (!brandRecord) {
             brandRecord = await this.prisma.brand.create({
-              data: { name: brand },
+              data: {
+                name: brand,
+                companyId, // Golden Rule: always include companyId
+              },
             });
           }
           updateData.brandId = brandRecord.id;
@@ -280,7 +345,10 @@ export class ProductService {
       }
 
       const product = await this.prisma.product.update({
-        where: { id },
+        where: {
+          id,
+          // NOTE: Prisma doesn't support compound where in update, but we've already verified ownership above
+        },
         data: updateData,
         include: {
           category: true,
@@ -293,11 +361,12 @@ export class ProductService {
         },
       });
 
-      // Handle stock update if provided
+      // Handle stock update if provided (find warehouse within company)
       if (stock !== undefined) {
-        // For now, update the first inventory entry (default warehouse)
-        // TODO: Handle multiple warehouses properly
-        const defaultWarehouse = await this.prisma.warehouse.findFirst();
+        const defaultWarehouse = await this.prisma.warehouse.findFirst({
+          where: { companyId }, // Golden Rule: filter by companyId
+        });
+
         if (defaultWarehouse) {
           await this.prisma.inventory.upsert({
             where: {
@@ -328,9 +397,12 @@ export class ProductService {
     }
   }
 
-  async remove(id: string): Promise<void> {
-    const existingProduct = await this.prisma.product.findUnique({
-      where: { id },
+  async remove(id: string, companyId: string): Promise<void> {
+    const existingProduct = await this.prisma.product.findFirst({
+      where: {
+        id,
+        companyId, // Golden Rule: always filter by companyId
+      },
     });
 
     if (!existingProduct) {
@@ -357,9 +429,13 @@ export class ProductService {
     id: string,
     quantity: number,
     operation: 'add' | 'subtract',
+    companyId: string,
   ): Promise<ProductResponseDto> {
-    const product = await this.prisma.product.findUnique({
-      where: { id },
+    const product = await this.prisma.product.findFirst({
+      where: {
+        id,
+        companyId, // Golden Rule: always filter by companyId
+      },
       include: {
         category: true,
         brand: true,
@@ -375,11 +451,13 @@ export class ProductService {
       throw new NotFoundException('Product not found');
     }
 
-    // For now, work with the first inventory entry (default warehouse)
-    // TODO: Handle multiple warehouses properly
-    const defaultWarehouse = await this.prisma.warehouse.findFirst();
+    // Find warehouse for this company
+    const defaultWarehouse = await this.prisma.warehouse.findFirst({
+      where: { companyId }, // Golden Rule: filter by companyId
+    });
+
     if (!defaultWarehouse) {
-      throw new BadRequestException('No warehouse configured');
+      throw new BadRequestException('No warehouse configured for your company');
     }
 
     const existingInventory = product.inventory.find(
@@ -436,10 +514,11 @@ export class ProductService {
     return this.transformToDto(updatedProduct, totalStock);
   }
 
-  async getLowStockProducts(): Promise<ProductResponseDto[]> {
+  async getLowStockProducts(companyId: string): Promise<ProductResponseDto[]> {
     const products = await this.prisma.product.findMany({
       where: {
         status: 'ACTIVE',
+        companyId, // Golden Rule: always filter by companyId
       },
       include: {
         category: true,
@@ -470,16 +549,18 @@ export class ProductService {
     });
   }
 
-  async getCategories(): Promise<string[]> {
+  async getCategories(companyId: string): Promise<string[]> {
     const categories = await this.prisma.productCategory.findMany({
+      where: { companyId }, // Golden Rule: always filter by companyId
       select: { name: true },
     });
 
     return categories.map((category) => category.name);
   }
 
-  async getBrands(): Promise<string[]> {
+  async getBrands(companyId: string): Promise<string[]> {
     const brands = await this.prisma.brand.findMany({
+      where: { companyId }, // Golden Rule: always filter by companyId
       select: { name: true },
       orderBy: { name: 'asc' },
     });
@@ -487,8 +568,9 @@ export class ProductService {
     return brands.map((brand) => brand.name);
   }
 
-  async getStats() {
+  async getStats(companyId: string) {
     const products = await this.prisma.product.findMany({
+      where: { companyId }, // Golden Rule: always filter by companyId
       include: {
         inventory: true,
       },
@@ -514,7 +596,9 @@ export class ProductService {
       totalValue += productValue;
     }
 
-    const categoriesCount = await this.prisma.productCategory.count();
+    const categoriesCount = await this.prisma.productCategory.count({
+      where: { companyId }, // Golden Rule: always filter by companyId
+    });
 
     return {
       totalProducts,
@@ -545,6 +629,7 @@ export class ProductService {
   async createStockAdjustment(
     createStockAdjustmentDto: CreateStockAdjustmentDto,
     userId: string,
+    companyId: string,
   ): Promise<StockAdjustmentResponseDto> {
     const { items, notes } = createStockAdjustmentDto;
 
@@ -552,28 +637,40 @@ export class ProductService {
       throw new BadRequestException('At least one adjustment item is required');
     }
 
-    // Generate reference number
-    const adjustmentCount = await this.prisma.stockAdjustment.count();
+    // Generate reference number for this company
+    const adjustmentCount = await this.prisma.stockAdjustment.count({
+      where: { companyId }, // Golden Rule: count only within company
+    });
     const referenceNumber = `ADJ-${String(adjustmentCount + 1).padStart(6, '0')}`;
 
-    // Validate all products and warehouses exist
+    // Validate all products and warehouses exist within this company (Golden Rule)
     const productIds = items.map((item) => item.productId);
     const warehouseIds = items.map((item) => item.warehouseId);
 
     const products = await this.prisma.product.findMany({
-      where: { id: { in: productIds } },
+      where: {
+        id: { in: productIds },
+        companyId, // Golden Rule: filter by companyId
+      },
     });
 
     if (products.length !== productIds.length) {
-      throw new BadRequestException('One or more products not found');
+      throw new BadRequestException(
+        'One or more products not found in your company',
+      );
     }
 
     const warehouses = await this.prisma.warehouse.findMany({
-      where: { id: { in: warehouseIds } },
+      where: {
+        id: { in: warehouseIds },
+        companyId, // Golden Rule: filter by companyId
+      },
     });
 
     if (warehouses.length !== new Set(warehouseIds).size) {
-      throw new BadRequestException('One or more warehouses not found');
+      throw new BadRequestException(
+        'One or more warehouses not found in your company',
+      );
     }
 
     // Calculate totals
@@ -585,7 +682,7 @@ export class ProductService {
 
     try {
       return await this.prisma.$transaction(async (prisma) => {
-        // Create stock adjustment
+        // Create stock adjustment with companyId (Golden Rule)
         const adjustment = await prisma.stockAdjustment.create({
           data: {
             referenceNumber,
@@ -593,6 +690,7 @@ export class ProductService {
             totalItems,
             netChange,
             userId,
+            companyId, // Golden Rule: always include companyId
             items: {
               create: items.map((item) => ({
                 productId: item.productId,
@@ -663,8 +761,11 @@ export class ProductService {
     }
   }
 
-  async getStockAdjustments(): Promise<StockAdjustmentResponseDto[]> {
+  async getStockAdjustments(
+    companyId: string,
+  ): Promise<StockAdjustmentResponseDto[]> {
     const adjustments = await this.prisma.stockAdjustment.findMany({
+      where: { companyId }, // Golden Rule: filter by companyId
       include: {
         user: true,
         items: {
@@ -703,9 +804,15 @@ export class ProductService {
     }));
   }
 
-  async getStockAdjustment(id: string): Promise<StockAdjustmentResponseDto> {
-    const adjustment = await this.prisma.stockAdjustment.findUnique({
-      where: { id },
+  async getStockAdjustment(
+    id: string,
+    companyId: string,
+  ): Promise<StockAdjustmentResponseDto> {
+    const adjustment = await this.prisma.stockAdjustment.findFirst({
+      where: {
+        id,
+        companyId, // Golden Rule: filter by companyId
+      },
       include: {
         user: true,
         items: {
@@ -745,8 +852,9 @@ export class ProductService {
     };
   }
 
-  async getWarehouses() {
+  async getWarehouses(companyId: string) {
     const warehouses = await this.prisma.warehouse.findMany({
+      where: { companyId }, // Golden Rule: filter by companyId
       orderBy: {
         name: 'asc',
       },
