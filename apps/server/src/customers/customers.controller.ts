@@ -1,0 +1,71 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Param,
+  Post,
+  Put,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { GetCurrentCompanyId } from '../auth/decorators/current-user.decorator';
+import { CustomersService } from './customers.service';
+import { CreateCustomerDto } from './dto/create-customer.dto';
+import { UpdateCustomerDto } from './dto/update-customer.dto';
+
+@Controller('customers')
+@UseGuards(JwtAuthGuard)
+export class CustomersController {
+  constructor(private readonly customersService: CustomersService) {}
+
+  @Post()
+  @HttpCode(HttpStatus.CREATED)
+  async create(
+    @Body() dto: CreateCustomerDto,
+    @GetCurrentCompanyId() companyId: string,
+  ) {
+    return this.customersService.create(dto, companyId);
+  }
+
+  @Get()
+  async findAll(
+    @GetCurrentCompanyId() companyId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+    @Query('search') search?: string,
+  ) {
+    const pageNum = page ? parseInt(page, 10) : 1;
+    const limitNum = limit ? parseInt(limit, 10) : 10;
+    return this.customersService.findAll(companyId, pageNum, limitNum, search);
+  }
+
+  @Get(':id')
+  async findOne(
+    @Param('id') id: string,
+    @GetCurrentCompanyId() companyId: string,
+  ) {
+    return this.customersService.findOne(id, companyId);
+  }
+
+  @Put(':id')
+  async update(
+    @Param('id') id: string,
+    @Body() dto: UpdateCustomerDto,
+    @GetCurrentCompanyId() companyId: string,
+  ) {
+    return this.customersService.update(id, dto, companyId);
+  }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async remove(
+    @Param('id') id: string,
+    @GetCurrentCompanyId() companyId: string,
+  ) {
+    await this.customersService.remove(id, companyId);
+  }
+}

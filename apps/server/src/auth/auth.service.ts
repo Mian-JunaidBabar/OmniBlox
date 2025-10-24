@@ -52,7 +52,7 @@ export class AuthService {
 
     // Use transaction to create company and owner user
     const result = await this.prisma.$transaction(async (tx) => {
-      // Create company first (with temporary owner)
+      // Create company first (without owner initially)
       const company = await tx.company.create({
         data: {
           name: companyName,
@@ -60,7 +60,7 @@ export class AuthService {
           industry,
           otherIndustry: industry === 'other' ? otherIndustry : null,
           country,
-          ownerId: 'temp-owner', // Temporary value
+          // ownerId will be set after user creation
         },
       });
 

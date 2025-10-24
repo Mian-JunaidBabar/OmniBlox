@@ -20,8 +20,8 @@ model Company {
   updatedAt    DateTime @updatedAt
 
   // Relations
-  ownerId String @unique // ID of the user who created the company
-  owner   User   @relation("CompanyOwner", fields: [ownerId], references: [id])
+  ownerId String? @unique // ID of the user who created the company (optional for initial creation)
+  owner   User?   @relation("CompanyOwner", fields: [ownerId], references: [id])
   users   User[] @relation("CompanyUsers") // All users belonging to this company
 
   // All business data models link back to this Company
