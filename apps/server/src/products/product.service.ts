@@ -8,6 +8,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { ProductResponseDto } from './dto/product-response.dto';
+import { CreateStockAdjustmentDto } from './dto/create-stock-adjustment.dto';
+import { StockAdjustmentResponseDto } from './dto/stock-adjustment-response.dto';
 
 @Injectable()
 export class ProductService {
@@ -538,5 +540,222 @@ export class ProductService {
       createdAt: product.createdAt,
       updatedAt: product.updatedAt,
     };
+  }
+
+  async createStockAdjustment(
+    createStockAdjustmentDto: CreateStockAdjustmentDto,
+    userId: string,
+  ): Promise<StockAdjustmentResponseDto> {
+    const { items, notes } = createStockAdjustmentDto;
+
+    if (!items || items.length === 0) {
+      throw new BadRequestException('At least one adjustment item is required');
+    }
+
+    // Generate reference number
+    const adjustmentCount = await this.prisma.stockAdjustment.count();
+    const referenceNumber = `ADJ-${String(adjustmentCount + 1).padStart(6, '0')}`;
+
+    // Validate all products and warehouses exist
+    const productIds = items.map((item) => item.productId);
+    const warehouseIds = items.map((item) => item.warehouseId);
+
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds } },
+    });
+
+    if (products.length !== productIds.length) {
+      throw new BadRequestException('One or more products not found');
+    }
+
+    const warehouses = await this.prisma.warehouse.findMany({
+      where: { id: { in: warehouseIds } },
+    });
+
+    if (warehouses.length !== new Set(warehouseIds).size) {
+      throw new BadRequestException('One or more warehouses not found');
+    }
+
+    // Calculate totals
+    const totalItems = items.length;
+    const netChange = items.reduce(
+      (sum, item) => sum + (item.newQuantity - item.previousQuantity),
+      0,
+    );
+
+    try {
+      return await this.prisma.$transaction(async (prisma) => {
+        // Create stock adjustment
+        const adjustment = await prisma.stockAdjustment.create({
+          data: {
+            referenceNumber,
+            notes,
+            totalItems,
+            netChange,
+            userId,
+            items: {
+              create: items.map((item) => ({
+                productId: item.productId,
+                warehouseId: item.warehouseId,
+                previousQuantity: item.previousQuantity,
+                newQuantity: item.newQuantity,
+                difference: item.newQuantity - item.previousQuantity,
+              })),
+            },
+          },
+          include: {
+            user: true,
+            items: {
+              include: {
+                product: true,
+                warehouse: true,
+              },
+            },
+          },
+        });
+
+        // Update inventory for each item
+        for (const item of items) {
+          await prisma.inventory.upsert({
+            where: {
+              productId_warehouseId: {
+                productId: item.productId,
+                warehouseId: item.warehouseId,
+              },
+            },
+            update: {
+              quantity: item.newQuantity,
+            },
+            create: {
+              productId: item.productId,
+              warehouseId: item.warehouseId,
+              quantity: item.newQuantity,
+            },
+          });
+        }
+
+        // Format response
+        return {
+          id: adjustment.id,
+          referenceNumber: adjustment.referenceNumber,
+          adjustmentDate: adjustment.adjustmentDate.toISOString(),
+          notes: adjustment.notes,
+          totalItems: adjustment.totalItems,
+          netChange: adjustment.netChange,
+          createdAt: adjustment.createdAt.toISOString(),
+          updatedAt: adjustment.updatedAt.toISOString(),
+          userId: adjustment.userId,
+          userName: adjustment.user.name,
+          items: adjustment.items.map((item) => ({
+            id: item.id,
+            previousQuantity: item.previousQuantity,
+            newQuantity: item.newQuantity,
+            difference: item.difference,
+            productId: item.productId,
+            productName: item.product.name,
+            warehouseId: item.warehouseId,
+            warehouseName: item.warehouse.name,
+          })),
+        };
+      });
+    } catch (error) {
+      throw new BadRequestException('Failed to create stock adjustment');
+    }
+  }
+
+  async getStockAdjustments(): Promise<StockAdjustmentResponseDto[]> {
+    const adjustments = await this.prisma.stockAdjustment.findMany({
+      include: {
+        user: true,
+        items: {
+          include: {
+            product: true,
+            warehouse: true,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    return adjustments.map((adjustment) => ({
+      id: adjustment.id,
+      referenceNumber: adjustment.referenceNumber,
+      adjustmentDate: adjustment.adjustmentDate.toISOString(),
+      notes: adjustment.notes,
+      totalItems: adjustment.totalItems,
+      netChange: adjustment.netChange,
+      createdAt: adjustment.createdAt.toISOString(),
+      updatedAt: adjustment.updatedAt.toISOString(),
+      userId: adjustment.userId,
+      userName: adjustment.user.name,
+      items: adjustment.items.map((item) => ({
+        id: item.id,
+        previousQuantity: item.previousQuantity,
+        newQuantity: item.newQuantity,
+        difference: item.difference,
+        productId: item.productId,
+        productName: item.product.name,
+        warehouseId: item.warehouseId,
+        warehouseName: item.warehouse.name,
+      })),
+    }));
+  }
+
+  async getStockAdjustment(id: string): Promise<StockAdjustmentResponseDto> {
+    const adjustment = await this.prisma.stockAdjustment.findUnique({
+      where: { id },
+      include: {
+        user: true,
+        items: {
+          include: {
+            product: true,
+            warehouse: true,
+          },
+        },
+      },
+    });
+
+    if (!adjustment) {
+      throw new NotFoundException('Stock adjustment not found');
+    }
+
+    return {
+      id: adjustment.id,
+      referenceNumber: adjustment.referenceNumber,
+      adjustmentDate: adjustment.adjustmentDate.toISOString(),
+      notes: adjustment.notes,
+      totalItems: adjustment.totalItems,
+      netChange: adjustment.netChange,
+      createdAt: adjustment.createdAt.toISOString(),
+      updatedAt: adjustment.updatedAt.toISOString(),
+      userId: adjustment.userId,
+      userName: adjustment.user.name,
+      items: adjustment.items.map((item) => ({
+        id: item.id,
+        previousQuantity: item.previousQuantity,
+        newQuantity: item.newQuantity,
+        difference: item.difference,
+        productId: item.productId,
+        productName: item.product.name,
+        warehouseId: item.warehouseId,
+        warehouseName: item.warehouse.name,
+      })),
+    };
+  }
+
+  async getWarehouses() {
+    const warehouses = await this.prisma.warehouse.findMany({
+      orderBy: {
+        name: 'asc',
+      },
+    });
+
+    return warehouses.map((warehouse) => ({
+      id: warehouse.id,
+      name: warehouse.name,
+      location: warehouse.location,
+    }));
   }
 }

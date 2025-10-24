@@ -10,10 +10,12 @@ import {
   UseGuards,
   HttpStatus,
   HttpCode,
+  Request,
 } from '@nestjs/common';
 import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
+import { CreateStockAdjustmentDto } from './dto/create-stock-adjustment.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @Controller('products')
@@ -97,5 +99,33 @@ export class ProductController {
   @HttpCode(HttpStatus.NO_CONTENT)
   async remove(@Param('id') id: string) {
     return this.productService.remove(id);
+  }
+
+  @Post('adjustments')
+  @HttpCode(HttpStatus.CREATED)
+  async createStockAdjustment(
+    @Body() createStockAdjustmentDto: CreateStockAdjustmentDto,
+    @Request() req: any,
+  ) {
+    const userId = req.user?.userId;
+    return this.productService.createStockAdjustment(
+      createStockAdjustmentDto,
+      userId,
+    );
+  }
+
+  @Get('adjustments')
+  async getStockAdjustments() {
+    return this.productService.getStockAdjustments();
+  }
+
+  @Get('adjustments/:id')
+  async getStockAdjustment(@Param('id') id: string) {
+    return this.productService.getStockAdjustment(id);
+  }
+
+  @Get('warehouses')
+  async getWarehouses() {
+    return this.productService.getWarehouses();
   }
 }

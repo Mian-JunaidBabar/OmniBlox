@@ -29,6 +29,7 @@ model User {
   quotations     Quotation[]
   sales          Sale[]
   salesReturns   SalesReturn[]
+  stockAdjustments StockAdjustment[]
 
   @@map("users")
 }
@@ -86,6 +87,7 @@ model Product {
   quotationItems     QuotationItem[]
   saleItems          SaleItem[]
   salesReturnItems   SalesReturnItem[]
+  stockAdjustmentItems StockAdjustmentItem[]
 
   @@map("products")
 }
@@ -113,6 +115,7 @@ model Warehouse {
   createdAt DateTime    @default(now())
   updatedAt DateTime    @updatedAt
   inventory Inventory[]
+  stockAdjustmentItems StockAdjustmentItem[]
 
   @@map("warehouses")
 }
@@ -128,6 +131,37 @@ model Inventory {
 
   @@id([productId, warehouseId])
   @@map("inventory")
+}
+
+model StockAdjustment {
+  id               String               @id @default(uuid())
+  referenceNumber  String               @unique
+  adjustmentDate   DateTime             @default(now())
+  notes            String?
+  totalItems       Int                  @default(0)
+  netChange        Int                  @default(0)
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  userId           String
+  user             User                 @relation(fields: [userId], references: [id])
+  items            StockAdjustmentItem[]
+
+  @@map("stock_adjustments")
+}
+
+model StockAdjustmentItem {
+  id                String          @id @default(uuid())
+  previousQuantity  Int
+  newQuantity       Int
+  difference        Int
+  stockAdjustmentId String
+  productId         String
+  warehouseId       String
+  stockAdjustment   StockAdjustment @relation(fields: [stockAdjustmentId], references: [id], onDelete: Cascade)
+  product           Product         @relation(fields: [productId], references: [id])
+  warehouse         Warehouse       @relation(fields: [warehouseId], references: [id])
+
+  @@map("stock_adjustment_items")
 }
 
 
