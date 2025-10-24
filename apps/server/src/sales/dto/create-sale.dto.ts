@@ -2,6 +2,7 @@ import {
   ArrayMinSize,
   IsArray,
   IsDateString,
+  IsEmail,
   IsNotEmpty,
   IsNumber,
   IsOptional,
@@ -41,7 +42,7 @@ export class SaleCustomerDto {
   readonly name!: string;
 
   @IsOptional()
-  @IsString()
+  @IsEmail()
   readonly email?: string;
 
   @IsOptional()

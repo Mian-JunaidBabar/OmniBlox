@@ -20,6 +20,7 @@ export interface SaleSummary {
   invoiceNumber: string;
   customerId: string;
   customerName: string;
+  customerEmail: string | null;
   saleDate: string;
   dueDate: string;
   status: SaleStatus;

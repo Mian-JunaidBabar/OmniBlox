@@ -87,6 +87,7 @@ export default function NewSalePage() {
 
   const [formData, setFormData] = useState({
     customerName: "",
+    customerEmail: "",
     date: today,
     dueDate: "",
     status: "DRAFT" as SaleStatus,
@@ -209,6 +210,11 @@ export default function NewSalePage() {
       return;
     }
 
+    if (!formData.customerEmail.trim()) {
+      setSubmitError("Customer email is required.");
+      return;
+    }
+
     if (!formData.dueDate) {
       setSubmitError("Due date is required.");
       return;
@@ -231,6 +237,7 @@ export default function NewSalePage() {
       const payload = {
         customer: {
           name: formData.customerName.trim(),
+          email: formData.customerEmail.trim(),
         },
         saleDate: new Date(formData.date).toISOString(),
         dueDate: new Date(formData.dueDate).toISOString(),
@@ -286,7 +293,7 @@ export default function NewSalePage() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2 md:col-span-2">
+                <div className="space-y-2">
                   <Label htmlFor="customerName">Customer Name *</Label>
                   <Input
                     id="customerName"
@@ -296,6 +303,22 @@ export default function NewSalePage() {
                       setFormData((prev) => ({
                         ...prev,
                         customerName: event.target.value,
+                      }))
+                    }
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="customerEmail">Customer Email *</Label>
+                  <Input
+                    id="customerEmail"
+                    type="email"
+                    placeholder="Enter customer email"
+                    value={formData.customerEmail}
+                    onChange={(event) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        customerEmail: event.target.value,
                       }))
                     }
                     required
@@ -429,19 +452,19 @@ export default function NewSalePage() {
                               </SelectTrigger>
                               <SelectContent>
                                 {productsLoading && (
-                                  <SelectItem value="" disabled>
+                                  <SelectItem value="LOADING" disabled>
                                     Loading products...
                                   </SelectItem>
                                 )}
                                 {!productsLoading && productsError && (
-                                  <SelectItem value="" disabled>
+                                  <SelectItem value="ERROR" disabled>
                                     {productsError}
                                   </SelectItem>
                                 )}
                                 {!productsLoading &&
                                   !productsError &&
                                   products.length === 0 && (
-                                    <SelectItem value="" disabled>
+                                    <SelectItem value="NO_PRODUCTS" disabled>
                                       No products available
                                     </SelectItem>
                                   )}

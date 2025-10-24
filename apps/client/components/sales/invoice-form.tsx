@@ -188,19 +188,19 @@ export function InvoiceForm() {
                     </SelectTrigger>
                     <SelectContent>
                       {loadingProducts && (
-                        <SelectItem value="" disabled>
+                        <SelectItem value="LOADING" disabled>
                           Loading products...
                         </SelectItem>
                       )}
                       {!loadingProducts && loadError && (
-                        <SelectItem value="" disabled>
+                        <SelectItem value="ERROR" disabled>
                           {loadError}
                         </SelectItem>
                       )}
                       {!loadingProducts &&
                         !loadError &&
                         products.length === 0 && (
-                          <SelectItem value="" disabled>
+                          <SelectItem value="NO_PRODUCTS" disabled>
                             No products available
                           </SelectItem>
                         )}

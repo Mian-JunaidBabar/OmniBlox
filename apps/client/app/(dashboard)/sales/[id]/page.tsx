@@ -98,7 +98,12 @@ export default function SaleDetailPage() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="gap-2 bg-transparent">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2 bg-transparent"
+            disabled={!sale.customerEmail}
+          >
             <Mail className="h-4 w-4" />
             Email
           </Button>
@@ -149,6 +154,23 @@ export default function SaleDetailPage() {
                   Customer
                 </p>
                 <p className="text-sm font-medium">{sale.customerName}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">
+                  Customer Email
+                </p>
+                <p className="text-sm font-medium">
+                  {sale.customerEmail ? (
+                    <a
+                      href={`mailto:${sale.customerEmail}`}
+                      className="underline"
+                    >
+                      {sale.customerEmail}
+                    </a>
+                  ) : (
+                    "—"
+                  )}
+                </p>
               </div>
               <div>
                 <p className="text-sm font-medium text-muted-foreground">

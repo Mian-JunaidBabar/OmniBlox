@@ -66,9 +66,9 @@ export class AuthService {
     });
 
     // Fetch the created user record (cast to any to avoid generated type mismatches)
-    const user = (await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { id: created.id },
-    })) as any;
+    });
 
     if (!user) {
       throw new ConflictException('Failed to create user');
@@ -82,9 +82,9 @@ export class AuthService {
     const { email, password } = loginDto;
 
     // Fetch user by email and include password (cast to any)
-    const user = (await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { email },
-    })) as any;
+    });
 
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
@@ -105,9 +105,9 @@ export class AuthService {
   }
 
   async validateUser(userId: string) {
-    const user = (await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { id: userId },
-    })) as any;
+    });
 
     if (!user) {
       throw new UnauthorizedException('User not found');
@@ -134,10 +134,10 @@ export class AuthService {
           process.env.JWT_REFRESH_SECRET ||
           process.env.JWT_SECRET ||
           'your-secret-key-change-in-production',
-      }) as any;
+      });
 
       const user = await this.validateUser(payload.sub);
-      return this.buildAuthResponse(user as any);
+      return this.buildAuthResponse(user);
     } catch (error) {
       throw new UnauthorizedException('Invalid refresh token');
     }
@@ -148,10 +148,10 @@ export class AuthService {
   }
 
   async updateUserProfile(userId: string, updateData: Partial<SignupDto>) {
-    const user = (await this.prisma.user.update({
+    const user = await this.prisma.user.update({
       where: { id: userId },
       data: updateData as any,
-    })) as any;
+    });
 
     return {
       id: user.id,
@@ -168,9 +168,9 @@ export class AuthService {
     currentPassword: string,
     newPassword: string,
   ) {
-    const user = (await this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { id: userId },
-    })) as any;
+    });
 
     if (!user) {
       throw new UnauthorizedException('User not found');

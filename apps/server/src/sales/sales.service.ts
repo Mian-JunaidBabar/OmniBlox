@@ -34,7 +34,8 @@ export class SalesService {
         const productMap = await this.fetchProducts(tx, dto.items);
         await this.ensureStock(tx, dto.items, productMap);
 
-        const customerId = await this.resolveCustomer(tx, dto.customer);
+        const customer = await this.resolveCustomer(tx, dto.customer);
+        const providedEmail = dto.customer.email?.trim();
         const totals = this.calculateTotals(
           dto.items,
           dto.taxRate,
@@ -55,7 +56,8 @@ export class SalesService {
             saleDate: new Date(dto.saleDate),
             dueDate: new Date(dto.dueDate),
             notes: dto.notes ?? null,
-            customerId,
+            customerId: customer.id,
+            customerEmail: providedEmail ?? customer.email ?? null,
             userId,
             items: {
               create: dto.items.map((item) => ({
@@ -95,6 +97,8 @@ export class SalesService {
       where.OR = [
         { invoiceNumber: { contains: search, mode: 'insensitive' } },
         { customer: { name: { contains: search, mode: 'insensitive' } } },
+        { customerEmail: { contains: search, mode: 'insensitive' } },
+        { customer: { email: { contains: search, mode: 'insensitive' } } },
       ];
     }
 
@@ -183,9 +187,22 @@ export class SalesService {
           await this.ensureStock(tx, dto.items, productMap!);
         }
 
-        const customerId = dto.customer
+        const resolvedCustomer = dto.customer
           ? await this.resolveCustomer(tx, dto.customer)
-          : existing.customerId;
+          : null;
+        const providedEmail =
+          dto.customer?.email !== undefined
+            ? (dto.customer.email?.trim() ?? null)
+            : undefined;
+
+        const targetCustomerId = resolvedCustomer?.id ?? existing.customerId;
+        const targetCustomerEmail =
+          providedEmail !== undefined
+            ? providedEmail
+            : (resolvedCustomer?.email ??
+              existing.customerEmail ??
+              existing.customer?.email ??
+              null);
 
         const recalculationNeeded =
           !!dto.items ||
@@ -232,9 +249,10 @@ export class SalesService {
             discount: totals.discount,
             totalAmount: totals.total,
             customer:
-              customerId !== existing.customerId
-                ? { connect: { id: customerId } }
+              targetCustomerId !== existing.customerId
+                ? { connect: { id: targetCustomerId } }
                 : undefined,
+            customerEmail: targetCustomerEmail,
             items: dto.items
               ? {
                   deleteMany: {},
@@ -436,7 +454,15 @@ export class SalesService {
   private async resolveCustomer(
     tx: any,
     customer: CreateSaleDto['customer'],
-  ): Promise<string> {
+  ): Promise<{ id: string; email: string | null }> {
+    const normalized = {
+      ...customer,
+      name: customer.name.trim(),
+      email: customer.email?.trim(),
+      phone: customer.phone?.trim(),
+      address: customer.address?.trim(),
+    };
+
     if (customer.id) {
       const existing = await tx.customer.findUnique({
         where: { id: customer.id },
@@ -444,43 +470,94 @@ export class SalesService {
       if (!existing) {
         throw new BadRequestException('Customer not found');
       }
-      return existing.id;
+      const updates = this.buildCustomerUpdates(normalized, existing);
+      if (Object.keys(updates).length) {
+        const updated = await tx.customer.update({
+          where: { id: existing.id },
+          data: updates,
+        });
+        return { id: updated.id, email: updated.email ?? null };
+      }
+      return { id: existing.id, email: existing.email ?? null };
     }
 
-    if (customer.email) {
+    if (normalized.email) {
       const existing = await tx.customer.findUnique({
-        where: { email: customer.email },
+        where: { email: normalized.email },
       });
       if (existing) {
-        await tx.customer.update({
-          where: { id: existing.id },
-          data: {
-            name: customer.name ?? existing.name,
-            phone: customer.phone ?? existing.phone,
-            address: customer.address ?? existing.address,
-          },
-        });
-        return existing.id;
+        const updates = this.buildCustomerUpdates(normalized, existing);
+        if (Object.keys(updates).length) {
+          const updated = await tx.customer.update({
+            where: { id: existing.id },
+            data: updates,
+          });
+          return { id: updated.id, email: updated.email ?? null };
+        }
+        return { id: existing.id, email: existing.email ?? null };
       }
     }
 
     const byName = await tx.customer.findFirst({
-      where: { name: customer.name },
+      where: { name: normalized.name },
     });
     if (byName) {
-      return byName.id;
+      const updates = this.buildCustomerUpdates(normalized, byName);
+      if (Object.keys(updates).length) {
+        const updated = await tx.customer.update({
+          where: { id: byName.id },
+          data: updates,
+        });
+        return { id: updated.id, email: updated.email ?? null };
+      }
+      return { id: byName.id, email: byName.email ?? null };
     }
 
     const created = await tx.customer.create({
       data: {
-        name: customer.name,
-        email: customer.email,
-        phone: customer.phone,
-        address: customer.address,
+        name: normalized.name,
+        email: normalized.email,
+        phone: normalized.phone,
+        address: normalized.address,
       },
     });
 
-    return created.id;
+    return { id: created.id, email: created.email ?? null };
+  }
+
+  private buildCustomerUpdates(
+    customer: {
+      name: string;
+      email?: string | null;
+      phone?: string | null;
+      address?: string | null;
+    },
+    existing: {
+      name: string;
+      email: string | null;
+      phone: string | null;
+      address: string | null;
+    },
+  ): Record<string, unknown> {
+    const updates: Record<string, unknown> = {};
+
+    if (customer.name && customer.name !== existing.name) {
+      updates.name = customer.name;
+    }
+
+    if (customer.email !== undefined && customer.email !== existing.email) {
+      updates.email = customer.email;
+    }
+
+    if (customer.phone && customer.phone !== existing.phone) {
+      updates.phone = customer.phone;
+    }
+
+    if (customer.address && customer.address !== existing.address) {
+      updates.address = customer.address;
+    }
+
+    return updates;
   }
 
   private calculateTotals(
@@ -550,6 +627,7 @@ export class SalesService {
       invoiceNumber: sale.invoiceNumber,
       customerId: sale.customerId,
       customerName: sale.customer?.name ?? 'Unknown Customer',
+      customerEmail: sale.customerEmail ?? sale.customer?.email ?? null,
       saleDate: sale.saleDate.toISOString(),
       dueDate: sale.dueDate.toISOString(),
       status: sale.status,

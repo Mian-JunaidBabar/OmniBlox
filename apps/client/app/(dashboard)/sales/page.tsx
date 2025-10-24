@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -29,6 +29,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Plus,
   Search,
@@ -61,6 +71,12 @@ export default function SalesPage() {
     markPaidId,
   } = useSalesList();
 
+  const [pendingDelete, setPendingDelete] = useState<{
+    id: string;
+    customer: string;
+    invoice: string;
+  } | null>(null);
+
   const totalRevenue = stats?.totalRevenue ?? 0;
   const pendingAmount = stats?.pendingAmount ?? 0;
   const overdueAmount = stats?.overdueAmount ?? 0;
@@ -92,12 +108,14 @@ export default function SalesPage() {
     setFilters({ search: value });
   };
 
-  const handleDelete = async (id: string) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this sale?"
-    );
-    if (!confirmed) return;
-    await deleteSale(id);
+  const handleConfirmDelete = async () => {
+    if (!pendingDelete) return;
+    try {
+      await deleteSale(pendingDelete.id);
+      setPendingDelete(null);
+    } catch {
+      /* error handled by hook */
+    }
   };
 
   const handleMarkPaid = async (id: string) => {
@@ -315,8 +333,10 @@ export default function SalesPage() {
                               className="text-destructive"
                               onSelect={(event) => {
                                 event.preventDefault();
-                                handleDelete(sale.id).catch(() => {
-                                  /* handled by hook */
+                                setPendingDelete({
+                                  id: sale.id,
+                                  customer: sale.customerName,
+                                  invoice: sale.invoiceNumber,
                                 });
                               }}
                             >
@@ -333,6 +353,42 @@ export default function SalesPage() {
           </Table>
         </CardContent>
       </Card>
+      <AlertDialog
+        open={Boolean(pendingDelete)}
+        onOpenChange={(open) => {
+          if (!open) {
+            setPendingDelete(null);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this sale?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The sale
+              {pendingDelete ? ` ${pendingDelete.invoice}` : ""} for{" "}
+              {pendingDelete?.customer ?? "this customer"} will be removed
+              permanently.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletingId === pendingDelete?.id}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() =>
+                handleConfirmDelete().catch(() => {
+                  /* handled by hook */
+                })
+              }
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deletingId === pendingDelete?.id}
+            >
+              {deletingId === pendingDelete?.id ? "Deleting..." : "Delete Sale"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

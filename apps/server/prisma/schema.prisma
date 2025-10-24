@@ -70,13 +70,11 @@ model Product {
   description String?
   salePrice   Decimal   @db.Decimal(10, 2)
   costPrice   Decimal   @db.Decimal(10, 2)
-  // REMOVED: `stock` field is removed to avoid redundancy. Total stock is calculated from the Inventory model.
   reorderLevel Int      @default(0)
   status      ProductStatus @default(ACTIVE)
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  // MODIFIED: Relations to new Category and Brand models
   categoryId String
   category   ProductCategory @relation(fields: [categoryId], references: [id])
   brandId    String?
@@ -92,7 +90,6 @@ model Product {
   @@map("products")
 }
 
-// NEW: Model for Product Categories
 model ProductCategory {
   id       String    @id @default(uuid())
   name     String    @unique
@@ -101,7 +98,6 @@ model ProductCategory {
   @@map("product_categories")
 }
 
-// NEW: Model for Brands
 model Brand {
   id       String    @id @default(uuid())
   name     String    @unique
@@ -145,7 +141,6 @@ model Expense {
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
-  // MODIFIED & NEW FIELDS based on your form
   description   String?         // Renamed from 'notes'
   vendor        String          // New field for the vendor name
   status        ExpenseStatus   @default(PENDING) // New status field
@@ -163,10 +158,9 @@ model Expense {
   @@map("expenses")
 }
 
-// NEW: Model for expense attachments (receipts, etc.)
 model ExpenseAttachment {
   id        String   @id @default(uuid())
-  url       String // URL to the file in cloud storage (e.g., Neon/Supabase Storage)
+  url       String 
   fileName  String
   fileType  String
   createdAt DateTime @default(now())
@@ -204,6 +198,7 @@ model Sale {
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   customerId    String
+  customerEmail String?
   userId        String
   items         SaleItem[]
   customer      Customer       @relation(fields: [customerId], references: [id])
@@ -342,7 +337,7 @@ enum ExpenseStatus {
   PENDING
   APPROVED
   PAID
-  REJECTED // Added for completeness
+  REJECTED
 }
 
 // NEW: Enum for Payment Methods

@@ -12,6 +12,7 @@ export interface SaleSummaryDto {
   invoiceNumber: string;
   customerId: string;
   customerName: string;
+  customerEmail: string | null;
   saleDate: string;
   dueDate: string;
   status: string;
