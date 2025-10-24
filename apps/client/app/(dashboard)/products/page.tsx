@@ -1,11 +1,24 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
+import { useState, useEffect } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,7 +29,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,67 +37,80 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu"
-import { Plus, Search, MoreHorizontal, Edit, Trash2, Eye, Package, AlertTriangle, Loader2 } from "lucide-react"
-import Link from "next/link"
-import { useProductApi } from "@/hooks/use-product-api"
-import { useToast } from "@/hooks/use-toast"
-import type { Product } from "@/lib/types"
+} from "@/components/ui/dropdown-menu";
+import {
+  Plus,
+  Search,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  Eye,
+  Package,
+  AlertTriangle,
+  Loader2,
+} from "lucide-react";
+import Link from "next/link";
+import { useProductApi } from "@/hooks/use-product-api";
+import { useToast } from "@/hooks/use-toast";
+import type { Product } from "@/lib/types";
 
 export default function ProductsPage() {
-  const [products, setProducts] = useState<Product[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [loading, setLoading] = useState(true)
-  const { getProducts, deleteProduct } = useProductApi()
-  const { toast } = useToast()
+  const [products, setProducts] = useState<Product[]>([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [loading, setLoading] = useState(true);
+  const { getProducts, deleteProduct } = useProductApi();
+  const { toast } = useToast();
 
   // Load products on component mount
   useEffect(() => {
-    loadProducts()
-  }, [])
+    loadProducts();
+  }, []);
 
   const loadProducts = async () => {
     try {
-      setLoading(true)
-      const response = await getProducts()
-      setProducts(response.products)
+      setLoading(true);
+      const response = await getProducts();
+      setProducts(response.products);
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to load products. Please try again.",
         variant: "destructive",
-      })
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleDeleteProduct = async (id: string) => {
     try {
-      await deleteProduct(id)
-      setProducts(products.filter(p => p.id !== id))
+      await deleteProduct(id);
+      setProducts(products.filter((p) => p.id !== id));
       toast({
         title: "Success",
         description: "Product deleted successfully.",
-      })
+      });
     } catch (error) {
       toast({
         title: "Error",
         description: "Failed to delete product. Please try again.",
         variant: "destructive",
-      })
+      });
     }
-  }
+  };
 
   const filteredProducts = products.filter(
     (product) =>
       product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
       product.category.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (product.brand && product.brand.toLowerCase().includes(searchQuery.toLowerCase())),
-  )
+      (product.brand &&
+        product.brand.toLowerCase().includes(searchQuery.toLowerCase()))
+  );
 
-  const lowStockCount = products.filter((p) => p.stock <= p.reorderLevel).length
+  const lowStockCount = products.filter(
+    (p) => p.stock <= p.reorderLevel
+  ).length;
 
   if (loading) {
     return (
@@ -93,7 +119,7 @@ export default function ProductsPage() {
           <Loader2 className="h-8 w-8 animate-spin" />
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -101,9 +127,11 @@ export default function ProductsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">Products</h1>
-          <p className="text-sm text-muted-foreground">Manage your product inventory and pricing</p>
+          <p className="text-sm text-muted-foreground">
+            Manage your product inventory and pricing
+          </p>
         </div>
-  <Link href="/products/new">
+        <Link href="/products/new">
           <Button className="gap-2">
             <Plus className="h-4 w-4" />
             Add Product
@@ -114,22 +142,30 @@ export default function ProductsPage() {
       <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Products</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Total Products
+            </CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold">{products.length}</div>
-            <p className="text-xs text-muted-foreground">Active inventory items</p>
+            <p className="text-xs text-muted-foreground">
+              Active inventory items
+            </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Low Stock Items</CardTitle>
+            <CardTitle className="text-sm font-medium">
+              Low Stock Items
+            </CardTitle>
             <AlertTriangle className="h-4 w-4 text-warning" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold text-warning">{lowStockCount}</div>
+            <div className="text-2xl font-semibold text-warning">
+              {lowStockCount}
+            </div>
             <p className="text-xs text-muted-foreground">Need reordering</p>
           </CardContent>
         </Card>
@@ -141,7 +177,10 @@ export default function ProductsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold">
-              ${products.reduce((sum, p) => sum + p.salePrice * p.stock, 0).toLocaleString()}
+              $
+              {products
+                .reduce((sum, p) => sum + p.salePrice * p.stock, 0)
+                .toLocaleString()}
             </div>
             <p className="text-xs text-muted-foreground">At retail price</p>
           </CardContent>
@@ -153,7 +192,9 @@ export default function ProductsPage() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-semibold">{new Set(products.map((p) => p.category)).size}</div>
+            <div className="text-2xl font-semibold">
+              {new Set(products.map((p) => p.category)).size}
+            </div>
             <p className="text-xs text-muted-foreground">Product categories</p>
           </CardContent>
         </Card>
@@ -164,7 +205,9 @@ export default function ProductsPage() {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>All Products</CardTitle>
-              <CardDescription>View and manage your product catalog</CardDescription>
+              <CardDescription>
+                View and manage your product catalog
+              </CardDescription>
             </div>
             <div className="relative w-64">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -194,24 +237,45 @@ export default function ProductsPage() {
             <TableBody>
               {filteredProducts.map((product) => (
                 <TableRow key={product.id}>
-                  <TableCell className="font-mono text-xs">{product.sku}</TableCell>
+                  <TableCell className="font-mono text-xs">
+                    {product.sku}
+                  </TableCell>
                   <TableCell className="font-medium">
-                    <Link href={`/products/${product.id}`} className="hover:underline">
+                    <Link
+                      href={`/products/${product.id}`}
+                      className="hover:underline"
+                    >
                       {product.name}
                     </Link>
                   </TableCell>
                   <TableCell>
                     <Badge variant="outline">{product.category}</Badge>
                   </TableCell>
-                  <TableCell className="text-right">${product.salePrice.toFixed(2)}</TableCell>
-                  <TableCell className="text-right text-muted-foreground">${product.costPrice.toFixed(2)}</TableCell>
                   <TableCell className="text-right">
-                    <span className={product.stock <= product.reorderLevel ? "font-semibold text-warning" : ""}>
+                    ${product.salePrice.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right text-muted-foreground">
+                    ${product.costPrice.toFixed(2)}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <span
+                      className={
+                        product.stock <= product.reorderLevel
+                          ? "font-semibold text-warning"
+                          : ""
+                      }
+                    >
                       {product.stock}
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Badge variant={product.status === "ACTIVE" ? "default" : "secondary"}>{product.status}</Badge>
+                    <Badge
+                      variant={
+                        product.status === "ACTIVE" ? "default" : "secondary"
+                      }
+                    >
+                      {product.status}
+                    </Badge>
                   </TableCell>
                   <TableCell className="text-right">
                     <DropdownMenu>
@@ -238,23 +302,29 @@ export default function ProductsPage() {
                         <DropdownMenuSeparator />
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <DropdownMenuItem className="text-destructive" onSelect={(e) => e.preventDefault()}>
+                            <DropdownMenuItem
+                              className="text-destructive"
+                              onSelect={(e) => e.preventDefault()}
+                            >
                               <Trash2 className="mr-2 h-4 w-4" />
                               Delete
                             </DropdownMenuItem>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                              <AlertDialogTitle>
+                                Are you absolutely sure?
+                              </AlertDialogTitle>
                               <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete the product "{product.name}" 
+                                This action cannot be undone. This will
+                                permanently delete the product "{product.name}"
                                 and remove all associated data from our servers.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
                               <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction 
-                                onClick={() => handleDeleteProduct(product.id)} 
+                              <AlertDialogAction
+                                onClick={() => handleDeleteProduct(product.id)}
                                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                               >
                                 Delete Product
@@ -272,6 +342,5 @@ export default function ProductsPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }
-
