@@ -84,7 +84,11 @@ export default function UsersPage() {
           getUsers(),
           getTeamStats(),
         ]);
-        setUsers(usersResponse.users);
+        // Backend returns array directly when no pagination params
+        const usersList = Array.isArray(usersResponse) 
+          ? usersResponse 
+          : usersResponse.users;
+        setUsers(usersList);
         setStats(statsResponse);
       } catch (error) {
         console.error("Error loading users:", error);

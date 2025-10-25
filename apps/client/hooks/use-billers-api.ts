@@ -68,7 +68,9 @@ export function useBillersApi() {
   );
 
   const getBillers = useCallback(
-    async (filters: BillersFilters = {}): Promise<BillersListResponse> => {
+    async (
+      filters: BillersFilters = {}
+    ): Promise<BillersListResponse | Biller[]> => {
       const params = new URLSearchParams();
       if (filters.page) params.set("page", filters.page.toString());
       if (filters.limit) params.set("limit", filters.limit.toString());
@@ -76,9 +78,9 @@ export function useBillersApi() {
       if (filters.status) params.set("status", filters.status);
 
       const query = params.toString();
-      return get(
-        `/billers${query ? `?${query}` : ""}`
-      ) as Promise<BillersListResponse>;
+      return get(`/billers${query ? `?${query}` : ""}`) as Promise<
+        BillersListResponse | Biller[]
+      >;
     },
     [get]
   );

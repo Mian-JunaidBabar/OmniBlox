@@ -58,7 +58,11 @@ export default function BillersPage() {
           getBillers(),
           getBillersStats(),
         ]);
-        setBillers(billersResponse.billers);
+        // Backend returns array directly when no pagination params
+        const billersList = Array.isArray(billersResponse)
+          ? billersResponse
+          : billersResponse.billers;
+        setBillers(billersList);
         setStats(statsResponse);
       } catch (error) {
         console.error("Error loading billers:", error);

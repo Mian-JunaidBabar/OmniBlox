@@ -80,7 +80,9 @@ export function useTeamApi() {
   );
 
   const getUsers = useCallback(
-    async (filters: TeamFilters = {}): Promise<TeamListResponse> => {
+    async (
+      filters: TeamFilters = {}
+    ): Promise<TeamListResponse | TeamUser[]> => {
       const params = new URLSearchParams();
       if (filters.page) params.set("page", filters.page.toString());
       if (filters.limit) params.set("limit", filters.limit.toString());
@@ -88,9 +90,9 @@ export function useTeamApi() {
       if (filters.role) params.set("role", filters.role);
 
       const query = params.toString();
-      return get(
-        `/team${query ? `?${query}` : ""}`
-      ) as Promise<TeamListResponse>;
+      return get(`/team${query ? `?${query}` : ""}`) as Promise<
+        TeamListResponse | TeamUser[]
+      >;
     },
     [get]
   );
