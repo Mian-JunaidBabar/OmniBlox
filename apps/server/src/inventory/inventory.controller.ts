@@ -1,0 +1,136 @@
+import {
+  Controller,
+  Get,
+  Post,
+  Put,
+  Delete,
+  Body,
+  Param,
+  Query,
+  UseGuards,
+} from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import {
+  GetCurrentUserId,
+  GetCurrentCompanyId,
+} from '../auth/decorators/current-user.decorator';
+import { InventoryService } from './inventory.service';
+import {
+  CreateWarehouseDto,
+  UpdateWarehouseDto,
+  InventoryQueryDto,
+  UpdateInventoryDto,
+  StockTransferDto,
+  CreateStockAdjustmentDto,
+} from './dto/inventory.dto';
+
+@Controller('inventory')
+@UseGuards(JwtAuthGuard)
+export class InventoryController {
+  constructor(private inventoryService: InventoryService) {}
+
+  // === WAREHOUSE ENDPOINTS ===
+  @Post('warehouses')
+  createWarehouse(
+    @GetCurrentCompanyId() companyId: string,
+    @Body() dto: CreateWarehouseDto,
+  ) {
+    return this.inventoryService.createWarehouse(companyId, dto);
+  }
+
+  @Get('warehouses')
+  getWarehouses(@GetCurrentCompanyId() companyId: string) {
+    return this.inventoryService.getWarehouses(companyId);
+  }
+
+  @Get('warehouses/:id')
+  getWarehouse(
+    @GetCurrentCompanyId() companyId: string,
+    @Param('id') id: string,
+  ) {
+    return this.inventoryService.getWarehouse(companyId, id);
+  }
+
+  @Put('warehouses/:id')
+  updateWarehouse(
+    @GetCurrentCompanyId() companyId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateWarehouseDto,
+  ) {
+    return this.inventoryService.updateWarehouse(companyId, id, dto);
+  }
+
+  @Delete('warehouses/:id')
+  deleteWarehouse(
+    @GetCurrentCompanyId() companyId: string,
+    @Param('id') id: string,
+  ) {
+    return this.inventoryService.deleteWarehouse(companyId, id);
+  }
+
+  @Get('warehouses/:id/inventory')
+  getWarehouseInventory(
+    @GetCurrentCompanyId() companyId: string,
+    @Param('id') warehouseId: string,
+  ) {
+    return this.inventoryService.getWarehouseInventory(companyId, warehouseId);
+  }
+
+  // === INVENTORY ENDPOINTS ===
+  @Get()
+  getInventory(
+    @GetCurrentCompanyId() companyId: string,
+    @Query() query: InventoryQueryDto,
+  ) {
+    return this.inventoryService.getInventory(companyId, query);
+  }
+
+  @Put(':productId/:warehouseId')
+  updateInventory(
+    @GetCurrentCompanyId() companyId: string,
+    @Param('productId') productId: string,
+    @Param('warehouseId') warehouseId: string,
+    @Body() dto: UpdateInventoryDto,
+  ) {
+    return this.inventoryService.updateInventory(
+      companyId,
+      productId,
+      warehouseId,
+      dto,
+    );
+  }
+
+  @Get('stats')
+  getInventoryStats(@GetCurrentCompanyId() companyId: string) {
+    return this.inventoryService.getInventoryStats(companyId);
+  }
+
+  // === STOCK TRANSFER ENDPOINTS ===
+  @Post('transfers')
+  transferStock(
+    @GetCurrentCompanyId() companyId: string,
+    @GetCurrentUserId() userId: string,
+    @Body() dto: StockTransferDto,
+  ) {
+    return this.inventoryService.transferStock(companyId, userId, dto);
+  }
+
+  // === STOCK ADJUSTMENT ENDPOINTS ===
+  @Post('adjustments')
+  createStockAdjustment(
+    @GetCurrentCompanyId() companyId: string,
+    @GetCurrentUserId() userId: string,
+    @Body() dto: CreateStockAdjustmentDto,
+  ) {
+    return this.inventoryService.createStockAdjustment(companyId, userId, dto);
+  }
+
+  @Get('adjustments')
+  getStockAdjustments(
+    @GetCurrentCompanyId() companyId: string,
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+  ) {
+    return this.inventoryService.getStockAdjustments(companyId, page, limit);
+  }
+}

@@ -11,6 +11,7 @@ import { WarehousesModule } from './warehouses/warehouses.module';
 import { ExpensesModule } from './expenses/expenses.module';
 import { TeamModule } from './team/team.module';
 import { BillersModule } from './billers/billers.module';
+import { InventoryModule } from './inventory/inventory.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { BillersModule } from './billers/billers.module';
     ExpensesModule,
     TeamModule,
     BillersModule,
+    InventoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

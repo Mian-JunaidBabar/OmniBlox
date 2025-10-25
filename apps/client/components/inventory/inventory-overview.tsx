@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Card,
   CardContent,
@@ -19,15 +19,27 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Package, TrendingDown, TrendingUp } from "lucide-react";
+import {
+  AlertCircle,
+  Package,
+  TrendingDown,
+  TrendingUp,
+  Warehouse,
+} from "lucide-react";
 import Link from "next/link";
-import { useProductApi } from "@/hooks/use-product-api";
-import type { Product } from "@/lib/types";
+import {
+  useInventoryApi,
+  type InventoryItem,
+  type InventoryStats,
+  type StockAdjustment,
+} from "@/hooks/use-inventory-api";
 
 export function InventoryOverview() {
-  const { getProducts, getLowStockProducts } = useProductApi();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [lowStockItems, setLowStockItems] = useState<Product[]>([]);
+  const { getInventory, getInventoryStats, getStockAdjustments } =
+    useInventoryApi();
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
+  const [stats, setStats] = useState<InventoryStats | null>(null);
+  const [adjustments, setAdjustments] = useState<StockAdjustment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -37,14 +49,17 @@ export function InventoryOverview() {
       try {
         setLoading(true);
         setError(null);
-        // Fetch first page with a reasonably large limit to cover typical dashboards
-        const [{ products: list }, low] = await Promise.all([
-          getProducts({ page: 1, limit: 100 }),
-          getLowStockProducts(),
-        ]);
+        // Fetch inventory data and stats
+        const [inventoryResponse, statsData, adjustmentsResponse] =
+          await Promise.all([
+            getInventory({ page: 1, limit: 100 }),
+            getInventoryStats(),
+            getStockAdjustments(1, 10),
+          ]);
         if (!cancelled) {
-          setProducts(list || []);
-          setLowStockItems(low || []);
+          setInventory(inventoryResponse.inventory || []);
+          setStats(statsData);
+          setAdjustments(adjustmentsResponse.adjustments || []);
         }
       } catch (e: any) {
         if (!cancelled) setError(e?.message || "Failed to load inventory data");
@@ -56,18 +71,7 @@ export function InventoryOverview() {
     return () => {
       cancelled = true;
     };
-  }, [getProducts, getLowStockProducts]);
-
-  const totalStock = useMemo(
-    () => products.reduce((sum, p) => sum + (p.stock || 0), 0),
-    [products]
-  );
-  // Total value at cost price per original UI label
-  const totalValue = useMemo(
-    () =>
-      products.reduce((sum, p) => sum + (p.stock || 0) * (p.costPrice || 0), 0),
-    [products]
-  );
+  }, [getInventory, getInventoryStats, getStockAdjustments]);
 
   const statusVariants: Record<
     string,
@@ -81,19 +85,21 @@ export function InventoryOverview() {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">
-              Total Stock Units
+              Total Products
             </CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold">
-              {loading ? "—" : totalStock.toLocaleString()}
+              {loading ? "—" : stats?.totalProducts?.toLocaleString() || "0"}
             </div>
-            <p className="text-xs text-muted-foreground">Across all products</p>
+            <p className="text-xs text-muted-foreground">
+              Across all warehouses
+            </p>
           </CardContent>
         </Card>
 
@@ -106,7 +112,7 @@ export function InventoryOverview() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-semibold">
-              {loading ? "—" : lowStockItems.length}
+              {loading ? "—" : stats?.lowStockProducts || "0"}
             </div>
             <p className="text-xs text-muted-foreground">Need restocking</p>
           </CardContent>
@@ -123,11 +129,24 @@ export function InventoryOverview() {
             <div className="text-2xl font-semibold">
               {loading
                 ? "—"
-                : `$${totalValue.toLocaleString("en-US", {
+                : `$${(stats?.totalStockValue || 0).toLocaleString("en-US", {
                     minimumFractionDigits: 2,
                   })}`}
             </div>
-            <p className="text-xs text-muted-foreground">At cost price</p>
+            <p className="text-xs text-muted-foreground">At current value</p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Warehouses</CardTitle>
+            <Warehouse className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-semibold">
+              {loading ? "—" : stats?.totalWarehouses || "0"}
+            </div>
+            <p className="text-xs text-muted-foreground">Storage locations</p>
           </CardContent>
         </Card>
       </div>
@@ -141,8 +160,10 @@ export function InventoryOverview() {
         <TabsContent value="stock" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Stock Levels by Product</CardTitle>
-              <CardDescription>Current inventory status</CardDescription>
+              <CardTitle>Inventory by Product & Warehouse</CardTitle>
+              <CardDescription>
+                Current stock levels across all locations
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="rounded-md border">
@@ -151,9 +172,8 @@ export function InventoryOverview() {
                     <TableRow>
                       <TableHead>Product</TableHead>
                       <TableHead>SKU</TableHead>
-                      <TableHead className="text-right">
-                        Current Stock
-                      </TableHead>
+                      <TableHead>Warehouse</TableHead>
+                      <TableHead className="text-right">Quantity</TableHead>
                       <TableHead className="text-right">
                         Reorder Level
                       </TableHead>
@@ -165,54 +185,63 @@ export function InventoryOverview() {
                     {loading && (
                       <TableRow>
                         <TableCell
-                          colSpan={6}
+                          colSpan={7}
                           className="text-center text-sm text-muted-foreground"
                         >
-                          Loading products...
+                          Loading inventory...
                         </TableCell>
                       </TableRow>
                     )}
                     {!loading && error && (
                       <TableRow>
                         <TableCell
-                          colSpan={6}
+                          colSpan={7}
                           className="text-center text-sm text-destructive"
                         >
                           {error}
                         </TableCell>
                       </TableRow>
                     )}
-                    {!loading && !error && products.length === 0 && (
+                    {!loading && !error && inventory.length === 0 && (
                       <TableRow>
                         <TableCell
-                          colSpan={6}
+                          colSpan={7}
                           className="text-center text-sm text-muted-foreground"
                         >
-                          No products found.
+                          No inventory found.
                         </TableCell>
                       </TableRow>
                     )}
                     {!loading &&
                       !error &&
-                      products.map((product) => {
-                        const current = product.stock || 0;
-                        const reorder = product.reorderLevel || 0;
-                        const isLow = current <= reorder && reorder > 0;
-                        const denom = Math.max(reorder * 3, 1);
-                        const stockPercentage = (current / denom) * 100;
+                      inventory.map((item) => {
+                        const current = item.quantity || 0;
+                        const reorder = item.reorderLevel || 0;
+                        const stockPercentage =
+                          reorder > 0 ? (current / (reorder * 3)) * 100 : 100;
 
                         return (
-                          <TableRow key={product.id}>
+                          <TableRow
+                            key={`${item.productId}-${item.warehouseId}`}
+                          >
                             <TableCell>
                               <Link
-                                href={`/products/${product.id}`}
+                                href={`/products/${item.productId}`}
                                 className="font-medium hover:underline"
                               >
-                                {product.name}
+                                {item.productName}
                               </Link>
                             </TableCell>
                             <TableCell className="font-mono text-sm">
-                              {product.sku}
+                              {item.productSku}
+                            </TableCell>
+                            <TableCell>
+                              <Link
+                                href={`/inventory/warehouses/${item.warehouseId}`}
+                                className="text-sm hover:underline"
+                              >
+                                {item.warehouseName}
+                              </Link>
                             </TableCell>
                             <TableCell className="text-right font-medium">
                               {current}
@@ -221,17 +250,31 @@ export function InventoryOverview() {
                               {reorder}
                             </TableCell>
                             <TableCell>
-                              {isLow ? (
-                                <Badge variant="destructive" className="gap-1">
+                              <Badge
+                                variant={
+                                  item.status === "out_of_stock"
+                                    ? "destructive"
+                                    : item.status === "low_stock"
+                                    ? "secondary"
+                                    : "default"
+                                }
+                                className="gap-1"
+                              >
+                                {item.status === "out_of_stock" && (
+                                  <AlertCircle className="h-3 w-3" />
+                                )}
+                                {item.status === "low_stock" && (
                                   <TrendingDown className="h-3 w-3" />
-                                  Low Stock
-                                </Badge>
-                              ) : (
-                                <Badge variant="default" className="gap-1">
+                                )}
+                                {item.status === "in_stock" && (
                                   <TrendingUp className="h-3 w-3" />
-                                  Healthy
-                                </Badge>
-                              )}
+                                )}
+                                {item.status === "out_of_stock"
+                                  ? "Out of Stock"
+                                  : item.status === "low_stock"
+                                  ? "Low Stock"
+                                  : "In Stock"}
+                              </Badge>
                             </TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
@@ -257,31 +300,75 @@ export function InventoryOverview() {
         <TabsContent value="transfers" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Recent Stock Transfers</CardTitle>
-              <CardDescription>Latest inventory movements</CardDescription>
+              <CardTitle>Recent Stock Adjustments</CardTitle>
+              <CardDescription>
+                Latest inventory adjustments and transfers
+              </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="rounded-md border">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Transfer #</TableHead>
-                      <TableHead>From</TableHead>
-                      <TableHead>To</TableHead>
+                      <TableHead>Reference #</TableHead>
                       <TableHead>Date</TableHead>
                       <TableHead>Items</TableHead>
-                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Net Change</TableHead>
+                      <TableHead>Notes</TableHead>
+                      <TableHead>By</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    <TableRow>
-                      <TableCell
-                        colSpan={6}
-                        className="text-center text-sm text-muted-foreground"
-                      >
-                        No transfers to show yet.
-                      </TableCell>
-                    </TableRow>
+                    {loading && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={6}
+                          className="text-center text-sm text-muted-foreground"
+                        >
+                          Loading adjustments...
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {!loading && adjustments.length === 0 && (
+                      <TableRow>
+                        <TableCell
+                          colSpan={6}
+                          className="text-center text-sm text-muted-foreground"
+                        >
+                          No adjustments to show yet.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                    {!loading &&
+                      adjustments.map((adjustment) => (
+                        <TableRow key={adjustment.id}>
+                          <TableCell className="font-mono text-sm">
+                            {adjustment.referenceNumber}
+                          </TableCell>
+                          <TableCell>
+                            {new Date(
+                              adjustment.adjustmentDate
+                            ).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>{adjustment.totalItems} items</TableCell>
+                          <TableCell className="text-right">
+                            <span
+                              className={
+                                adjustment.netChange >= 0
+                                  ? "text-green-600"
+                                  : "text-red-600"
+                              }
+                            >
+                              {adjustment.netChange >= 0 ? "+" : ""}
+                              {adjustment.netChange}
+                            </span>
+                          </TableCell>
+                          <TableCell className="max-w-xs truncate">
+                            {adjustment.notes || "—"}
+                          </TableCell>
+                          <TableCell>{adjustment.user.name}</TableCell>
+                        </TableRow>
+                      ))}
                   </TableBody>
                 </Table>
               </div>

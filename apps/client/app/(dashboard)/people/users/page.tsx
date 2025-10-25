@@ -97,11 +97,12 @@ export default function UsersPage() {
     loadData();
   }, [getUsers, getTeamStats, toast]);
 
-  const filteredUsers = users.filter(
-    (user) =>
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredUsers =
+    users?.filter(
+      (user) =>
+        user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    ) || [];
 
   const formatLastLogin = (lastLogin: string | undefined) => {
     if (!lastLogin) return "Never";
