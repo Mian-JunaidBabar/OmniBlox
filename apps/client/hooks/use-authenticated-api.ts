@@ -36,15 +36,20 @@ export function useAuthenticatedApi() {
             throw new Error(`Unsupported method: ${method}`);
         }
       } catch (error: any) {
-        // Handle authentication errors seamlessly
-        // Only redirect on 401/403 (auth errors), not on 404 (not found) or other errors
+        // Handle authentication errors more carefully
+        // Only redirect on actual auth token issues, not on authorization/permission errors
         const statusCode = error.statusCode || error.status;
-        if (
+        const isAuthTokenError =
           error.message === "Authentication failed" ||
-          statusCode === 401 ||
-          statusCode === 403
-        ) {
-          // Silently logout and redirect if authentication fails
+          error.message === "Token expired" ||
+          error.message === "Invalid token" ||
+          (statusCode === 401 &&
+            error.message?.toLowerCase().includes("unauthorized"));
+
+        // 403 is authorization (permission) error, not authentication error
+        // Don't log out users for permission issues
+        if (isAuthTokenError) {
+          // Only logout on actual authentication token failures
           await logout();
           router.replace("/login");
           throw new Error("Session expired. Please login again.");

@@ -56,7 +56,25 @@ export function useTeamApi() {
 
   const createUser = useCallback(
     async (data: CreateUserData): Promise<TeamUser> => {
-      return post("/team", data) as Promise<TeamUser>;
+      console.log("Team API: Creating user with data:", data);
+      console.log("Team API: Endpoint /team");
+
+      try {
+        const result = (await post("/team", data)) as Promise<TeamUser>;
+        console.log("Team API: User creation successful");
+        return result;
+      } catch (error: any) {
+        // Log minimal, stringified details to avoid noisy 'Object' logs
+        const details = {
+          message: error?.message,
+          statusCode: error?.statusCode || error?.status,
+        };
+        console.error(
+          "Team API: User creation failed:",
+          JSON.stringify(details)
+        );
+        throw error;
+      }
     },
     [post]
   );

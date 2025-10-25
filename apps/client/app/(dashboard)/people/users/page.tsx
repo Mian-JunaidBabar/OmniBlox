@@ -29,6 +29,7 @@ import {
   type TeamStats,
 } from "@/hooks/use-team-api";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
 
 const roleConfig = {
   OWNER: {
@@ -71,6 +72,9 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const { getUsers, getTeamStats } = useTeamApi();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const currentRole = (user?.role || "").toUpperCase();
+  const canCreateUser = currentRole === "OWNER" || currentRole === "ADMIN";
 
   useEffect(() => {
     const loadData = async () => {
@@ -119,12 +123,14 @@ export default function UsersPage() {
 
       <div className="flex items-center justify-between">
         <div></div>
-        <Link href="/people/users/new">
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add User
-          </Button>
-        </Link>
+        {canCreateUser && (
+          <Link href="/people/users/new">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add User
+            </Button>
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">

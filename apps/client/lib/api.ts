@@ -32,6 +32,7 @@ export interface AuthResponse {
 export interface ApiError {
   message: string;
   statusCode: number;
+  details?: any;
 }
 
 // Token management utilities
@@ -207,10 +208,29 @@ class ApiClient {
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw {
-          message: errorData.message || "An error occurred",
+        const error = {
+          message:
+            errorData.message ||
+            `HTTP ${response.status}: ${response.statusText}`,
           statusCode: response.status,
+          details: errorData,
         } as ApiError;
+
+        console.error("API Error:", {
+          url,
+          method: options.method || "GET",
+          status: response.status,
+          statusText: response.statusText,
+          errorData: JSON.stringify(errorData, null, 2),
+          headers: response.headers
+            ? Object.fromEntries(response.headers.entries())
+            : {},
+          requestBody: options.body
+            ? JSON.stringify(JSON.parse(options.body as string), null, 2)
+            : undefined,
+        });
+
+        throw error;
       }
 
       // Handle empty responses

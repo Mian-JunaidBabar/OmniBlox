@@ -1,26 +1,48 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Building2, Globe, DollarSign, Package, Mail, Database } from "lucide-react"
+import { useState } from "react";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Building2,
+  Globe,
+  DollarSign,
+  Package,
+  Mail,
+  Database,
+} from "lucide-react";
 
 export default function SettingsPage() {
-  const [emailEnabled, setEmailEnabled] = useState(true)
-  const [autoBackup, setAutoBackup] = useState(true)
-  const [lowStockAlerts, setLowStockAlerts] = useState(true)
+  const [emailEnabled, setEmailEnabled] = useState(true);
+  const [autoBackup, setAutoBackup] = useState(true);
+  const [lowStockAlerts, setLowStockAlerts] = useState(true);
 
   return (
     <div className="p-6 space-y-6">
       <div className="mb-6">
         <h1 className="text-3xl font-semibold tracking-tight">Settings</h1>
-        <p className="text-sm text-muted-foreground">Manage system configuration and preferences</p>
+        <p className="text-sm text-muted-foreground">
+          Manage system configuration and preferences
+        </p>
       </div>
 
       <Tabs defaultValue="company" className="space-y-6">
@@ -40,7 +62,9 @@ export default function SettingsPage() {
                 <Building2 className="h-5 w-5" />
                 <CardTitle>Company Information</CardTitle>
               </div>
-              <CardDescription>Update your company details and branding</CardDescription>
+              <CardDescription>
+                Update your company details and branding
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
@@ -50,7 +74,11 @@ export default function SettingsPage() {
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="company-email">Email</Label>
-                  <Input id="company-email" type="email" defaultValue="info@omniblox.com" />
+                  <Input
+                    id="company-email"
+                    type="email"
+                    defaultValue="info@omniblox.com"
+                  />
                 </div>
               </div>
               <div className="grid gap-4 md:grid-cols-2">
@@ -65,7 +93,11 @@ export default function SettingsPage() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="company-address">Address</Label>
-                <Textarea id="company-address" defaultValue="123 Business St, New York, NY 10001" rows={3} />
+                <Textarea
+                  id="company-address"
+                  defaultValue="123 Business St, New York, NY 10001"
+                  rows={3}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="company-logo">Company Logo</Label>
@@ -83,7 +115,9 @@ export default function SettingsPage() {
                 <Globe className="h-5 w-5" />
                 <CardTitle>Regional Settings</CardTitle>
               </div>
-              <CardDescription>Configure timezone, language, and date formats</CardDescription>
+              <CardDescription>
+                Configure timezone, language, and date formats
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
@@ -155,7 +189,9 @@ export default function SettingsPage() {
                 <DollarSign className="h-5 w-5" />
                 <CardTitle>Currency Settings</CardTitle>
               </div>
-              <CardDescription>Manage currencies and exchange rates</CardDescription>
+              <CardDescription>
+                Manage currencies and exchange rates
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="grid gap-4 md:grid-cols-2">
@@ -203,19 +239,30 @@ export default function SettingsPage() {
                 <Package className="h-5 w-5" />
                 <CardTitle>Inventory Settings</CardTitle>
               </div>
-              <CardDescription>Configure inventory and stock management</CardDescription>
+              <CardDescription>
+                Configure inventory and stock management
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="low-stock-threshold">Low Stock Threshold</Label>
-                <Input id="low-stock-threshold" type="number" defaultValue="10" />
+                <Input
+                  id="low-stock-threshold"
+                  type="number"
+                  defaultValue="10"
+                />
               </div>
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Low Stock Alerts</Label>
-                  <p className="text-sm text-muted-foreground">Receive notifications when stock is low</p>
+                  <p className="text-sm text-muted-foreground">
+                    Receive notifications when stock is low
+                  </p>
                 </div>
-                <Switch checked={lowStockAlerts} onCheckedChange={setLowStockAlerts} />
+                <Switch
+                  checked={lowStockAlerts}
+                  onCheckedChange={setLowStockAlerts}
+                />
               </div>
               <div className="space-y-2">
                 <Label htmlFor="default-warehouse">Default Warehouse</Label>
@@ -225,7 +272,9 @@ export default function SettingsPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="main">Main Warehouse</SelectItem>
-                    <SelectItem value="secondary">Secondary Warehouse</SelectItem>
+                    <SelectItem value="secondary">
+                      Secondary Warehouse
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -241,15 +290,22 @@ export default function SettingsPage() {
                 <Mail className="h-5 w-5" />
                 <CardTitle>Email Configuration</CardTitle>
               </div>
-              <CardDescription>Configure SMTP settings for email notifications</CardDescription>
+              <CardDescription>
+                Configure SMTP settings for email notifications
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Enable Email Notifications</Label>
-                  <p className="text-sm text-muted-foreground">Send automated emails to customers</p>
+                  <p className="text-sm text-muted-foreground">
+                    Send automated emails to customers
+                  </p>
                 </div>
-                <Switch checked={emailEnabled} onCheckedChange={setEmailEnabled} />
+                <Switch
+                  checked={emailEnabled}
+                  onCheckedChange={setEmailEnabled}
+                />
               </div>
               {emailEnabled && (
                 <>
@@ -270,12 +326,16 @@ export default function SettingsPage() {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="smtp-password">Password</Label>
-                      <Input id="smtp-password" type="password" />
+                      <PasswordInput id="smtp-password" />
                     </div>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="from-email">From Email</Label>
-                    <Input id="from-email" type="email" defaultValue="noreply@omniblox.com" />
+                    <Input
+                      id="from-email"
+                      type="email"
+                      defaultValue="noreply@omniblox.com"
+                    />
                   </div>
                 </>
               )}
@@ -291,13 +351,17 @@ export default function SettingsPage() {
                 <Database className="h-5 w-5" />
                 <CardTitle>System Settings</CardTitle>
               </div>
-              <CardDescription>Configure system preferences and maintenance</CardDescription>
+              <CardDescription>
+                Configure system preferences and maintenance
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="space-y-0.5">
                   <Label>Automatic Backups</Label>
-                  <p className="text-sm text-muted-foreground">Automatically backup data daily</p>
+                  <p className="text-sm text-muted-foreground">
+                    Automatically backup data daily
+                  </p>
                 </div>
                 <Switch checked={autoBackup} onCheckedChange={setAutoBackup} />
               </div>
@@ -322,7 +386,8 @@ export default function SettingsPage() {
               <div className="pt-4 border-t">
                 <Button variant="destructive">Clear All Local Data</Button>
                 <p className="text-sm text-muted-foreground mt-2">
-                  This will remove all locally stored data. This action cannot be undone.
+                  This will remove all locally stored data. This action cannot
+                  be undone.
                 </p>
               </div>
               <Button>Save Changes</Button>
@@ -331,5 +396,5 @@ export default function SettingsPage() {
         </TabsContent>
       </Tabs>
     </div>
-  )
+  );
 }

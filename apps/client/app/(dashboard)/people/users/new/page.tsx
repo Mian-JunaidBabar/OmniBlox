@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -21,6 +22,8 @@ import {
 } from "@/components/ui/select";
 import { useTeamApi, type CreateUserData } from "@/hooks/use-team-api";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { ArrowLeft, UserPlus } from "lucide-react";
 import Link from "next/link";
 
@@ -37,6 +40,18 @@ export default function CreateUserPage() {
   const { createUser } = useTeamApi();
   const { toast } = useToast();
   const router = useRouter();
+  const { user } = useAuth();
+
+  const currentRole = (user?.role || "").toUpperCase();
+  const canCreateUser = currentRole === "OWNER" || currentRole === "ADMIN";
+  const canCreateAdmin = currentRole === "OWNER";
+
+  // Ensure users without OWNER privileges cannot select ADMIN role
+  useEffect(() => {
+    if (!canCreateAdmin && formData.role === "ADMIN") {
+      setFormData((prev) => ({ ...prev, role: "STAFF" }));
+    }
+  }, [canCreateAdmin, formData.role]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +76,7 @@ export default function CreateUserPage() {
 
     try {
       setLoading(true);
+      console.log("Creating user with data:", formData);
       await createUser(formData);
 
       toast({
@@ -70,11 +86,36 @@ export default function CreateUserPage() {
 
       router.push("/people/users");
     } catch (error: any) {
-      console.error("Error creating user:", error);
+      // Log stringified error to play nicer with console interceptors
+      console.error("Error creating user:", error?.message || error);
+
+      const errorDetails = {
+        message: error?.message || "Unknown error",
+        statusCode: error?.statusCode || error?.status || "Unknown",
+        name: error?.name || "Unknown",
+        details: error?.details ?? null,
+      };
+      console.error("Error details:", JSON.stringify(errorDetails, null, 2));
+
+      // Don't show session expired errors to user - they're handled by the auth system
+      if (error?.message === "Session expired. Please login again.") {
+        return; // Auth system will handle the redirect
+      }
+
+      // Provide specific error messages for common issues
+      let errorMessage =
+        error?.message || "Failed to create user. Please try again.";
+
+      if (error?.statusCode === 403) {
+        errorMessage =
+          "You don't have permission to create users. Please contact your administrator.";
+      } else if (error?.statusCode === 409) {
+        errorMessage = "A user with this email already exists.";
+      }
+
       toast({
         title: "Error",
-        description:
-          error.message || "Failed to create user. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
@@ -113,97 +154,109 @@ export default function CreateUserPage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {!canCreateUser && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertDescription>
+                You don't have permission to create users. Please contact your
+                administrator.
+              </AlertDescription>
+            </Alert>
+          )}
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name *</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                  placeholder="John Smith"
-                  required
-                />
+            <fieldset disabled={!canCreateUser} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name *</Label>
+                  <Input
+                    id="name"
+                    value={formData.name}
+                    onChange={(e) =>
+                      setFormData({ ...formData, name: e.target.value })
+                    }
+                    placeholder="John Smith"
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address *</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={formData.email}
+                    onChange={(e) =>
+                      setFormData({ ...formData, email: e.target.value })
+                    }
+                    placeholder="john@company.com"
+                    required
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="email">Email Address *</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={formData.email}
-                  onChange={(e) =>
-                    setFormData({ ...formData, email: e.target.value })
-                  }
-                  placeholder="john@company.com"
-                  required
-                />
-              </div>
-            </div>
 
-            <div className="space-y-2">
-              <Label htmlFor="role">Role *</Label>
-              <Select
-                value={formData.role}
-                onValueChange={(value: "ADMIN" | "MANAGER" | "STAFF") =>
-                  setFormData({ ...formData, role: value })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ADMIN">
-                    Admin - Full system access
-                  </SelectItem>
-                  <SelectItem value="MANAGER">
-                    Manager - Limited admin access
-                  </SelectItem>
-                  <SelectItem value="STAFF">Staff - Basic access</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="password">Password *</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={formData.password}
-                  onChange={(e) =>
-                    setFormData({ ...formData, password: e.target.value })
+                <Label htmlFor="role">Role *</Label>
+                <Select
+                  value={formData.role}
+                  onValueChange={(value: "ADMIN" | "MANAGER" | "STAFF") =>
+                    setFormData({ ...formData, role: value })
                   }
-                  placeholder="Minimum 6 characters"
-                  required
-                  minLength={6}
-                />
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ADMIN" disabled={!canCreateAdmin}>
+                      Admin - Full system access
+                    </SelectItem>
+                    <SelectItem value="MANAGER">
+                      Manager - Limited admin access
+                    </SelectItem>
+                    <SelectItem value="STAFF">Staff - Basic access</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="passwordConfirm">Confirm Password *</Label>
-                <Input
-                  id="passwordConfirm"
-                  type="password"
-                  value={passwordConfirm}
-                  onChange={(e) => setPasswordConfirm(e.target.value)}
-                  placeholder="Confirm password"
-                  required
-                  minLength={6}
-                />
-              </div>
-            </div>
 
-            <div className="flex justify-end gap-4 pt-4">
-              <Link href="/people/users">
-                <Button type="button" variant="outline">
-                  Cancel
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password *</Label>
+                  <div className="relative">
+                    <PasswordInput
+                      id="password"
+                      value={formData.password}
+                      onChange={(e) =>
+                        setFormData({ ...formData, password: e.target.value })
+                      }
+                      placeholder="Minimum 6 characters"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="passwordConfirm">Confirm Password *</Label>
+                  <div className="relative">
+                    <PasswordInput
+                      id="passwordConfirm"
+                      value={passwordConfirm}
+                      onChange={(e) => setPasswordConfirm(e.target.value)}
+                      placeholder="Confirm password"
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-4 pt-4">
+                <Link href="/people/users">
+                  <Button type="button" variant="outline">
+                    Cancel
+                  </Button>
+                </Link>
+                <Button type="submit" disabled={loading}>
+                  {loading ? "Creating..." : "Create User"}
                 </Button>
-              </Link>
-              <Button type="submit" disabled={loading}>
-                {loading ? "Creating..." : "Create User"}
-              </Button>
-            </div>
+              </div>
+            </fieldset>
           </form>
         </CardContent>
       </Card>
