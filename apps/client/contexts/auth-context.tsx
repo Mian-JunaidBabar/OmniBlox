@@ -41,8 +41,9 @@ interface AuthContextType {
 interface SignupData {
   email: string;
   password: string;
-  firstName: string;
-  lastName: string;
+  name?: string;
+  firstName?: string;
+  lastName?: string;
   companyName: string;
   workspaceUrl: string;
   industry: string;
@@ -158,7 +159,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const signupData = {
         email: data.email,
         password: data.password,
-        name: `${data.firstName} ${data.lastName}`,
+        name:
+          data.name || `${data.firstName || ""} ${data.lastName || ""}`.trim(),
         companyName: data.companyName,
         workspaceUrl: data.workspaceUrl,
         industry: data.industry,

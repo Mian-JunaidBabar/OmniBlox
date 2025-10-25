@@ -26,10 +26,25 @@ export class TeamService {
   async createUser(
     dto: CreateUserDto,
     companyId: string,
-    currentUserRole: UserRole,
+    currentUserRole: string,
   ): Promise<UserResponseDto> {
+    // Debug logging
+    console.log('[TeamService.createUser] Received:', {
+      dto,
+      companyId,
+      currentUserRole,
+      roleType: typeof currentUserRole,
+      isOwner: currentUserRole === 'OWNER',
+      isAdmin: currentUserRole === 'ADMIN',
+      includes: ['OWNER', 'ADMIN'].includes(currentUserRole),
+    });
+
     // Only OWNER and ADMIN can create users
     if (!['OWNER', 'ADMIN'].includes(currentUserRole)) {
+      console.log('[TeamService.createUser] Permission check failed:', {
+        currentUserRole,
+        allowed: ['OWNER', 'ADMIN'],
+      });
       throw new ForbiddenException('Insufficient permissions to create users');
     }
 

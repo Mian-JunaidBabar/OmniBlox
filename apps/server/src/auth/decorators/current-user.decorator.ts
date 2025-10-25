@@ -14,9 +14,17 @@ export const GetCurrentCompanyId = createParamDecorator(
 );
 
 export const GetCurrentUser = createParamDecorator(
-  (data: unknown, ctx: ExecutionContext) => {
+  (data: string | undefined, ctx: ExecutionContext) => {
     const request = ctx.switchToHttp().getRequest();
-    return request.user;
+    const user = request.user;
+
+    // If a specific property is requested, return that property
+    if (data) {
+      return user?.[data];
+    }
+
+    // Otherwise return the whole user object
+    return user;
   },
 );
 

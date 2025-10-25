@@ -75,7 +75,7 @@ export default function BillersPage() {
     loadData();
   }, [getBillers, getBillersStats, toast]);
 
-  const filteredBillers = billers.filter(
+  const filteredBillers = (billers || []).filter(
     (biller) =>
       biller.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       biller.code.toLowerCase().includes(searchTerm.toLowerCase()) ||

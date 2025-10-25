@@ -46,6 +46,16 @@ export default function CreateUserPage() {
   const canCreateUser = currentRole === "OWNER" || currentRole === "ADMIN";
   const canCreateAdmin = currentRole === "OWNER";
 
+  // Debug logging
+  useEffect(() => {
+    console.log("User creation page - User details:", {
+      user,
+      currentRole,
+      canCreateUser,
+      canCreateAdmin,
+    });
+  }, [user, currentRole, canCreateUser, canCreateAdmin]);
+
   // Ensure users without OWNER privileges cannot select ADMIN role
   useEffect(() => {
     if (!canCreateAdmin && formData.role === "ADMIN") {
