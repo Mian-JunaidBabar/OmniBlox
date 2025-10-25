@@ -29,6 +29,7 @@ model Company {
   productCategories   ProductCategory[]
   brands              Brand[]
   warehouses          Warehouse[]
+  billers             Biller[]
   customers           Customer[]
   suppliers           Supplier[]
   sales               Sale[]
@@ -67,6 +68,28 @@ model User {
   stockAdjustments StockAdjustment[]
 
   @@map("users")
+}
+
+model Biller {
+  id        String   @id @default(uuid())
+  name      String
+  code      String   // Unique identifier like "MO-001", "DB-002"
+  address   String?
+  phone     String?
+  email     String?
+  status    BillerStatus @default(ACTIVE)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // NEW: Link to Company
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  // Relations - Billers can be associated with sales and invoices
+  sales Sale[]
+
+  @@unique([companyId, code]) // Code unique per company
+  @@map("billers")
 }
 
 model Customer {
@@ -330,11 +353,13 @@ model Sale {
   // Foreign Keys
   customerId String
   userId     String
+  billerId   String?
 
   // Relations
   items    SaleItem[]
   customer Customer @relation(fields: [customerId], references: [id])
   user     User     @relation(fields: [userId], references: [id])
+  biller   Biller?  @relation(fields: [billerId], references: [id])
 
   @@unique([companyId, invoiceNumber]) // Invoice number unique per company
   @@map("sales")
@@ -507,4 +532,10 @@ enum PaymentMethod {
   CREDIT_CARD
   BANK_TRANSFER
   CHECK
+}
+
+// NEW: Enum for Biller Status
+enum BillerStatus {
+  ACTIVE
+  INACTIVE
 }
