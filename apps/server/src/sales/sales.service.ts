@@ -31,13 +31,28 @@ export class SalesService {
 
     return this.prisma.$transaction(
       async (tx) => {
+        // Verify warehouse belongs to company
+        const warehouse = await tx.warehouse.findUnique({
+          where: { id: dto.warehouseId, companyId },
+        });
+        if (!warehouse) {
+          throw new NotFoundException('Warehouse not found');
+        }
+
         const invoiceNumber = await this.ensureInvoiceNumber(
           tx,
           dto.invoiceNumber,
           companyId,
         );
         const productMap = await this.fetchProducts(tx, dto.items, companyId);
-        await this.ensureStock(tx, dto.items, productMap, companyId);
+
+        // Check stock availability in the specific warehouse
+        await this.ensureStockInWarehouse(
+          tx,
+          dto.items,
+          productMap,
+          dto.warehouseId,
+        );
 
         const customer = await this.resolveCustomer(
           tx,
@@ -86,7 +101,13 @@ export class SalesService {
           },
         });
 
-        await this.adjustInventory(tx, dto.items, 'decrement', companyId);
+        // Decrement inventory from the specific warehouse
+        await this.decrementInventoryFromWarehouse(
+          tx,
+          dto.items,
+          dto.warehouseId,
+        );
+
         return this.transformSale(sale);
       },
       { timeout: 20000 },
@@ -830,5 +851,69 @@ export class SalesService {
         quantity,
       },
     });
+  }
+
+  /**
+   * Verify that sufficient stock exists in the specific warehouse for all sale items.
+   * This is called before creating the sale to prevent overselling.
+   */
+  private async ensureStockInWarehouse(
+    tx: any,
+    items: CreateSaleItemDto[],
+    productMap: Map<string, any>,
+    warehouseId: string,
+  ): Promise<void> {
+    const aggregated = this.aggregateQuantities(items);
+
+    const checks = Array.from(aggregated.entries()).map(
+      async ([productId, quantityNeeded]) => {
+        const inventoryRecord = await tx.inventory.findUnique({
+          where: {
+            productId_warehouseId: {
+              productId,
+              warehouseId,
+            },
+          },
+        });
+
+        const available = inventoryRecord?.quantity ?? 0;
+
+        if (available < quantityNeeded) {
+          const productName = productMap.get(productId)?.name ?? productId;
+          throw new BadRequestException(
+            `Insufficient stock for product "${productName}" in selected warehouse. Available: ${available}, Needed: ${quantityNeeded}`,
+          );
+        }
+      },
+    );
+
+    await Promise.all(checks);
+  }
+
+  /**
+   * Atomically decrement inventory quantities from the specific warehouse.
+   * Uses Prisma's atomic decrement to ensure thread-safe stock updates.
+   * This is called within the sale creation transaction.
+   */
+  private async decrementInventoryFromWarehouse(
+    tx: any,
+    items: CreateSaleItemDto[],
+    warehouseId: string,
+  ): Promise<void> {
+    for (const item of items) {
+      await tx.inventory.update({
+        where: {
+          productId_warehouseId: {
+            productId: item.productId,
+            warehouseId: warehouseId,
+          },
+        },
+        data: {
+          quantity: {
+            decrement: item.quantity,
+          },
+        },
+      });
+    }
   }
 }

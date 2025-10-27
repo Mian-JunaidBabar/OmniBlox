@@ -12,7 +12,10 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 import {
   GetCurrentCompanyId,
   GetCurrentUserId,
@@ -22,12 +25,13 @@ import { CreateSaleDto } from './dto/create-sale.dto';
 import { UpdateSaleDto } from './dto/update-sale.dto';
 
 @Controller('sales')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class SalesController {
   constructor(private readonly salesService: SalesService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   async create(
     @Body() dto: CreateSaleDto,
     @GetCurrentUserId() userId: string,
@@ -37,6 +41,7 @@ export class SalesController {
   }
 
   @Get()
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   async findAll(
     @GetCurrentCompanyId() companyId: string,
     @Query('page') page?: string,
@@ -58,11 +63,13 @@ export class SalesController {
   }
 
   @Get('stats')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   async stats(@GetCurrentCompanyId() companyId: string) {
     return this.salesService.getStats(companyId);
   }
 
   @Get(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   async findOne(
     @Param('id') id: string,
     @GetCurrentCompanyId() companyId: string,
@@ -71,6 +78,7 @@ export class SalesController {
   }
 
   @Put(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
   async update(
     @Param('id') id: string,
     @Body() dto: UpdateSaleDto,
@@ -80,6 +88,7 @@ export class SalesController {
   }
 
   @Patch(':id/mark-paid')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
   async markAsPaid(
     @Param('id') id: string,
     @GetCurrentCompanyId() companyId: string,
@@ -89,6 +98,7 @@ export class SalesController {
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
   async remove(
     @Param('id') id: string,
     @GetCurrentCompanyId() companyId: string,

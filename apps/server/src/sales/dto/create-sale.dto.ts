@@ -77,6 +77,10 @@ export class CreateSaleDto {
   @Type(() => SaleCustomerDto)
   readonly customer!: SaleCustomerDto;
 
+  @IsString()
+  @IsNotEmpty()
+  readonly warehouseId!: string;
+
   @IsDateString()
   readonly saleDate!: string;
 
