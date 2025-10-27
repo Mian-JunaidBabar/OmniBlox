@@ -65,7 +65,7 @@ export default function CreateBillerPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!codeAvailable) {
+    if (codeAvailable === false) {
       toast({
         title: "Error",
         description: "Please use an available biller code.",
@@ -267,7 +267,10 @@ export default function CreateBillerPage() {
                   Cancel
                 </Button>
               </Link>
-              <Button type="submit" disabled={loading || !codeAvailable}>
+              <Button
+                type="submit"
+                disabled={loading || codeAvailable === false}
+              >
                 {loading ? "Creating..." : "Create Biller"}
               </Button>
             </div>

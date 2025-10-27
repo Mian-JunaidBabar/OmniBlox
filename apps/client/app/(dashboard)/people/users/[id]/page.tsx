@@ -63,7 +63,8 @@ export default function UserDetailPage() {
   const router = useRouter();
   const [user, setUser] = useState<TeamUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const { getUser } = useTeamApi();
+  const [deleting, setDeleting] = useState(false);
+  const { getUser, deleteUser } = useTeamApi();
   const { toast } = useToast();
 
   useEffect(() => {
@@ -89,6 +90,31 @@ export default function UserDetailPage() {
 
     loadUser();
   }, [params.id, getUser, toast, router]);
+
+  const handleDelete = async () => {
+    if (!user || !confirm(`Are you sure you want to delete ${user.name}?`)) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      await deleteUser(user.id);
+      toast({
+        title: "Success",
+        description: "User deleted successfully.",
+      });
+      router.push("/people/users");
+    } catch (error: any) {
+      console.error("Error deleting user:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete user.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const renderStatusBadge = (status: string) => {
     const statusInfo = statusConfig[status as keyof typeof statusConfig];
@@ -170,13 +196,19 @@ export default function UserDetailPage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline">
-            <Edit className="mr-2 h-4 w-4" />
-            Edit
-          </Button>
-          <Button variant="destructive">
+          <Link href={`/people/users/${user.id}/edit`}>
+            <Button variant="outline">
+              <Edit className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+          </Link>
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={deleting}
+          >
             <Trash2 className="mr-2 h-4 w-4" />
-            Delete
+            {deleting ? "Deleting..." : "Delete"}
           </Button>
         </div>
       </div>

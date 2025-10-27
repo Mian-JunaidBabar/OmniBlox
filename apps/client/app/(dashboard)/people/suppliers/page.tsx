@@ -1,63 +1,86 @@
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Badge } from "@/components/ui/badge"
-import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { Plus, Search } from "lucide-react"
-import Link from "next/link"
+"use client";
 
-const suppliers = [
-  {
-    id: "1",
-    name: "Tech Supplies Ltd",
-    email: "sales@techsupplies.com",
-    phone: "+1 234 567 8900",
-    totalPurchases: 125000,
-    balance: 15000,
-    status: "active",
-  },
-  {
-    id: "2",
-    name: "Hardware Inc",
-    email: "orders@hardware.com",
-    phone: "+1 234 567 8901",
-    totalPurchases: 98000,
-    balance: 0,
-    status: "active",
-  },
-  {
-    id: "3",
-    name: "Electronics Co",
-    email: "info@electronics.com",
-    phone: "+1 234 567 8902",
-    totalPurchases: 156000,
-    balance: 22000,
-    status: "active",
-  },
-  {
-    id: "4",
-    name: "Office Depot",
-    email: "contact@officedepot.com",
-    phone: "+1 234 567 8903",
-    totalPurchases: 45000,
-    balance: 5000,
-    status: "active",
-  },
-]
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Plus, Search } from "lucide-react";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+import {
+  useSuppliersApi,
+  type Supplier,
+  type SuppliersStats,
+} from "@/hooks/use-suppliers-api";
+import { useToast } from "@/hooks/use-toast";
 
 export default function SuppliersPage() {
-  const totalSuppliers = suppliers.length
-  const totalPurchases = suppliers.reduce((sum, s) => sum + s.totalPurchases, 0)
-  const totalPayable = suppliers.reduce((sum, s) => sum + s.balance, 0)
-  const avgPurchase = totalPurchases / totalSuppliers
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [stats, setStats] = useState<SuppliersStats | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+  const { getSuppliers, getSuppliersStats } = useSuppliersApi();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [suppliersResponse, statsResponse] = await Promise.all([
+          getSuppliers(),
+          getSuppliersStats(),
+        ]);
+        // Backend returns array directly when no pagination params
+        const suppliersList = Array.isArray(suppliersResponse)
+          ? suppliersResponse
+          : suppliersResponse.suppliers;
+        setSuppliers(suppliersList);
+        setStats(statsResponse);
+      } catch (error) {
+        console.error("Error loading suppliers:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load suppliers. Please try again.",
+          variant: "destructive",
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, [getSuppliers, getSuppliersStats, toast]);
+
+  const filteredSuppliers = (suppliers || []).filter(
+    (supplier) =>
+      supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (supplier.email &&
+        supplier.email.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (supplier.phone &&
+        supplier.phone.toLowerCase().includes(searchTerm.toLowerCase()))
+  );
+
+  const totalSuppliers = stats?.totalSuppliers || 0;
+  const totalPurchases = stats?.totalPurchases || 0;
+  const totalPayable = stats?.totalPayable || 0;
+  const avgPurchase = stats?.avgPurchase || 0;
 
   return (
     <div className="p-6 space-y-6">
       <div className="mb-6">
         <h1 className="text-3xl font-semibold tracking-tight">Suppliers</h1>
-        <p className="text-sm text-muted-foreground">Manage supplier accounts and payables</p>
+        <p className="text-sm text-muted-foreground">
+          Manage supplier accounts and payables
+        </p>
       </div>
-      
+
       <div className="flex items-center justify-between">
         <div></div>
         <Link href="/people/suppliers/new">
@@ -78,19 +101,25 @@ export default function SuppliersPage() {
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>Total Purchases</CardDescription>
-            <CardTitle className="text-3xl">${totalPurchases.toLocaleString()}</CardTitle>
+            <CardTitle className="text-3xl">
+              ${totalPurchases.toLocaleString()}
+            </CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>Accounts Payable</CardDescription>
-            <CardTitle className="text-3xl text-red-600">${totalPayable.toLocaleString()}</CardTitle>
+            <CardTitle className="text-3xl text-red-600">
+              ${totalPayable.toLocaleString()}
+            </CardTitle>
           </CardHeader>
         </Card>
         <Card>
           <CardHeader className="pb-3">
             <CardDescription>Avg Purchase</CardDescription>
-            <CardTitle className="text-3xl">${avgPurchase.toLocaleString()}</CardTitle>
+            <CardTitle className="text-3xl">
+              ${avgPurchase.toLocaleString()}
+            </CardTitle>
           </CardHeader>
         </Card>
       </div>
@@ -101,52 +130,56 @@ export default function SuppliersPage() {
             <CardTitle>All Suppliers</CardTitle>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input placeholder="Search suppliers..." className="pl-9 w-[300px]" />
+              <Input
+                placeholder="Search suppliers..."
+                className="pl-9 w-[300px]"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
           </div>
         </CardHeader>
         <CardContent>
-          <div className="space-y-3">
-            {suppliers.map((supplier) => (
-              <Link key={supplier.id} href={`/people/suppliers/${supplier.id}`}>
-                <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors">
-                  <div className="flex items-center gap-4">
-                    <Avatar className="h-12 w-12">
-                      <AvatarFallback className="bg-primary/10 text-primary font-medium">
-                        {supplier.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")}
-                      </AvatarFallback>
-                    </Avatar>
-                    <div>
-                      <div className="font-medium">{supplier.name}</div>
-                      <div className="text-sm text-muted-foreground mt-1">
-                        {supplier.email} • {supplier.phone}
+          {loading ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Loading suppliers...
+            </div>
+          ) : filteredSuppliers.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              No suppliers found.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {filteredSuppliers.map((supplier) => (
+                <Link
+                  key={supplier.id}
+                  href={`/people/suppliers/${supplier.id}`}
+                >
+                  <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <Avatar className="h-12 w-12">
+                        <AvatarFallback className="bg-primary/10 text-primary font-medium">
+                          {supplier.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div>
+                        <div className="font-medium">{supplier.name}</div>
+                        <div className="text-sm text-muted-foreground mt-1">
+                          {supplier.email || "No email"} •{" "}
+                          {supplier.phone || "No phone"}
+                        </div>
                       </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
-                      <div className="text-sm text-muted-foreground">Total Purchases</div>
-                      <div className="font-semibold">${supplier.totalPurchases.toLocaleString()}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-sm text-muted-foreground">Balance Payable</div>
-                      <div className={`font-semibold ${supplier.balance > 0 ? "text-red-600" : "text-emerald-600"}`}>
-                        ${supplier.balance.toLocaleString()}
-                      </div>
-                    </div>
-                    <Badge variant="outline" className="bg-emerald-100 text-emerald-700 border-emerald-200">
-                      Active
-                    </Badge>
-                  </div>
-                </div>
-              </Link>
-            ))}
-          </div>
+                </Link>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

@@ -61,6 +61,19 @@ export class BillersController {
     return this.billersService.getStats(companyId);
   }
 
+  @Get('check-code')
+  async checkCodeAvailability(
+    @Query('code') code: string,
+    @Query('excludeId') excludeId: string | undefined,
+    @GetCurrentCompanyId() companyId: string,
+  ): Promise<{ available: boolean }> {
+    return this.billersService.checkCodeAvailability(
+      code,
+      companyId,
+      excludeId,
+    );
+  }
+
   @Get(':id')
   async findOne(
     @Param('id') id: string,

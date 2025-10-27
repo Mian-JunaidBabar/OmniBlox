@@ -2,46 +2,110 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Edit, Trash2, Phone, Mail, MapPin, DollarSign, Building, CreditCard, TrendingUp, Calendar, Star, FileText } from "lucide-react";
+import {
+  ArrowLeft,
+  Edit,
+  Trash2,
+  Phone,
+  Mail,
+  MapPin,
+  DollarSign,
+  Building,
+  CreditCard,
+  TrendingUp,
+  Calendar,
+  Star,
+  FileText,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
+import { useCustomersApi, type Customer } from "@/hooks/use-customers-api";
+import { useToast } from "@/hooks/use-toast";
+
+// Extended customer interface for detail page with additional mock fields
+interface CustomerDetail extends Customer {
+  city?: string;
+  country?: string;
+  taxId?: string;
+  status?: string;
+  totalPurchases?: number;
+  lastPurchase?: string;
+  paymentTerms?: string;
+  rating?: number;
+}
 
 export default function CustomerDetailPage() {
   const params = useParams();
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-
-  // Mock data - replace with actual API call
-  const customer = {
-    id: params.id as string,
-    name: "Acme Corp",
-    email: "contact@acme.com",
-    phone: "+1 234 567 8900",
-    address: "123 Business Street",
-    city: "New York",
-    country: "United States",
-    taxId: "TAX-123456",
-    status: "active",
-    balance: 5000,
-    totalPurchases: 45000,
-    lastPurchase: "2024-01-15",
-    creditLimit: 50000,
-    paymentTerms: "Net 30",
-    rating: 5,
-  };
+  const [deleting, setDeleting] = useState(false);
+  const [customer, setCustomer] = useState<CustomerDetail | null>(null);
+  const { getCustomer, deleteCustomer } = useCustomersApi();
+  const { toast } = useToast();
 
   useEffect(() => {
-    // Simulate loading
-    setTimeout(() => setLoading(false), 300);
-  }, [params.id]);
+    const loadCustomer = async () => {
+      if (!params.id) return;
+
+      try {
+        setLoading(true);
+        const customerData = await getCustomer(params.id as string);
+        setCustomer(customerData);
+      } catch (error) {
+        console.error("Error loading customer:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load customer details.",
+          variant: "destructive",
+        });
+        router.push("/people/customers");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadCustomer();
+  }, [params.id, getCustomer, toast, router]);
+
+  const handleDelete = async () => {
+    if (
+      !customer ||
+      !confirm(`Are you sure you want to delete ${customer.name}?`)
+    ) {
+      return;
+    }
+
+    try {
+      setDeleting(true);
+      await deleteCustomer(customer.id);
+      toast({
+        title: "Success",
+        description: "Customer deleted successfully.",
+      });
+      router.push("/people/customers");
+    } catch (error: any) {
+      console.error("Error deleting customer:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete customer.",
+        variant: "destructive",
+      });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const renderStatusBadge = (status: string) => {
     switch (status) {
       case "active":
-        return <Badge variant="default" className="bg-green-500">Active</Badge>;
+        return (
+          <Badge variant="default" className="bg-green-500">
+            Active
+          </Badge>
+        );
       case "inactive":
         return <Badge variant="secondary">Inactive</Badge>;
       case "blocked":
@@ -58,7 +122,9 @@ export default function CustomerDetailPage() {
           <Star
             key={star}
             className={`w-4 h-4 ${
-              star <= rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+              star <= rating
+                ? "fill-yellow-400 text-yellow-400"
+                : "text-gray-300"
             }`}
           />
         ))}
@@ -79,6 +145,18 @@ export default function CustomerDetailPage() {
     );
   }
 
+  if (!customer) {
+    return (
+      <div className="space-y-6 p-6">
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <p className="text-muted-foreground">Customer not found</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6 p-6">
       {/* Header */}
@@ -91,16 +169,23 @@ export default function CustomerDetailPage() {
             <h1 className="text-3xl font-bold">{customer.name}</h1>
             <p className="text-muted-foreground">{customer.email}</p>
           </div>
-          {renderStatusBadge(customer.status)}
+          {customer.status && renderStatusBadge(customer.status)}
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => router.push(`/people/customers/${customer.id}/edit`)}>
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/people/customers/${customer.id}/edit`)}
+          >
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Button>
-          <Button variant="destructive">
+          <Button
+            variant="destructive"
+            onClick={handleDelete}
+            disabled={deleting}
+          >
             <Trash2 className="mr-2 h-4 w-4" />
-            Delete
+            {deleting ? "Deleting..." : "Delete"}
           </Button>
         </div>
       </div>
@@ -111,48 +196,64 @@ export default function CustomerDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Purchases</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Purchases
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-green-500" />
-              <span className="text-2xl font-bold">${customer.totalPurchases?.toLocaleString() || "0"}</span>
+              <span className="text-2xl font-bold">
+                ${customer.totalPurchases?.toLocaleString() || "0"}
+              </span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Outstanding Balance</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Outstanding Balance
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-orange-500" />
-              <span className="text-2xl font-bold">${customer.balance?.toLocaleString() || "0"}</span>
+              <span className="text-2xl font-bold">
+                ${customer.balance?.toLocaleString() || "0"}
+              </span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Credit Limit</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Credit Limit
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-blue-500" />
-              <span className="text-2xl font-bold">${customer.creditLimit?.toLocaleString() || "0"}</span>
+              <span className="text-2xl font-bold">
+                ${customer.creditLimit?.toLocaleString() || "0"}
+              </span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Rating</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Rating
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               {renderRating(customer.rating || 0)}
-              <span className="text-sm text-muted-foreground">({customer.rating || 0}/5)</span>
+              <span className="text-sm text-muted-foreground">
+                ({customer.rating || 0}/5)
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -178,7 +279,9 @@ export default function CustomerDetailPage() {
                 <div className="flex items-start gap-3">
                   <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Company Name</p>
+                    <p className="text-sm text-muted-foreground">
+                      Company Name
+                    </p>
                     <p className="font-medium">{customer.name}</p>
                   </div>
                 </div>
@@ -206,8 +309,12 @@ export default function CustomerDetailPage() {
                 <div className="flex items-start gap-3">
                   <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Last Purchase</p>
-                    <p className="font-medium">{customer.lastPurchase || "N/A"}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Last Purchase
+                    </p>
+                    <p className="font-medium">
+                      {customer.lastPurchase || "N/A"}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -239,19 +346,31 @@ export default function CustomerDetailPage() {
               <CardContent className="space-y-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Payment Terms</p>
-                  <p className="font-medium">{customer.paymentTerms || "N/A"}</p>
+                  <p className="font-medium">
+                    {customer.paymentTerms || "N/A"}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Credit Limit</p>
-                  <p className="font-medium">${customer.creditLimit?.toLocaleString() || "0"}</p>
+                  <p className="font-medium">
+                    ${customer.creditLimit?.toLocaleString() || "0"}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Outstanding Balance</p>
-                  <p className="font-medium">${customer.balance?.toLocaleString() || "0"}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Outstanding Balance
+                  </p>
+                  <p className="font-medium">
+                    ${customer.balance?.toLocaleString() || "0"}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Purchases</p>
-                  <p className="font-medium">${customer.totalPurchases?.toLocaleString() || "0"}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Total Purchases
+                  </p>
+                  <p className="font-medium">
+                    ${customer.totalPurchases?.toLocaleString() || "0"}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -263,16 +382,20 @@ export default function CustomerDetailPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Customer Rating</p>
+                  <p className="text-sm text-muted-foreground">
+                    Customer Rating
+                  </p>
                   <div className="flex items-center gap-2 mt-1">
                     {renderRating(customer.rating || 0)}
-                    <span className="text-sm font-medium">({customer.rating || 0}/5)</span>
+                    <span className="text-sm font-medium">
+                      ({customer.rating || 0}/5)
+                    </span>
                   </div>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Status</p>
                   <div className="mt-1">
-                    {renderStatusBadge(customer.status)}
+                    {customer.status && renderStatusBadge(customer.status)}
                   </div>
                 </div>
               </CardContent>
@@ -286,7 +409,9 @@ export default function CustomerDetailPage() {
               <CardTitle>Order History</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Order history coming soon...</p>
+              <p className="text-muted-foreground">
+                Order history coming soon...
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -297,7 +422,9 @@ export default function CustomerDetailPage() {
               <CardTitle>Invoice History</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Invoice history coming soon...</p>
+              <p className="text-muted-foreground">
+                Invoice history coming soon...
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -308,7 +435,9 @@ export default function CustomerDetailPage() {
               <CardTitle>Documents</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Document management coming soon...</p>
+              <p className="text-muted-foreground">
+                Document management coming soon...
+              </p>
             </CardContent>
           </Card>
         </TabsContent>

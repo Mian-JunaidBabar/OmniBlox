@@ -1,11 +1,10 @@
-import { LandingPage } from "@/components/landing-page"
+import { LandingPage } from "@/components/landing-page";
 
-
-TODO: 
-testing:
-  /people me pages ki
-  /warehouse ki
+// TODO:
+// testing:
+//   /people me pages ki
+//   /warehouse ki
 
 export default function HomePage() {
-  return <LandingPage />
+  return <LandingPage />;
 }

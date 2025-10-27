@@ -217,6 +217,25 @@ export class BillersService {
     };
   }
 
+  async checkCodeAvailability(
+    code: string,
+    companyId: string,
+    excludeId?: string,
+  ): Promise<{ available: boolean }> {
+    const where: any = {
+      code,
+      companyId,
+    };
+
+    if (excludeId) {
+      where.id = { not: excludeId };
+    }
+
+    const existingBiller = await this.prisma.biller.findFirst({ where });
+
+    return { available: !existingBiller };
+  }
+
   private mapToBillerResponse(
     biller: any,
     salesCount?: number,
