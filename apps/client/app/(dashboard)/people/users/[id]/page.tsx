@@ -23,6 +23,16 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useTeamApi, type TeamUser } from "@/hooks/use-team-api";
 import { useToast } from "@/hooks/use-toast";
 import Link from "next/link";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const roleConfig = {
   OWNER: {
@@ -64,6 +74,7 @@ export default function UserDetailPage() {
   const [user, setUser] = useState<TeamUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const { getUser, deleteUser } = useTeamApi();
   const { toast } = useToast();
 
@@ -92,17 +103,11 @@ export default function UserDetailPage() {
   }, [params.id, getUser, toast, router]);
 
   const handleDelete = async () => {
-    if (!user || !confirm(`Are you sure you want to delete ${user.name}?`)) {
-      return;
-    }
-
+    if (!user) return;
     try {
       setDeleting(true);
       await deleteUser(user.id);
-      toast({
-        title: "Success",
-        description: "User deleted successfully.",
-      });
+      toast({ title: "Success", description: "User deleted successfully." });
       router.push("/people/users");
     } catch (error: any) {
       console.error("Error deleting user:", error);
@@ -113,6 +118,7 @@ export default function UserDetailPage() {
       });
     } finally {
       setDeleting(false);
+      setDeleteOpen(false);
     }
   };
 
@@ -202,13 +208,8 @@ export default function UserDetailPage() {
               Edit
             </Button>
           </Link>
-          <Button
-            variant="destructive"
-            onClick={handleDelete}
-            disabled={deleting}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            {deleting ? "Deleting..." : "Delete"}
+          <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="mr-2 h-4 w-4" /> Delete
           </Button>
         </div>
       </div>
@@ -325,6 +326,27 @@ export default function UserDetailPage() {
           </div>
         </CardContent>
       </Card>
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this user?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The user {user.name} will be
+              permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={() => handleDelete()}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting..." : "Delete User"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

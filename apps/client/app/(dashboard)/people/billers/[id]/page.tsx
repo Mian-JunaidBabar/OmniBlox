@@ -22,6 +22,16 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { useBillersApi, type Biller } from "@/hooks/use-billers-api";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const statusConfig = {
   ACTIVE: {
@@ -41,6 +51,7 @@ export default function BillerDetailPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [biller, setBiller] = useState<Biller | null>(null);
   const { getBiller, deleteBiller } = useBillersApi();
   const { toast } = useToast();
@@ -68,8 +79,7 @@ export default function BillerDetailPage() {
   }, [params.id, getBiller, toast, router]);
 
   const handleDelete = async () => {
-    if (!biller || !confirm(`Are you sure you want to delete ${biller.name}?`))
-      return;
+    if (!biller) return;
     try {
       setDeleting(true);
       await deleteBiller(biller.id);
@@ -84,6 +94,7 @@ export default function BillerDetailPage() {
       });
     } finally {
       setDeleting(false);
+      setDeleteOpen(false);
     }
   };
 
@@ -141,13 +152,8 @@ export default function BillerDetailPage() {
               Edit
             </Button>
           </Link>
-          <Button
-            variant="destructive"
-            onClick={handleDelete}
-            disabled={deleting}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            {deleting ? "Deleting..." : "Delete"}
+          <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="mr-2 h-4 w-4" /> Delete
           </Button>
         </div>
       </div>
@@ -226,6 +232,29 @@ export default function BillerDetailPage() {
               {statusInfo.label}
             </Badge>
           </div>
+          <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this biller?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. The biller {biller?.name} will
+                  be permanently removed.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleting}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-white hover:bg-destructive/90"
+                  onClick={() => handleDelete()}
+                  disabled={deleting}
+                >
+                  {deleting ? "Deleting..." : "Delete Biller"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardContent>
       </Card>
     </div>

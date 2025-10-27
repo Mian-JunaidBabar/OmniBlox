@@ -24,6 +24,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useCustomersApi, type Customer } from "@/hooks/use-customers-api";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 // Extended customer interface for detail page with additional mock fields
 interface CustomerDetail extends Customer {
@@ -42,6 +52,7 @@ export default function CustomerDetailPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [deleting, setDeleting] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   const [customer, setCustomer] = useState<CustomerDetail | null>(null);
   const { getCustomer, deleteCustomer } = useCustomersApi();
   const { toast } = useToast();
@@ -71,13 +82,7 @@ export default function CustomerDetailPage() {
   }, [params.id, getCustomer, toast, router]);
 
   const handleDelete = async () => {
-    if (
-      !customer ||
-      !confirm(`Are you sure you want to delete ${customer.name}?`)
-    ) {
-      return;
-    }
-
+    if (!customer) return;
     try {
       setDeleting(true);
       await deleteCustomer(customer.id);
@@ -95,9 +100,9 @@ export default function CustomerDetailPage() {
       });
     } finally {
       setDeleting(false);
+      setDeleteOpen(false);
     }
   };
-
   const renderStatusBadge = (status: string) => {
     switch (status) {
       case "active":
@@ -179,17 +184,11 @@ export default function CustomerDetailPage() {
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Button>
-          <Button
-            variant="destructive"
-            onClick={handleDelete}
-            disabled={deleting}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            {deleting ? "Deleting..." : "Delete"}
+          <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="mr-2 h-4 w-4" /> Delete
           </Button>
         </div>
       </div>
-
       <Separator />
 
       {/* Overview Cards */}
@@ -442,6 +441,27 @@ export default function CustomerDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this customer?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. The customer {customer?.name} will
+              be permanently removed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={() => handleDelete()}
+              disabled={deleting}
+            >
+              {deleting ? "Deleting..." : "Delete Customer"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

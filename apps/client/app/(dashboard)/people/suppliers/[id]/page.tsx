@@ -18,6 +18,16 @@ import { Separator } from "@/components/ui/separator";
 import { useSuppliersApi, type Supplier } from "@/hooks/use-suppliers-api";
 import { useToast } from "@/hooks/use-toast";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 export default function SupplierDetailPage() {
   const params = useParams();
   const router = useRouter();
@@ -27,6 +37,7 @@ export default function SupplierDetailPage() {
   const { getSupplier, deleteSupplier } = useSuppliersApi();
   const { toast } = useToast();
 
+  const [deleteOpen, setDeleteOpen] = useState(false);
   useEffect(() => {
     const load = async () => {
       if (!params.id) return;
@@ -50,11 +61,7 @@ export default function SupplierDetailPage() {
   }, [params.id, getSupplier, toast, router]);
 
   const handleDelete = async () => {
-    if (
-      !supplier ||
-      !confirm(`Are you sure you want to delete ${supplier.name}?`)
-    )
-      return;
+    if (!supplier) return;
     try {
       setDeleting(true);
       await deleteSupplier(supplier.id);
@@ -72,6 +79,7 @@ export default function SupplierDetailPage() {
       });
     } finally {
       setDeleting(false);
+      setDeleteOpen(false);
     }
   };
 
@@ -122,13 +130,8 @@ export default function SupplierDetailPage() {
               Edit
             </Button>
           </Link>
-          <Button
-            variant="destructive"
-            onClick={handleDelete}
-            disabled={deleting}
-          >
-            <Trash2 className="mr-2 h-4 w-4" />
-            {deleting ? "Deleting..." : "Delete"}
+          <Button variant="destructive" onClick={() => setDeleteOpen(true)}>
+            <Trash2 className="mr-2 h-4 w-4" /> Delete
           </Button>
         </div>
       </div>
@@ -185,6 +188,29 @@ export default function SupplierDetailPage() {
               {new Date(supplier.createdAt).toLocaleString()}
             </p>
           </div>
+          <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete this supplier?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This action cannot be undone. The supplier {supplier?.name}{" "}
+                  will be permanently removed.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={deleting}>
+                  Cancel
+                </AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-destructive text-white hover:bg-destructive/90"
+                  onClick={() => handleDelete()}
+                  disabled={deleting}
+                >
+                  {deleting ? "Deleting..." : "Delete Supplier"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
           <div>
             <p className="text-sm text-muted-foreground">Last Updated</p>
             <p className="font-medium">

@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -20,37 +21,68 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useBillersApi, type CreateBillerData } from "@/hooks/use-billers-api";
+import {
+  useBillersApi,
+  type Biller,
+  type UpdateBillerData,
+} from "@/hooks/use-billers-api";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Building2 } from "lucide-react";
-import Link from "next/link";
+import { ArrowLeft, Save, Building2 } from "lucide-react";
 
-export default function CreateBillerPage() {
-  const [formData, setFormData] = useState<CreateBillerData>({
-    code: "",
-    name: "",
-    address: "",
-    phone: "",
-    email: "",
-    contactPerson: "",
-    gstNumber: "",
-    status: "ACTIVE",
-  });
-  const [loading, setLoading] = useState(false);
+export default function EditBillerPage() {
+  const params = useParams();
+  const router = useRouter();
+  const { toast } = useToast();
+  const { getBiller, updateBiller, checkCodeAvailability } = useBillersApi();
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [checkingCode, setCheckingCode] = useState(false);
   const [codeAvailable, setCodeAvailable] = useState<boolean | null>(null);
 
-  const { createBiller, checkCodeAvailability } = useBillersApi();
-  const { toast } = useToast();
-  const router = useRouter();
+  const [biller, setBiller] = useState<Biller | null>(null);
+  const [formData, setFormData] = useState<UpdateBillerData>({});
+
+  useEffect(() => {
+    const load = async () => {
+      if (!params.id) return;
+      try {
+        setLoading(true);
+        const data = await getBiller(params.id as string);
+        setBiller(data);
+        setFormData({
+          code: data.code,
+          name: data.name,
+          address: data.address ?? "",
+          phone: data.phone ?? "",
+          email: data.email ?? "",
+          contactPerson: data.contactPerson ?? "",
+          gstNumber: data.gstNumber ?? "",
+          status: data.status,
+        });
+      } catch (error) {
+        console.error("Error loading biller:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load biller for editing.",
+          variant: "destructive",
+        });
+        router.push("/people/billers");
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
+  }, [params.id, getBiller, toast, router]);
 
   const handleCodeChange = async (code: string) => {
     setFormData({ ...formData, code });
+    if (!biller) return;
 
     if (code.length >= 3) {
       setCheckingCode(true);
       try {
-        const result = await checkCodeAvailability(code);
+        const result = await checkCodeAvailability(code, biller.id);
         setCodeAvailable(result.available);
       } catch (error) {
         console.error("Error checking code availability:", error);
@@ -64,6 +96,7 @@ export default function CreateBillerPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!biller) return;
 
     if (codeAvailable === false) {
       toast({
@@ -75,69 +108,61 @@ export default function CreateBillerPage() {
     }
 
     try {
-      setLoading(true);
-      // Normalize optional fields: send undefined for empty strings to satisfy server validators
-      const payload: CreateBillerData = {
-        code: formData.code.trim(),
-        name: formData.name.trim(),
-        address: formData.address?.trim() || undefined,
-        phone: formData.phone?.trim() || undefined,
-        email: formData.email?.trim() || undefined,
-        contactPerson: formData.contactPerson?.trim() || undefined,
-        gstNumber: formData.gstNumber?.trim() || undefined,
+      setSaving(true);
+      const payload: UpdateBillerData = {
+        code: formData.code?.trim(),
+        name: formData.name?.trim(),
+        address: formData.address?.toString().trim() || undefined,
+        phone: formData.phone?.toString().trim() || undefined,
+        email: formData.email?.toString().trim() || undefined,
+        contactPerson: formData.contactPerson?.toString().trim() || undefined,
+        gstNumber: formData.gstNumber?.toString().trim() || undefined,
         status: formData.status,
       };
 
-      await createBiller(payload);
-
-      toast({
-        title: "Success",
-        description: "Biller created successfully.",
-      });
-
-      router.push("/people/billers");
+      const updated = await updateBiller(biller.id, payload);
+      toast({ title: "Saved", description: "Biller updated successfully." });
+      router.push(`/people/billers/${updated.id}`);
     } catch (error: any) {
-      console.error("Error creating biller:", error);
+      console.error("Error updating biller:", error);
       toast({
         title: "Error",
-        description:
-          error.message || "Failed to create biller. Please try again.",
+        description: error?.message || "Failed to update biller.",
         variant: "destructive",
       });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
+
+  if (loading || !biller) {
+    return (
+      <div className="p-6">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">
       <div className="flex items-center gap-4 mb-6">
-        <Link href="/people/billers">
+        <Link href={`/people/billers/${biller.id}`}>
           <Button variant="outline" size="sm">
-            <ArrowLeft className="h-4 w-4 mr-2" />
-            Back to Billers
+            <ArrowLeft className="h-4 w-4 mr-2" /> Back to Biller
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-semibold tracking-tight">
-            Add New Biller
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            Create a new billing entity or location
-          </p>
+          <h1 className="text-3xl font-semibold tracking-tight">Edit Biller</h1>
+          <p className="text-sm text-muted-foreground">Update biller details</p>
         </div>
       </div>
 
       <Card className="max-w-2xl">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Building2 className="h-5 w-5" />
-            Biller Details
+            <Building2 className="h-5 w-5" /> Biller Details
           </CardTitle>
-          <CardDescription>
-            Enter the details for the new billing entity. This could be a
-            branch, location, or separate billing unit.
-          </CardDescription>
+          <CardDescription>Modify the details for this biller.</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -147,7 +172,7 @@ export default function CreateBillerPage() {
                 <div className="relative">
                   <Input
                     id="code"
-                    value={formData.code}
+                    value={formData.code ?? ""}
                     onChange={(e) =>
                       handleCodeChange(e.target.value.toUpperCase())
                     }
@@ -180,7 +205,7 @@ export default function CreateBillerPage() {
                 <Label htmlFor="name">Biller Name *</Label>
                 <Input
                   id="name"
-                  value={formData.name}
+                  value={formData.name ?? ""}
                   onChange={(e) =>
                     setFormData({ ...formData, name: e.target.value })
                   }
@@ -194,7 +219,7 @@ export default function CreateBillerPage() {
               <Label htmlFor="address">Address</Label>
               <Textarea
                 id="address"
-                value={formData.address}
+                value={(formData.address as string) ?? ""}
                 onChange={(e) =>
                   setFormData({ ...formData, address: e.target.value })
                 }
@@ -209,7 +234,7 @@ export default function CreateBillerPage() {
                 <Input
                   id="phone"
                   type="tel"
-                  value={formData.phone}
+                  value={(formData.phone as string) ?? ""}
                   onChange={(e) =>
                     setFormData({ ...formData, phone: e.target.value })
                   }
@@ -221,7 +246,7 @@ export default function CreateBillerPage() {
                 <Input
                   id="email"
                   type="email"
-                  value={formData.email}
+                  value={(formData.email as string) ?? ""}
                   onChange={(e) =>
                     setFormData({ ...formData, email: e.target.value })
                   }
@@ -235,7 +260,7 @@ export default function CreateBillerPage() {
                 <Label htmlFor="contactPerson">Contact Person</Label>
                 <Input
                   id="contactPerson"
-                  value={formData.contactPerson}
+                  value={(formData.contactPerson as string) ?? ""}
                   onChange={(e) =>
                     setFormData({ ...formData, contactPerson: e.target.value })
                   }
@@ -246,7 +271,7 @@ export default function CreateBillerPage() {
                 <Label htmlFor="gstNumber">GST Number</Label>
                 <Input
                   id="gstNumber"
-                  value={formData.gstNumber}
+                  value={(formData.gstNumber as string) ?? ""}
                   onChange={(e) =>
                     setFormData({ ...formData, gstNumber: e.target.value })
                   }
@@ -274,16 +299,14 @@ export default function CreateBillerPage() {
             </div>
 
             <div className="flex justify-end gap-4 pt-4">
-              <Link href="/people/billers">
+              <Link href={`/people/billers/${biller.id}`}>
                 <Button type="button" variant="outline">
                   Cancel
                 </Button>
               </Link>
-              <Button
-                type="submit"
-                disabled={loading || codeAvailable === false}
-              >
-                {loading ? "Creating..." : "Create Biller"}
+              <Button type="submit" disabled={saving}>
+                <Save className="h-4 w-4 mr-2" />{" "}
+                {saving ? "Saving..." : "Save Changes"}
               </Button>
             </div>
           </form>
