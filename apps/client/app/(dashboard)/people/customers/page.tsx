@@ -14,35 +14,28 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import {
-  useCustomersApi,
-  type Customer,
-  type CustomersStats,
-} from "@/hooks/use-customers-api";
+import { useCustomersApi, type Customer } from "@/hooks/use-customers-api";
 import { useToast } from "@/hooks/use-toast";
 
 export default function CustomersPage() {
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [stats, setStats] = useState<CustomersStats | null>(null);
+  // Server does not provide stats endpoint; derive minimal stats locally
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const { getCustomers, getCustomersStats } = useCustomersApi();
+  const { getCustomers } = useCustomersApi();
   const { toast } = useToast();
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [customersResponse, statsResponse] = await Promise.all([
-          getCustomers(),
-          getCustomersStats(),
-        ]);
+        const customersResponse = await getCustomers();
         // Backend returns array directly when no pagination params
         const customersList = Array.isArray(customersResponse)
           ? customersResponse
           : customersResponse.customers;
         setCustomers(customersList);
-        setStats(statsResponse);
+        // no-op: stats not available from server
       } catch (error) {
         console.error("Error loading customers:", error);
         toast({
@@ -56,7 +49,7 @@ export default function CustomersPage() {
     };
 
     loadData();
-  }, [getCustomers, getCustomersStats, toast]);
+  }, [getCustomers, toast]);
 
   const filteredCustomers = (customers || []).filter(
     (customer) =>
@@ -67,10 +60,7 @@ export default function CustomersPage() {
         customer.phone.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const totalCustomers = stats?.totalCustomers || 0;
-  const totalRevenue = stats?.totalRevenue || 0;
-  const totalCredit = stats?.totalCredit || 0;
-  const avgPurchase = stats?.avgPurchase || 0;
+  const totalCustomers = customers.length;
 
   return (
     <div className="p-6 space-y-6">
@@ -96,30 +86,6 @@ export default function CustomersPage() {
           <CardHeader className="pb-3">
             <CardDescription>Total Customers</CardDescription>
             <CardTitle className="text-3xl">{totalCustomers}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Total Revenue</CardDescription>
-            <CardTitle className="text-3xl">
-              ${totalRevenue.toLocaleString()}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Outstanding Credit</CardDescription>
-            <CardTitle className="text-3xl text-amber-600">
-              ${totalCredit.toLocaleString()}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Avg Purchase</CardDescription>
-            <CardTitle className="text-3xl">
-              ${avgPurchase.toLocaleString()}
-            </CardTitle>
           </CardHeader>
         </Card>
       </div>

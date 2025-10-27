@@ -207,26 +207,46 @@ class ApiClient {
       }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        // Try to read text first, then parse JSON for better diagnostics
+        const rawText = await response.text().catch(() => "");
+        let errorData: any = {};
+        try {
+          errorData = rawText ? JSON.parse(rawText) : {};
+        } catch (_) {
+          errorData = { raw: rawText };
+        }
+
         const error = {
           message:
-            errorData.message ||
+            errorData?.message ||
             `HTTP ${response.status}: ${response.statusText}`,
           statusCode: response.status,
           details: errorData,
         } as ApiError;
 
-        console.error("API Error:", {
+        // Log a compact, always-visible string plus a structured object
+        console.error(
+          `API Error: ${error.message} (${options.method || "GET"} ${url}) [${
+            response.status
+          }]`
+        );
+        console.debug("API Error details:", {
           url,
           method: options.method || "GET",
           status: response.status,
           statusText: response.statusText,
-          errorData: JSON.stringify(errorData, null, 2),
+          errorData,
           headers: response.headers
             ? Object.fromEntries(response.headers.entries())
             : {},
           requestBody: options.body
-            ? JSON.stringify(JSON.parse(options.body as string), null, 2)
+            ? (() => {
+                try {
+                  return JSON.parse(options.body as string);
+                } catch {
+                  return options.body;
+                }
+              })()
             : undefined,
         });
 

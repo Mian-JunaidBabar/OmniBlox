@@ -14,35 +14,28 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Plus, Search } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import {
-  useSuppliersApi,
-  type Supplier,
-  type SuppliersStats,
-} from "@/hooks/use-suppliers-api";
+import { useSuppliersApi, type Supplier } from "@/hooks/use-suppliers-api";
 import { useToast } from "@/hooks/use-toast";
 
 export default function SuppliersPage() {
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
-  const [stats, setStats] = useState<SuppliersStats | null>(null);
+  // Server does not provide stats endpoint; derive minimal stats locally
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const { getSuppliers, getSuppliersStats } = useSuppliersApi();
+  const { getSuppliers } = useSuppliersApi();
   const { toast } = useToast();
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [suppliersResponse, statsResponse] = await Promise.all([
-          getSuppliers(),
-          getSuppliersStats(),
-        ]);
+        const suppliersResponse = await getSuppliers();
         // Backend returns array directly when no pagination params
         const suppliersList = Array.isArray(suppliersResponse)
           ? suppliersResponse
           : suppliersResponse.suppliers;
         setSuppliers(suppliersList);
-        setStats(statsResponse);
+        // no-op: stats not available from server
       } catch (error) {
         console.error("Error loading suppliers:", error);
         toast({
@@ -56,7 +49,7 @@ export default function SuppliersPage() {
     };
 
     loadData();
-  }, [getSuppliers, getSuppliersStats, toast]);
+  }, [getSuppliers, toast]);
 
   const filteredSuppliers = (suppliers || []).filter(
     (supplier) =>
@@ -67,10 +60,7 @@ export default function SuppliersPage() {
         supplier.phone.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
-  const totalSuppliers = stats?.totalSuppliers || 0;
-  const totalPurchases = stats?.totalPurchases || 0;
-  const totalPayable = stats?.totalPayable || 0;
-  const avgPurchase = stats?.avgPurchase || 0;
+  const totalSuppliers = suppliers.length;
 
   return (
     <div className="p-6 space-y-6">
@@ -96,30 +86,6 @@ export default function SuppliersPage() {
           <CardHeader className="pb-3">
             <CardDescription>Total Suppliers</CardDescription>
             <CardTitle className="text-3xl">{totalSuppliers}</CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Total Purchases</CardDescription>
-            <CardTitle className="text-3xl">
-              ${totalPurchases.toLocaleString()}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Accounts Payable</CardDescription>
-            <CardTitle className="text-3xl text-red-600">
-              ${totalPayable.toLocaleString()}
-            </CardTitle>
-          </CardHeader>
-        </Card>
-        <Card>
-          <CardHeader className="pb-3">
-            <CardDescription>Avg Purchase</CardDescription>
-            <CardTitle className="text-3xl">
-              ${avgPurchase.toLocaleString()}
-            </CardTitle>
           </CardHeader>
         </Card>
       </div>
