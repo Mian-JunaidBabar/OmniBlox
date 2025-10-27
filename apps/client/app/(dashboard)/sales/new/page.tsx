@@ -24,7 +24,9 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useProductApi } from "@/hooks/use-product-api";
+import { useInventoryApi } from "@/hooks/use-inventory-api";
 import type { Product } from "@/lib/types";
+import type { Warehouse } from "@/hooks/use-inventory-api";
 
 import { useSalesService } from "../_services/sales-service";
 import type { SalePaymentStatus, SaleStatus } from "../_types";
@@ -77,17 +79,23 @@ const createItemId = () =>
 export default function NewSalePage() {
   const router = useRouter();
   const { getProducts } = useProductApi();
+  const { getWarehouses } = useInventoryApi();
   const { createSale } = useSalesService();
 
   const [products, setProducts] = useState<Product[]>([]);
   const [productsLoading, setProductsLoading] = useState(true);
   const [productsError, setProductsError] = useState<string | null>(null);
 
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [warehousesLoading, setWarehousesLoading] = useState(true);
+  const [warehousesError, setWarehousesError] = useState<string | null>(null);
+
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   const [formData, setFormData] = useState({
     customerName: "",
     customerEmail: "",
+    warehouseId: "",
     date: today,
     dueDate: "",
     status: "DRAFT" as SaleStatus,
@@ -102,31 +110,44 @@ export default function NewSalePage() {
   useEffect(() => {
     let active = true;
 
-    const loadProducts = async () => {
+    const loadData = async () => {
       try {
+        // Load products
         setProductsLoading(true);
         setProductsError(null);
-        const { products: list } = await getProducts({ page: 1, limit: 200 });
+        const { products: productsList } = await getProducts({
+          page: 1,
+          limit: 200,
+        });
+
+        // Load warehouses
+        setWarehousesLoading(true);
+        setWarehousesError(null);
+        const warehousesList = await getWarehouses();
+
         if (active) {
-          setProducts(list ?? []);
+          setProducts(productsList ?? []);
+          setWarehouses(warehousesList ?? []);
         }
       } catch (error) {
         if (active) {
           setProductsError(normalizeError(error));
+          setWarehousesError(normalizeError(error));
         }
       } finally {
         if (active) {
           setProductsLoading(false);
+          setWarehousesLoading(false);
         }
       }
     };
 
-    loadProducts();
+    loadData();
 
     return () => {
       active = false;
     };
-  }, [getProducts]);
+  }, [getProducts, getWarehouses]);
 
   const currencyFormatter = useMemo(
     () =>
@@ -215,6 +236,11 @@ export default function NewSalePage() {
       return;
     }
 
+    if (!formData.warehouseId) {
+      setSubmitError("Warehouse selection is required.");
+      return;
+    }
+
     if (!formData.dueDate) {
       setSubmitError("Due date is required.");
       return;
@@ -239,6 +265,7 @@ export default function NewSalePage() {
           name: formData.customerName.trim(),
           email: formData.customerEmail.trim(),
         },
+        warehouseId: formData.warehouseId,
         saleDate: new Date(formData.date).toISOString(),
         dueDate: new Date(formData.dueDate).toISOString(),
         status: formData.status,
@@ -325,25 +352,44 @@ export default function NewSalePage() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="status">Invoice Status</Label>
+                  <Label htmlFor="warehouse">Warehouse *</Label>
                   <Select
-                    value={formData.status}
+                    value={formData.warehouseId}
                     onValueChange={(value) =>
                       setFormData((prev) => ({
                         ...prev,
-                        status: value as SaleStatus,
+                        warehouseId: value,
                       }))
                     }
                   >
-                    <SelectTrigger id="status">
-                      <SelectValue placeholder="Select status" />
+                    <SelectTrigger id="warehouse">
+                      <SelectValue placeholder="Select warehouse" />
                     </SelectTrigger>
                     <SelectContent>
-                      {STATUS_OPTIONS.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label}
+                      {warehousesLoading && (
+                        <SelectItem value="LOADING" disabled>
+                          Loading warehouses...
                         </SelectItem>
-                      ))}
+                      )}
+                      {!warehousesLoading && warehousesError && (
+                        <SelectItem value="ERROR" disabled>
+                          {warehousesError}
+                        </SelectItem>
+                      )}
+                      {!warehousesLoading &&
+                        !warehousesError &&
+                        warehouses.length === 0 && (
+                          <SelectItem value="NO_WAREHOUSES" disabled>
+                            No warehouses available
+                          </SelectItem>
+                        )}
+                      {!warehousesLoading &&
+                        !warehousesError &&
+                        warehouses.map((warehouse) => (
+                          <SelectItem key={warehouse.id} value={warehouse.id}>
+                            {warehouse.name}
+                          </SelectItem>
+                        ))}
                     </SelectContent>
                   </Select>
                 </div>
