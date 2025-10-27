@@ -1,22 +1,68 @@
-"use client"
+"use client";
 
-import type React from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { ArrowLeft } from "lucide-react"
-import Link from "next/link"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
+import { useInventoryApi } from "@/hooks/use-inventory-api";
+import { useToast } from "@/hooks/use-toast";
 
 export default function NewWarehousePage() {
-  const router = useRouter()
+  const router = useRouter();
+  const { toast } = useToast();
+  const { createWarehouse } = useInventoryApi();
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    router.push("/inventory/warehouses")
-  }
+  const [loading, setLoading] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    location: "",
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!formData.name.trim()) {
+      toast({
+        title: "Error",
+        description: "Warehouse name is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await createWarehouse({
+        name: formData.name.trim(),
+        location: formData.location?.trim() || undefined,
+      });
+      toast({
+        title: "Success",
+        description: "Warehouse created successfully",
+      });
+      router.push("/inventory/warehouses");
+    } catch (error: any) {
+      console.error("Error creating warehouse:", error);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to create warehouse",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex flex-col gap-6">
@@ -27,8 +73,12 @@ export default function NewWarehousePage() {
           </Button>
         </Link>
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Add New Warehouse</h1>
-          <p className="text-muted-foreground">Create a new warehouse location</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Add New Warehouse
+          </h1>
+          <p className="text-muted-foreground">
+            Create a new warehouse location
+          </p>
         </div>
       </div>
 
@@ -41,51 +91,29 @@ export default function NewWarehousePage() {
           <CardContent className="flex flex-col gap-4">
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-2">
-                <Label htmlFor="name">Warehouse Name</Label>
-                <Input id="name" placeholder="Main Warehouse" required />
+                <Label htmlFor="name">Warehouse Name *</Label>
+                <Input
+                  id="name"
+                  placeholder="Main Warehouse"
+                  required
+                  value={formData.name}
+                  onChange={(e) =>
+                    setFormData({ ...formData, name: e.target.value })
+                  }
+                />
               </div>
 
               <div className="flex flex-col gap-2">
-                <Label htmlFor="code">Warehouse Code</Label>
-                <Input id="code" placeholder="WH-001" required />
+                <Label htmlFor="location">Location</Label>
+                <Input
+                  id="location"
+                  placeholder="New York, NY"
+                  value={formData.location}
+                  onChange={(e) =>
+                    setFormData({ ...formData, location: e.target.value })
+                  }
+                />
               </div>
-
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="capacity">Capacity (units)</Label>
-                <Input id="capacity" type="number" placeholder="10000" required />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input id="phone" type="tel" placeholder="+1 (555) 000-0000" />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="address">Address</Label>
-              <Textarea id="address" placeholder="Enter full address" rows={3} required />
-            </div>
-
-            <div className="grid gap-4 md:grid-cols-3">
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="city">City</Label>
-                <Input id="city" placeholder="New York" required />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="state">State/Province</Label>
-                <Input id="state" placeholder="NY" required />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Label htmlFor="zip">ZIP/Postal Code</Label>
-                <Input id="zip" placeholder="10001" required />
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-2">
-              <Label htmlFor="notes">Notes</Label>
-              <Textarea id="notes" placeholder="Additional information about this warehouse" rows={3} />
             </div>
           </CardContent>
         </Card>
@@ -96,9 +124,11 @@ export default function NewWarehousePage() {
               Cancel
             </Button>
           </Link>
-          <Button type="submit">Create Warehouse</Button>
+          <Button type="submit" disabled={loading}>
+            {loading ? "Creating..." : "Create Warehouse"}
+          </Button>
         </div>
       </form>
     </div>
-  )
+  );
 }
