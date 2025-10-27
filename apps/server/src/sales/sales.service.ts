@@ -108,6 +108,16 @@ export class SalesService {
           dto.warehouseId,
         );
 
+        // Create delivery record for the sale
+        await tx.delivery.create({
+          data: {
+            saleId: sale.id,
+            companyId,
+            deliveryAddress: dto.customer.address ?? 'Address not provided',
+            status: 'PENDING',
+          },
+        });
+
         return this.transformSale(sale);
       },
       { timeout: 20000 },

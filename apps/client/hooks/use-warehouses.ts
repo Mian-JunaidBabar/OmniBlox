@@ -17,7 +17,7 @@ export function useWarehouses() {
     try {
       setLoading(true);
       setError(null);
-      const response = await get("/products/warehouses");
+      const response = await get("/warehouses");
       setWarehouses(response as Warehouse[]);
     } catch (err) {
       setError(

@@ -39,6 +39,7 @@ model Company {
   expenses            Expense[]
   expenseCategories   ExpenseCategory[]
   stockAdjustments    StockAdjustment[]
+  deliveries          Delivery[]
 
   @@map("companies")
 }
@@ -360,6 +361,7 @@ model Sale {
   customer Customer @relation(fields: [customerId], references: [id])
   user     User     @relation(fields: [userId], references: [id])
   biller   Biller?  @relation(fields: [billerId], references: [id])
+  delivery Delivery?
 
   @@unique([companyId, invoiceNumber]) // Invoice number unique per company
   @@map("sales")
@@ -375,6 +377,25 @@ model SaleItem {
   sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
 
   @@map("sale_items")
+}
+
+model Delivery {
+  id              String          @id @default(uuid())
+  status          DeliveryStatus  @default(PENDING)
+  trackingNumber  String?
+  deliveryAddress String          // Copied from the sale for historical accuracy
+  dispatchDate    DateTime?
+  deliveredDate   DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // --- Relations ---
+  saleId    String   @unique // Creates a one-to-one relationship
+  sale      Sale     @relation(fields: [saleId], references: [id])
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+
+  @@map("deliveries")
 }
 
 model PurchaseOrder {
@@ -538,4 +559,12 @@ enum PaymentMethod {
 enum BillerStatus {
   ACTIVE
   INACTIVE
+}
+
+// NEW: Enum for Delivery Status
+enum DeliveryStatus {
+  PENDING
+  IN_TRANSIT
+  DELIVERED
+  CANCELLED
 }

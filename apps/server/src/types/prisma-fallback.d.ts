@@ -41,6 +41,13 @@ declare module '@prisma/client' {
     FAILED = 'FAILED',
   }
 
+  export enum DeliveryStatus {
+    PENDING = 'PENDING',
+    IN_TRANSIT = 'IN_TRANSIT',
+    DELIVERED = 'DELIVERED',
+    CANCELLED = 'CANCELLED',
+  }
+
   // Export anything else as `any` to be permissive for now
   export const Prisma: any;
 }
