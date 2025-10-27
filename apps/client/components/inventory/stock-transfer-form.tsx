@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useWorkspaceUrl } from "@/hooks/use-workspace-url";
 import {
   Card,
   CardContent,
@@ -33,7 +32,6 @@ import { useToast } from "@/hooks/use-toast";
 
 export function StockTransferForm() {
   const router = useRouter();
-  const getWorkspaceUrl = useWorkspaceUrl();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -123,7 +121,7 @@ export function StockTransferForm() {
         description: "Stock transfer has been processed successfully.",
       });
 
-      router.push(getWorkspaceUrl("/inventory"));
+      router.push("/inventory");
     } catch (e: any) {
       toast({
         title: "Transfer Failed",

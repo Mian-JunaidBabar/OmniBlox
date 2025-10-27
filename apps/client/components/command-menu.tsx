@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useAuth } from "@/contexts/auth-context";
 import {
   CommandDialog,
   CommandEmpty,
@@ -26,12 +25,6 @@ interface CommandMenuProps {
 
 export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
   const router = useRouter();
-  const { company } = useAuth();
-
-  const getWorkspaceUrl = (path: string) => {
-    if (!company?.workspaceUrl) return path;
-    return `/${company.workspaceUrl}${path}`;
-  };
 
   const runCommand = (command: () => void) => {
     onOpenChange(false);
@@ -45,41 +38,29 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
         <CommandEmpty>No results found.</CommandEmpty>
         <CommandGroup heading="Navigation">
           <CommandItem
-            onSelect={() =>
-              runCommand(() => router.push(getWorkspaceUrl("/products")))
-            }
+            onSelect={() => runCommand(() => router.push("/products"))}
           >
             <Package className="mr-2 h-4 w-4" />
             <span>Products</span>
           </CommandItem>
-          <CommandItem
-            onSelect={() =>
-              runCommand(() => router.push(getWorkspaceUrl("/sales")))
-            }
-          >
+          <CommandItem onSelect={() => runCommand(() => router.push("/sales"))}>
             <FileText className="mr-2 h-4 w-4" />
             <span>Sales & Invoices</span>
           </CommandItem>
           <CommandItem
-            onSelect={() =>
-              runCommand(() => router.push(getWorkspaceUrl("/inventory")))
-            }
+            onSelect={() => runCommand(() => router.push("/inventory"))}
           >
             <Warehouse className="mr-2 h-4 w-4" />
             <span>Inventory</span>
           </CommandItem>
           <CommandItem
-            onSelect={() =>
-              runCommand(() => router.push(getWorkspaceUrl("/reports")))
-            }
+            onSelect={() => runCommand(() => router.push("/reports"))}
           >
             <BarChart3 className="mr-2 h-4 w-4" />
             <span>Reports</span>
           </CommandItem>
           <CommandItem
-            onSelect={() =>
-              runCommand(() => router.push(getWorkspaceUrl("/settings")))
-            }
+            onSelect={() => runCommand(() => router.push("/settings"))}
           >
             <Settings className="mr-2 h-4 w-4" />
             <span>Settings</span>
@@ -88,26 +69,20 @@ export function CommandMenu({ open, onOpenChange }: CommandMenuProps) {
         <CommandSeparator />
         <CommandGroup heading="Quick Actions">
           <CommandItem
-            onSelect={() =>
-              runCommand(() => router.push(getWorkspaceUrl("/products/new")))
-            }
+            onSelect={() => runCommand(() => router.push("/products/new"))}
           >
             <Package className="mr-2 h-4 w-4" />
             <span>New Product</span>
           </CommandItem>
           <CommandItem
-            onSelect={() =>
-              runCommand(() => router.push(getWorkspaceUrl("/sales/new")))
-            }
+            onSelect={() => runCommand(() => router.push("/sales/new"))}
           >
             <FileText className="mr-2 h-4 w-4" />
             <span>New Invoice</span>
           </CommandItem>
           <CommandItem
             onSelect={() =>
-              runCommand(() =>
-                router.push(getWorkspaceUrl("/inventory/transfer"))
-              )
+              runCommand(() => router.push("/inventory/transfer"))
             }
           >
             <Warehouse className="mr-2 h-4 w-4" />

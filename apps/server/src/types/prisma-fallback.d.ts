@@ -23,6 +23,7 @@ declare module '@prisma/client' {
   }
 
   export enum UserRole {
+    OWNER = 'OWNER',
     ADMIN = 'ADMIN',
     MANAGER = 'MANAGER',
     STAFF = 'STAFF',

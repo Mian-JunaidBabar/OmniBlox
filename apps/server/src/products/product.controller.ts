@@ -16,28 +16,33 @@ import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateStockAdjustmentDto } from './dto/create-stock-adjustment.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import {
-  GetCurrentCompanyId,
-  GetCurrentUserId,
-} from '../auth/decorators/current-user.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { CompanyId } from '../auth/decorators/company-id.decorator';
+import { UserRole } from '@prisma/client';
+import { GetCurrentUserId } from '../auth/decorators/current-user.decorator';
 
 @Controller('products')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
+  // CREATE - Management roles only
   @Post()
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
   @HttpCode(HttpStatus.CREATED)
   async create(
     @Body() createProductDto: CreateProductDto,
-    @GetCurrentCompanyId() companyId: string,
+    @CompanyId() companyId: string,
   ) {
     return this.productService.create(createProductDto, companyId);
   }
 
-  @Get()
+  // READ - All authenticated users
+  @Get('/')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   async findAll(
-    @GetCurrentCompanyId() companyId: string,
+    @CompanyId() companyId: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
@@ -58,55 +63,58 @@ export class ProductController {
   }
 
   @Get('categories')
-  async getCategories(@GetCurrentCompanyId() companyId: string) {
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  async getCategories(@CompanyId() companyId: string) {
     return this.productService.getCategories(companyId);
   }
 
   @Get('brands')
-  async getBrands(@GetCurrentCompanyId() companyId: string) {
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  async getBrands(@CompanyId() companyId: string) {
     return this.productService.getBrands(companyId);
   }
 
   @Get('low-stock')
-  async getLowStockProducts(@GetCurrentCompanyId() companyId: string) {
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  async getLowStockProducts(@CompanyId() companyId: string) {
     return this.productService.getLowStockProducts(companyId);
   }
 
   @Get('stats')
-  async getStats(@GetCurrentCompanyId() companyId: string) {
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  async getStats(@CompanyId() companyId: string) {
     return this.productService.getStats(companyId);
   }
 
   @Get('sku/:sku')
-  async findBySku(
-    @Param('sku') sku: string,
-    @GetCurrentCompanyId() companyId: string,
-  ) {
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  async findBySku(@Param('sku') sku: string, @CompanyId() companyId: string) {
     return this.productService.findBySku(sku, companyId);
   }
 
   @Get(':id')
-  async findOne(
-    @Param('id') id: string,
-    @GetCurrentCompanyId() companyId: string,
-  ) {
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  async findOne(@Param('id') id: string, @CompanyId() companyId: string) {
     return this.productService.findOne(id, companyId);
   }
 
+  // UPDATE - Management roles only
   @Put(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
   async update(
     @Param('id') id: string,
     @Body() updateProductDto: UpdateProductDto,
-    @GetCurrentCompanyId() companyId: string,
+    @CompanyId() companyId: string,
   ) {
     return this.productService.update(id, updateProductDto, companyId);
   }
 
   @Put(':id/stock')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
   async updateStock(
     @Param('id') id: string,
     @Body() body: { quantity: number; operation: 'add' | 'subtract' },
-    @GetCurrentCompanyId() companyId: string,
+    @CompanyId() companyId: string,
   ) {
     return this.productService.updateStock(
       id,
@@ -116,21 +124,22 @@ export class ProductController {
     );
   }
 
+  // DELETE - Management roles only
   @Delete(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(
-    @Param('id') id: string,
-    @GetCurrentCompanyId() companyId: string,
-  ) {
+  async remove(@Param('id') id: string, @CompanyId() companyId: string) {
     return this.productService.remove(id, companyId);
   }
 
+  // STOCK ADJUSTMENTS - Management roles only
   @Post('adjustments')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
   @HttpCode(HttpStatus.CREATED)
   async createStockAdjustment(
     @Body() createStockAdjustmentDto: CreateStockAdjustmentDto,
     @GetCurrentUserId() userId: string,
-    @GetCurrentCompanyId() companyId: string,
+    @CompanyId() companyId: string,
   ) {
     return this.productService.createStockAdjustment(
       createStockAdjustmentDto,
@@ -140,20 +149,23 @@ export class ProductController {
   }
 
   @Get('adjustments')
-  async getStockAdjustments(@GetCurrentCompanyId() companyId: string) {
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  async getStockAdjustments(@CompanyId() companyId: string) {
     return this.productService.getStockAdjustments(companyId);
   }
 
   @Get('adjustments/:id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   async getStockAdjustment(
     @Param('id') id: string,
-    @GetCurrentCompanyId() companyId: string,
+    @CompanyId() companyId: string,
   ) {
     return this.productService.getStockAdjustment(id, companyId);
   }
 
   @Get('warehouses')
-  async getWarehouses(@GetCurrentCompanyId() companyId: string) {
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  async getWarehouses(@CompanyId() companyId: string) {
     return this.productService.getWarehouses(companyId);
   }
 }

@@ -124,19 +124,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         "/forgot-password",
       ]);
 
-      if (isAuthenticated && pathname && company) {
+      if (isAuthenticated && pathname) {
         // If current path is exactly a guest path, or is the index, redirect
         if (
           guestPaths.has(pathname) ||
           Array.from(guestPaths).some((p) => pathname.startsWith(p + "/"))
         ) {
-          router.replace(`/${company.workspaceUrl}/dashboard`);
+          router.replace("/dashboard");
         }
       }
     } catch (err) {
       // swallow routing errors silently
     }
-  }, [isAuthenticated, isLoading, pathname, router, company]);
+  }, [isAuthenticated, isLoading, pathname, router]);
 
   const login = async (email: string, password: string): Promise<void> => {
     try {
@@ -144,7 +144,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await api.login(email, password);
       setUser({ ...response.user, permissions: ["all"] });
       setCompany(response.company);
-      router.push(`/${response.company.workspaceUrl}/dashboard`);
+      router.push("/dashboard");
     } catch (error) {
       throw error;
     } finally {
@@ -170,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const response = await api.signup(signupData);
       setUser({ ...response.user, permissions: ["all"] });
       setCompany(response.company);
-      router.push(`/${response.company.workspaceUrl}/dashboard`);
+      router.push("/dashboard");
     } catch (error) {
       throw error;
     } finally {

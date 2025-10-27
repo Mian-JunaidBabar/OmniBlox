@@ -52,6 +52,7 @@ import {
 import Link from "next/link";
 import { useProductApi, type ProductStats } from "@/hooks/use-product-api";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/auth-context";
 import type { Product } from "@/lib/types";
 
 export default function ProductsPage() {
@@ -61,6 +62,13 @@ export default function ProductsPage() {
   const [stats, setStats] = useState<ProductStats | null>(null);
   const { getProducts, deleteProduct, getProductStats } = useProductApi();
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  // RBAC: Define management permissions
+  const canManageProducts =
+    user?.role === "OWNER" ||
+    user?.role === "ADMIN" ||
+    user?.role === "MANAGER";
 
   // Load products on component mount
   useEffect(() => {
@@ -156,12 +164,15 @@ export default function ProductsPage() {
             Manage your product inventory and pricing
           </p>
         </div>
-        <Link href="/products/new">
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Add Product
-          </Button>
-        </Link>
+        {/* Only show "Add Product" button to management roles */}
+        {canManageProducts && (
+          <Link href="/products/new">
+            <Button className="gap-2">
+              <Plus className="h-4 w-4" />
+              Add Product
+            </Button>
+          </Link>
+        )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -313,45 +324,53 @@ export default function ProductsPage() {
                             View Details
                           </Link>
                         </DropdownMenuItem>
-                        <DropdownMenuItem asChild>
-                          <Link href={`/products/${product.id}/edit`}>
-                            <Edit className="mr-2 h-4 w-4" />
-                            Edit
-                          </Link>
-                        </DropdownMenuItem>
-                        <DropdownMenuSeparator />
-                        <AlertDialog>
-                          <AlertDialogTrigger asChild>
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onSelect={(e) => e.preventDefault()}
-                            >
-                              <Trash2 className="mr-2 h-4 w-4" />
-                              Delete
+                        {/* Only show Edit and Delete for management roles */}
+                        {canManageProducts && (
+                          <>
+                            <DropdownMenuItem asChild>
+                              <Link href={`/products/${product.id}/edit`}>
+                                <Edit className="mr-2 h-4 w-4" />
+                                Edit
+                              </Link>
                             </DropdownMenuItem>
-                          </AlertDialogTrigger>
-                          <AlertDialogContent>
-                            <AlertDialogHeader>
-                              <AlertDialogTitle>
-                                Are you absolutely sure?
-                              </AlertDialogTitle>
-                              <AlertDialogDescription>
-                                This action cannot be undone. This will
-                                permanently delete the product "{product.name}"
-                                and remove all associated data from our servers.
-                              </AlertDialogDescription>
-                            </AlertDialogHeader>
-                            <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction
-                                onClick={() => handleDeleteProduct(product.id)}
-                                className="bg-destructive text-white hover:bg-destructive/90"
-                              >
-                                Delete Product
-                              </AlertDialogAction>
-                            </AlertDialogFooter>
-                          </AlertDialogContent>
-                        </AlertDialog>
+                            <DropdownMenuSeparator />
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <DropdownMenuItem
+                                  className="text-destructive"
+                                  onSelect={(e) => e.preventDefault()}
+                                >
+                                  <Trash2 className="mr-2 h-4 w-4" />
+                                  Delete
+                                </DropdownMenuItem>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Are you absolutely sure?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    This action cannot be undone. This will
+                                    permanently delete the product "
+                                    {product.name}" and remove all associated
+                                    data from our servers.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() =>
+                                      handleDeleteProduct(product.id)
+                                    }
+                                    className="bg-destructive text-white hover:bg-destructive/90"
+                                  >
+                                    Delete Product
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </>
+                        )}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </TableCell>
