@@ -25,6 +25,7 @@ import {
 import { ArrowLeft, Edit, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useProductApi } from "@/hooks/use-product-api";
+import { useInventoryApi, type InventoryItem } from "@/hooks/use-inventory-api";
 import { useToast } from "@/hooks/use-toast";
 import type { Product } from "@/lib/types";
 import { use } from "react";
@@ -36,8 +37,11 @@ export default function ProductDetailPage({
 }) {
   const { id: productId } = use(params);
   const [product, setProduct] = useState<Product | null>(null);
+  const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [inventoryLoading, setInventoryLoading] = useState(false);
   const { getProduct, deleteProduct } = useProductApi();
+  const { getProductInventory } = useInventoryApi();
   const { toast } = useToast();
   const router = useRouter();
 
@@ -52,6 +56,11 @@ export default function ProductDetailPage({
       setLoading(true);
       const productData = await getProduct(productId);
       setProduct(productData);
+
+      // Load inventory data
+      setInventoryLoading(true);
+      const inventoryData = await getProductInventory(productId);
+      setInventory(inventoryData);
     } catch (error) {
       toast({
         title: "Error",
@@ -61,6 +70,7 @@ export default function ProductDetailPage({
       router.push("/dashboard/products");
     } finally {
       setLoading(false);
+      setInventoryLoading(false);
     }
   };
 
@@ -249,6 +259,106 @@ export default function ProductDetailPage({
                 </label>
                 <p className="text-sm">{product.reorderLevel}</p>
               </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Warehouse Stock</CardTitle>
+              <CardDescription>
+                Stock levels across all warehouses
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              {inventoryLoading ? (
+                <div className="text-center py-4 text-sm text-muted-foreground">
+                  Loading warehouse stock...
+                </div>
+              ) : inventory.length === 0 ? (
+                <div className="text-center py-4 text-sm text-muted-foreground">
+                  No warehouse stock data available
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {inventory.map((item) => (
+                    <div
+                      key={`${item.productId}-${item.warehouseId}`}
+                      className="flex items-center justify-between p-3 border rounded-lg"
+                    >
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <p className="font-medium text-sm">
+                            {item.warehouseName}
+                          </p>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Stock: {item.quantity}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {item.quantity === 0 && (
+                          <Badge variant="destructive" className="text-xs">
+                            Out of Stock
+                          </Badge>
+                        )}
+                        {item.quantity > 0 &&
+                          item.quantity <= item.reorderLevel && (
+                            <Badge variant="destructive" className="text-xs">
+                              Low Stock
+                            </Badge>
+                          )}
+                        {item.quantity > item.reorderLevel && (
+                          <Badge variant="secondary" className="text-xs">
+                            In Stock
+                          </Badge>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Summary Alert */}
+                  {inventory.some((item) => item.quantity === 0) && (
+                    <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                        <p className="text-sm font-medium text-red-800">
+                          Out of Stock Alert
+                        </p>
+                      </div>
+                      <p className="text-xs text-red-700 mt-1">
+                        This product is out of stock in{" "}
+                        {inventory.filter((item) => item.quantity === 0).length}{" "}
+                        warehouse(s)
+                      </p>
+                    </div>
+                  )}
+
+                  {inventory.some(
+                    (item) =>
+                      item.quantity > 0 && item.quantity <= item.reorderLevel
+                  ) && (
+                    <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-yellow-500 rounded-full"></div>
+                        <p className="text-sm font-medium text-yellow-800">
+                          Low Stock Alert
+                        </p>
+                      </div>
+                      <p className="text-xs text-yellow-700 mt-1">
+                        This product is low on stock in{" "}
+                        {
+                          inventory.filter(
+                            (item) =>
+                              item.quantity > 0 &&
+                              item.quantity <= item.reorderLevel
+                          ).length
+                        }{" "}
+                        warehouse(s)
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
             </CardContent>
           </Card>
 

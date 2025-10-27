@@ -105,6 +105,14 @@ export class InventoryController {
     return this.inventoryService.getInventoryStats(companyId);
   }
 
+  @Get('product/:productId')
+  getProductInventory(
+    @GetCurrentCompanyId() companyId: string,
+    @Param('productId') productId: string,
+  ) {
+    return this.inventoryService.getProductInventory(companyId, productId);
+  }
+
   // === STOCK TRANSFER ENDPOINTS ===
   @Post('transfers')
   transferStock(

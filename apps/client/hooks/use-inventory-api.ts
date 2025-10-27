@@ -194,6 +194,13 @@ export function useInventoryApi() {
     [put]
   );
 
+  const getProductInventory = useCallback(
+    async (productId: string): Promise<InventoryItem[]> => {
+      return get(`/inventory/product/${productId}`) as Promise<InventoryItem[]>;
+    },
+    [get]
+  );
+
   const getInventoryStats = useCallback(async (): Promise<InventoryStats> => {
     return get("/inventory/stats") as Promise<InventoryStats>;
   }, [get]);
@@ -247,6 +254,7 @@ export function useInventoryApi() {
 
     // Inventory
     getInventory,
+    getProductInventory,
     updateInventory,
     getInventoryStats,
 

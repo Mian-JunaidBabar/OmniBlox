@@ -226,6 +226,55 @@ export class InventoryService {
     };
   }
 
+  async getProductInventory(
+    companyId: string,
+    productId: string,
+  ): Promise<InventoryItemDto[]> {
+    // Verify product belongs to company
+    const product = await this.prisma.product.findFirst({
+      where: { id: productId, companyId },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    const inventory = await this.prisma.inventory.findMany({
+      where: {
+        productId,
+        warehouse: {
+          companyId,
+        },
+      },
+      include: {
+        product: {
+          include: {
+            category: true,
+            brand: true,
+          },
+        },
+        warehouse: true,
+      },
+      orderBy: { warehouse: { name: 'asc' } },
+    });
+
+    return inventory.map((item) => ({
+      productId: item.productId,
+      productName: item.product.name,
+      productSku: item.product.sku,
+      warehouseId: item.warehouseId,
+      warehouseName: item.warehouse.name,
+      quantity: item.quantity,
+      salePrice: Number(item.product.salePrice),
+      costPrice: Number(item.product.costPrice),
+      reorderLevel: item.product.reorderLevel,
+      stockValue: item.quantity * Number(item.product.costPrice),
+      status: this.getStockStatus(item.quantity, item.product.reorderLevel),
+      category: item.product.category.name,
+      brand: item.product.brand?.name,
+    }));
+  }
+
   async getWarehouseInventory(
     companyId: string,
     warehouseId: string,
