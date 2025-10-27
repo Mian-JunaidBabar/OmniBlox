@@ -128,9 +128,15 @@ export class InventoryController {
   @Get('adjustments')
   getStockAdjustments(
     @GetCurrentCompanyId() companyId: string,
-    @Query('page') page?: number,
-    @Query('limit') limit?: number,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
   ) {
-    return this.inventoryService.getStockAdjustments(companyId, page, limit);
+    const parsedPage = page ? parseInt(page, 10) : 1;
+    const parsedLimit = limit ? parseInt(limit, 10) : 10;
+    return this.inventoryService.getStockAdjustments(
+      companyId,
+      parsedPage,
+      parsedLimit,
+    );
   }
 }

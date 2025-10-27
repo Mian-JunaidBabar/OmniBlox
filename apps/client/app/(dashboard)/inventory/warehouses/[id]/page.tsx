@@ -51,8 +51,13 @@ interface Warehouse {
       id: string;
       name: string;
       sku: string;
-      unit?: string;
-      sellingPrice?: number;
+      salePrice: number;
+      category?: {
+        name: string;
+      };
+      brand?: {
+        name: string;
+      };
     };
   }>;
 }
@@ -117,7 +122,7 @@ export default function WarehouseDetailPage() {
   const totalInventoryItems = warehouse?.inventory?.length || 0;
   const totalValue =
     warehouse?.inventory?.reduce(
-      (sum, item) => sum + item.quantity * (item.product.sellingPrice || 0),
+      (sum, item) => sum + item.quantity * Number(item.product.salePrice),
       0
     ) || 0;
 
@@ -317,7 +322,7 @@ export default function WarehouseDetailPage() {
                       <TableHead>SKU</TableHead>
                       <TableHead>Product Name</TableHead>
                       <TableHead className="text-right">Quantity</TableHead>
-                      <TableHead>Unit</TableHead>
+                      <TableHead>Category</TableHead>
                       <TableHead className="text-right">Price</TableHead>
                       <TableHead className="text-right">Total Value</TableHead>
                     </TableRow>
@@ -334,15 +339,20 @@ export default function WarehouseDetailPage() {
                         <TableCell className="text-right font-semibold">
                           {item.quantity}
                         </TableCell>
-                        <TableCell>{item.product.unit || "unit"}</TableCell>
+                        <TableCell>
+                          {item.product.category?.name || "N/A"}
+                        </TableCell>
                         <TableCell className="text-right">
-                          ${(item.product.sellingPrice || 0).toFixed(2)}
+                          ${Number(item.product.salePrice).toFixed(2)}
                         </TableCell>
                         <TableCell className="text-right font-semibold">
                           $
                           {(
-                            item.quantity * (item.product.sellingPrice || 0)
-                          ).toLocaleString()}
+                            item.quantity * Number(item.product.salePrice)
+                          ).toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2,
+                          })}
                         </TableCell>
                       </TableRow>
                     ))}

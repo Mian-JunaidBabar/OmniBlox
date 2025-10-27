@@ -34,6 +34,7 @@ import {
   useInventoryApi,
   type Warehouse as WarehouseType,
 } from "@/hooks/use-inventory-api";
+import { useProductApi } from "@/hooks/use-product-api";
 import { useToast } from "@/hooks/use-toast";
 import {
   AlertDialog,
@@ -50,8 +51,10 @@ export default function WarehousesPage() {
   const router = useRouter();
   const { toast } = useToast();
   const { getWarehouses, deleteWarehouse } = useInventoryApi();
+  const { getProductStats } = useProductApi();
 
   const [warehouses, setWarehouses] = useState<WarehouseType[]>([]);
+  const [totalProducts, setTotalProducts] = useState(0);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -59,12 +62,32 @@ export default function WarehousesPage() {
   const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    loadWarehouses();
+    loadData();
   }, []);
+
+  const loadData = async () => {
+    try {
+      setLoading(true);
+      const [warehousesData, productsStats] = await Promise.all([
+        getWarehouses(),
+        getProductStats(),
+      ]);
+      setWarehouses(warehousesData);
+      setTotalProducts(productsStats.totalProducts);
+    } catch (error: any) {
+      console.error("Error loading data:", error);
+      toast({
+        title: "Error",
+        description: error?.message || "Failed to load data",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadWarehouses = async () => {
     try {
-      setLoading(true);
       const data = await getWarehouses();
       setWarehouses(data);
     } catch (error: any) {
@@ -74,8 +97,6 @@ export default function WarehousesPage() {
         description: error?.message || "Failed to load warehouses",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -172,22 +193,22 @@ export default function WarehousesPage() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalInventoryItems}</div>
-            <p className="text-xs text-muted-foreground">Unique items</p>
+            <div className="text-2xl font-bold">{totalProducts}</div>
+            <p className="text-xs text-muted-foreground">Unique products</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium">
-              Average Utilization
+              Total Inventory Items
             </CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">—</div>
+            <div className="text-2xl font-bold">{totalInventoryItems}</div>
             <p className="text-xs text-muted-foreground">
-              Capacity tracking coming soon
+              Across all warehouses
             </p>
           </CardContent>
         </Card>
