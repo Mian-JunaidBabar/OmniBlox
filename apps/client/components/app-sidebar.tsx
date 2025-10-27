@@ -128,11 +128,20 @@ type AppSidebarProps = {
 
 export function AppSidebar({ collapsed, onCollapsedChange }: AppSidebarProps) {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, company } = useAuth();
   const [openSections, setOpenSections] = useState<string[]>([
     "Products",
     "Sales",
   ]);
+
+  // Get workspace URL from company
+  const workspaceUrl = company?.workspaceUrl || "";
+
+  // Helper function to generate workspace-aware URLs
+  const getWorkspaceUrl = (path: string) => {
+    if (!workspaceUrl) return path;
+    return `/${workspaceUrl}${path}`;
+  };
 
   const toggleSection = (name: string) => {
     setOpenSections((prev) =>
@@ -151,7 +160,7 @@ export function AppSidebar({ collapsed, onCollapsedChange }: AppSidebarProps) {
       <div className="flex h-14 items-center justify-between border-b border-border px-4">
         {!collapsed && (
           <Link
-            href="/dashboard"
+            href={getWorkspaceUrl("/dashboard")}
             className="flex items-center gap-2 font-semibold"
           >
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
@@ -178,10 +187,12 @@ export function AppSidebar({ collapsed, onCollapsedChange }: AppSidebarProps) {
       {/* Sidebar Navigation */}
       <nav className="flex-1 space-y-1 overflow-y-auto p-2">
         {navigation.map((item) => {
+          const workspaceAwareHref = getWorkspaceUrl(item.href);
           const isActive =
             item.href === "/dashboard"
-              ? pathname === "/dashboard" || pathname === "/"
-              : pathname === item.href || pathname.startsWith(item.href + "/");
+              ? pathname === workspaceAwareHref || pathname === "/"
+              : pathname === workspaceAwareHref ||
+                pathname.startsWith(workspaceAwareHref + "/");
 
           const Icon = item.icon;
           const isOpen = openSections.includes(item.name);
@@ -221,9 +232,12 @@ export function AppSidebar({ collapsed, onCollapsedChange }: AppSidebarProps) {
                     >
                       <div className="space-y-1 pl-7 pt-1">
                         {item.children.map((child) => {
-                          const isChildActive = pathname === child.href;
+                          const childWorkspaceHref = getWorkspaceUrl(
+                            child.href
+                          );
+                          const isChildActive = pathname === childWorkspaceHref;
                           return (
-                            <Link key={child.href} href={child.href}>
+                            <Link key={child.href} href={childWorkspaceHref}>
                               <Button
                                 variant="ghost"
                                 className={cn(
@@ -248,7 +262,7 @@ export function AppSidebar({ collapsed, onCollapsedChange }: AppSidebarProps) {
           return (
             <Link
               key={item.name}
-              href={item.href}
+              href={workspaceAwareHref}
               title={collapsed ? item.name : undefined}
             >
               <Button

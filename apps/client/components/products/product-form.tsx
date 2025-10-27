@@ -4,6 +4,7 @@ import type React from "react";
 
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { useWorkspaceUrl } from "@/hooks/use-workspace-url";
 import {
   Card,
   CardContent,
@@ -53,6 +54,7 @@ export function ProductForm({
   onSuccess,
 }: ProductFormProps) {
   const router = useRouter();
+  const getWorkspaceUrl = useWorkspaceUrl();
   const { toast } = useToast();
   const { createProduct, updateProduct, getCategories, getBrands } =
     useProductApi();
@@ -203,7 +205,7 @@ export function ProductForm({
       if (onSuccess) {
         onSuccess();
       } else {
-        router.push("/products");
+        router.push(getWorkspaceUrl("/products"));
       }
     } catch (error: any) {
       toast({
@@ -431,7 +433,7 @@ export function ProductForm({
             <Button
               type="button"
               variant="outline"
-              onClick={() => router.push("/products")}
+              onClick={() => router.push(getWorkspaceUrl("/products"))}
             >
               Cancel
             </Button>

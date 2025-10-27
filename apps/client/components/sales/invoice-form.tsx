@@ -4,6 +4,7 @@ import type React from "react";
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useWorkspaceUrl } from "@/hooks/use-workspace-url";
 import {
   Card,
   CardContent,
@@ -46,6 +47,7 @@ interface InvoiceLineItem {
 
 export function InvoiceForm() {
   const router = useRouter();
+  const getWorkspaceUrl = useWorkspaceUrl();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [lineItems, setLineItems] = useState<InvoiceLineItem[]>([]);
   const [selectedProduct, setSelectedProduct] = useState("");
@@ -130,7 +132,7 @@ export function InvoiceForm() {
 
     setIsSubmitting(true);
     await new Promise((resolve) => setTimeout(resolve, 1000));
-    router.push("/sales");
+    router.push(getWorkspaceUrl("/sales"));
   };
 
   return (
@@ -384,7 +386,7 @@ export function InvoiceForm() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => router.push("/sales")}
+              onClick={() => router.push(getWorkspaceUrl("/sales"))}
             >
               Cancel
             </Button>
