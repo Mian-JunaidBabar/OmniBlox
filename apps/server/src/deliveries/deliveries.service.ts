@@ -12,16 +12,16 @@ export class DeliveriesService {
       where: { companyId },
       include: {
         sale: {
-          include: {
-            customer: {
+          select: {
+            id: true,
+            invoiceNumber: true,
+            saleDate: true,
+            totalAmount: true,
+            items: {
               select: {
                 id: true,
-                name: true,
-                email: true,
-              },
-            },
-            items: {
-              include: {
+                quantity: true,
+                unitPrice: true,
                 product: {
                   select: {
                     id: true,
@@ -29,6 +29,13 @@ export class DeliveriesService {
                     sku: true,
                   },
                 },
+              },
+            },
+            customer: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
               },
             },
           },
