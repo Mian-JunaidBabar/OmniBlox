@@ -6,86 +6,85 @@ import {
   HttpCode,
   HttpStatus,
   Param,
+  Patch,
   Post,
   Put,
   Query,
   UseGuards,
 } from '@nestjs/common';
+import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import {
-  GetCurrentCompanyId,
-  GetCurrentUserId,
-} from '../auth/decorators/current-user.decorator';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { CompanyId } from '../auth/decorators/company-id.decorator';
+import { UserId } from 'src/auth/decorators/user-id.decorator';
 import { ExpensesService } from './expenses.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
+import { UpdateExpenseStatusDto } from './dto/update-expense-status.dto';
 
 @Controller('expenses')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
 export class ExpensesController {
   constructor(private readonly expensesService: ExpensesService) {}
 
   @Post()
   @HttpCode(HttpStatus.CREATED)
-  async create(
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  create(
     @Body() dto: CreateExpenseDto,
-    @GetCurrentUserId() userId: string,
-    @GetCurrentCompanyId() companyId: string,
+    @UserId() userId: string,
+    @CompanyId() companyId: string,
   ) {
     return this.expensesService.create(dto, userId, companyId);
   }
 
   @Get()
-  async findAll(
-    @GetCurrentCompanyId() companyId: string,
+  findAll(
+    @CompanyId() companyId: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
     @Query('search') search?: string,
-    @Query('category') category?: string,
-    @Query('startDate') startDate?: string,
-    @Query('endDate') endDate?: string,
   ) {
     const pageNum = page ? parseInt(page, 10) : 1;
-    const limitNum = limit ? parseInt(limit, 10) : 10;
-    return this.expensesService.findAll(
-      companyId,
-      pageNum,
-      limitNum,
-      search,
-      category,
-      startDate,
-      endDate,
-    );
+    const limitNum = limit ? parseInt(limit, 10) : 50;
+    return this.expensesService.findAll(companyId, pageNum, limitNum, search);
   }
 
   @Get('stats')
-  async getStats(@GetCurrentCompanyId() companyId: string) {
+  getStats(@CompanyId() companyId: string) {
     return this.expensesService.getStats(companyId);
   }
 
   @Get(':id')
-  async findOne(
-    @Param('id') id: string,
-    @GetCurrentCompanyId() companyId: string,
-  ) {
+  findOne(@Param('id') id: string, @CompanyId() companyId: string) {
     return this.expensesService.findOne(id, companyId);
   }
 
   @Put(':id')
-  async update(
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  update(
     @Param('id') id: string,
+    @CompanyId() companyId: string,
     @Body() dto: UpdateExpenseDto,
-    @GetCurrentCompanyId() companyId: string,
   ) {
-    return this.expensesService.update(id, dto, companyId);
+    return this.expensesService.update(id, companyId, dto);
+  }
+
+  @Patch(':id/status')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  updateStatus(
+    @Param('id') id: string,
+    @CompanyId() companyId: string,
+    @Body() dto: UpdateExpenseStatusDto,
+  ) {
+    return this.expensesService.updateStatus(id, companyId, dto);
   }
 
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
-  async remove(
-    @Param('id') id: string,
-    @GetCurrentCompanyId() companyId: string,
-  ) {
-    await this.expensesService.remove(id, companyId);
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  remove(@Param('id') id: string, @CompanyId() companyId: string) {
+    return this.expensesService.remove(id, companyId);
   }
 }

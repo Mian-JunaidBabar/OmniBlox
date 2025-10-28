@@ -2,211 +2,214 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
-import {
-  ExpenseResponseDto,
-  ExpensesListResponseDto,
-  ExpenseStatsDto,
-} from './dto/expense-response.dto';
+import { UpdateExpenseStatusDto } from './dto/update-expense-status.dto';
 
 @Injectable()
 export class ExpensesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(
-    dto: CreateExpenseDto,
-    userId: string,
-    companyId: string,
-  ): Promise<ExpenseResponseDto> {
-    const expense = await this.prisma.expense.create({
+  async create(dto: CreateExpenseDto, userId: string, companyId: string) {
+    // Verify category exists and belongs to company
+    const category = await this.prisma.expenseCategory.findUnique({
+      where: { id: dto.categoryId, companyId },
+    });
+
+    if (!category) {
+      throw new NotFoundException('Expense category not found');
+    }
+
+    return this.prisma.expense.create({
       data: {
-        description: dto.description,
+        reference: dto.reference,
         amount: dto.amount,
         expenseDate: new Date(dto.expenseDate),
-        category: dto.category,
-        notes: dto.notes,
+        description: dto.description,
+        vendor: dto.vendor,
+        status: 'PENDING',
+        categoryId: dto.categoryId,
         userId,
         companyId,
       },
+      include: {
+        category: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+          },
+        },
+      },
     });
-
-    return this.transformExpense(expense);
   }
 
-  async findAll(
-    companyId: string,
-    page = 1,
-    limit = 10,
-    search?: string,
-    category?: string,
-    startDate?: string,
-    endDate?: string,
-  ): Promise<ExpensesListResponseDto> {
+  async findAll(companyId: string, page = 1, limit = 50, search?: string) {
     const skip = (page - 1) * limit;
     const where: any = { companyId };
 
     if (search) {
       where.OR = [
+        { reference: { contains: search, mode: 'insensitive' } },
+        { vendor: { contains: search, mode: 'insensitive' } },
         { description: { contains: search, mode: 'insensitive' } },
-        { category: { contains: search, mode: 'insensitive' } },
-        { notes: { contains: search, mode: 'insensitive' } },
       ];
-    }
-
-    if (category) {
-      where.category = { contains: category, mode: 'insensitive' };
-    }
-
-    if (startDate || endDate) {
-      where.expenseDate = {};
-      if (startDate) where.expenseDate.gte = new Date(startDate);
-      if (endDate) where.expenseDate.lte = new Date(endDate);
     }
 
     const [expenses, total] = await Promise.all([
       this.prisma.expense.findMany({
         where,
+        include: {
+          category: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+            },
+          },
+        },
+        orderBy: { expenseDate: 'desc' },
         skip,
         take: limit,
-        orderBy: { expenseDate: 'desc' },
       }),
       this.prisma.expense.count({ where }),
     ]);
 
     return {
-      expenses: expenses.map((expense) => this.transformExpense(expense)),
+      expenses: expenses.map((exp) => ({
+        ...exp,
+        amount: exp.amount.toString(),
+      })),
       total,
-      pages: limit === 0 ? 1 : Math.max(1, Math.ceil(total / limit)),
+      pages: Math.ceil(total / limit),
     };
   }
 
-  async findOne(id: string, companyId: string): Promise<ExpenseResponseDto> {
+  async findOne(id: string, companyId: string) {
     const expense = await this.prisma.expense.findUnique({
       where: { id, companyId },
-    });
-
-    if (!expense) {
-      throw new NotFoundException('Expense not found');
-    }
-
-    return this.transformExpense(expense);
-  }
-
-  async update(
-    id: string,
-    dto: UpdateExpenseDto,
-    companyId: string,
-  ): Promise<ExpenseResponseDto> {
-    const existingExpense = await this.prisma.expense.findUnique({
-      where: { id, companyId },
-    });
-
-    if (!existingExpense) {
-      throw new NotFoundException('Expense not found');
-    }
-
-    const updatedExpense = await this.prisma.expense.update({
-      where: { id },
-      data: {
-        description: dto.description,
-        amount: dto.amount,
-        expenseDate: dto.expenseDate ? new Date(dto.expenseDate) : undefined,
-        category: dto.category,
-        notes: dto.notes,
+      include: {
+        category: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+          },
+        },
+        attachments: true,
       },
     });
 
-    return this.transformExpense(updatedExpense);
-  }
-
-  async remove(id: string, companyId: string): Promise<void> {
-    const expense = await this.prisma.expense.findUnique({
-      where: { id, companyId },
-    });
-
     if (!expense) {
       throw new NotFoundException('Expense not found');
     }
 
+    return {
+      ...expense,
+      amount: expense.amount.toString(),
+    };
+  }
+
+  async update(id: string, companyId: string, dto: UpdateExpenseDto) {
+    const expense = await this.findOne(id, companyId);
+
+    // If categoryId is being updated, verify it exists
+    if (dto.categoryId) {
+      const category = await this.prisma.expenseCategory.findUnique({
+        where: { id: dto.categoryId, companyId },
+      });
+
+      if (!category) {
+        throw new NotFoundException('Expense category not found');
+      }
+    }
+
+    const updated = await this.prisma.expense.update({
+      where: { id: expense.id },
+      data: {
+        ...(dto.reference !== undefined && { reference: dto.reference }),
+        ...(dto.amount !== undefined && { amount: dto.amount }),
+        ...(dto.expenseDate !== undefined && {
+          expenseDate: new Date(dto.expenseDate),
+        }),
+        ...(dto.description !== undefined && { description: dto.description }),
+        ...(dto.vendor !== undefined && { vendor: dto.vendor }),
+        ...(dto.categoryId !== undefined && { categoryId: dto.categoryId }),
+        ...(dto.status !== undefined && { status: dto.status }),
+        ...(dto.paymentMethod !== undefined && {
+          paymentMethod: dto.paymentMethod,
+        }),
+      },
+      include: {
+        category: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return {
+      ...updated,
+      amount: updated.amount.toString(),
+    };
+  }
+
+  async updateStatus(
+    id: string,
+    companyId: string,
+    dto: UpdateExpenseStatusDto,
+  ) {
+    const expense = await this.findOne(id, companyId);
+
+    const updated = await this.prisma.expense.update({
+      where: { id: expense.id },
+      data: { status: dto.status },
+      include: {
+        category: true,
+        user: {
+          select: {
+            id: true,
+            email: true,
+          },
+        },
+      },
+    });
+
+    return {
+      ...updated,
+      amount: updated.amount.toString(),
+    };
+  }
+
+  async remove(id: string, companyId: string) {
+    const expense = await this.findOne(id, companyId);
+
     await this.prisma.expense.delete({
-      where: { id },
+      where: { id: expense.id },
     });
   }
 
-  async getStats(companyId: string): Promise<ExpenseStatsDto> {
-    const now = new Date();
-    const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const previousMonthStart = new Date(
-      now.getFullYear(),
-      now.getMonth() - 1,
-      1,
+  async getStats(companyId: string) {
+    const expenses = await this.prisma.expense.findMany({
+      where: { companyId },
+      select: {
+        amount: true,
+        status: true,
+      },
+    });
+
+    const stats = expenses.reduce(
+      (acc, exp) => {
+        const amount = Number(exp.amount);
+        if (exp.status === 'PENDING') acc.totalPending += amount;
+        if (exp.status === 'APPROVED') acc.totalApproved += amount;
+        if (exp.status === 'PAID') acc.totalPaid += amount;
+        return acc;
+      },
+      { totalPending: 0, totalApproved: 0, totalPaid: 0 },
     );
-    const previousMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
-    const [
-      totalExpenses,
-      totalAmount,
-      currentMonthAmount,
-      previousMonthAmount,
-    ] = await Promise.all([
-      this.prisma.expense.count({ where: { companyId } }),
-      this.prisma.expense.aggregate({
-        _sum: { amount: true },
-        where: { companyId },
-      }),
-      this.prisma.expense.aggregate({
-        _sum: { amount: true },
-        where: {
-          companyId,
-          expenseDate: { gte: currentMonthStart },
-        },
-      }),
-      this.prisma.expense.aggregate({
-        _sum: { amount: true },
-        where: {
-          companyId,
-          expenseDate: {
-            gte: previousMonthStart,
-            lte: previousMonthEnd,
-          },
-        },
-      }),
-    ]);
-
-    const currentMonth = this.decimalToNumber(currentMonthAmount._sum.amount);
-    const previousMonth = this.decimalToNumber(previousMonthAmount._sum.amount);
-    const monthlyChange =
-      previousMonth > 0
-        ? ((currentMonth - previousMonth) / previousMonth) * 100
-        : 0;
-
-    return {
-      totalExpenses,
-      totalAmount: this.decimalToNumber(totalAmount._sum.amount),
-      currentMonthAmount: currentMonth,
-      previousMonthAmount: previousMonth,
-      monthlyChange: Math.round(monthlyChange * 100) / 100,
-    };
-  }
-
-  private decimalToNumber(value: any): number {
-    if (value === null || value === undefined) {
-      return 0;
-    }
-    return typeof value === 'number' ? value : Number(value);
-  }
-
-  private transformExpense(expense: any): ExpenseResponseDto {
-    return {
-      id: expense.id,
-      description: expense.description,
-      amount: this.decimalToNumber(expense.amount),
-      expenseDate: expense.expenseDate.toISOString(),
-      category: expense.category,
-      notes: expense.notes,
-      userId: expense.userId,
-      companyId: expense.companyId,
-      createdAt: expense.createdAt.toISOString(),
-      updatedAt: expense.updatedAt.toISOString(),
-    };
+    return stats;
   }
 }

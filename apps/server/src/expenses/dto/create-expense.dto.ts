@@ -1,29 +1,33 @@
 import {
   IsDateString,
+  IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsPositive,
   IsString,
-  MinLength,
-  Min,
 } from 'class-validator';
 
 export class CreateExpenseDto {
   @IsString()
-  @MinLength(1)
-  description: string;
+  @IsNotEmpty()
+  readonly reference!: string;
 
-  @IsNumber()
-  @Min(0.01)
-  amount: number;
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @IsPositive()
+  readonly amount!: number;
 
   @IsDateString()
-  expenseDate: string;
+  readonly expenseDate!: string;
 
   @IsOptional()
   @IsString()
-  category?: string;
+  readonly description?: string;
 
-  @IsOptional()
   @IsString()
-  notes?: string;
+  @IsNotEmpty()
+  readonly vendor!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  readonly categoryId!: string;
 }
