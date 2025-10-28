@@ -2,7 +2,7 @@
 
 import { useAuthenticatedApi } from "./use-authenticated-api";
 
-export type OrderStatus = "PENDING" | "RECEIVED" | "CANCELLED" | string;
+export type OrderStatus = "PENDING" | "COMPLETED" | "CANCELLED" | string;
 
 export interface PurchaseOrderItem {
   id: string;
@@ -30,7 +30,6 @@ export interface PurchaseOrder {
 
 export interface CreatePurchaseOrderDto {
   supplierId: string;
-  warehouseId: string;
   orderDate: string; // ISO string
   referenceNumber?: string;
   status?: OrderStatus;

@@ -36,10 +36,6 @@ export class CreatePurchaseOrderDto {
   @IsNotEmpty()
   readonly supplierId!: string;
 
-  @IsString()
-  @IsNotEmpty()
-  readonly warehouseId!: string;
-
   @IsDateString()
   readonly orderDate!: string;
 

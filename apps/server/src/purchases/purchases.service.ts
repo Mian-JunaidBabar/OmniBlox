@@ -27,26 +27,16 @@ export class PurchasesService {
       throw new NotFoundException('Supplier not found');
     }
 
-    // Verify warehouse belongs to company
-    const warehouse = await this.prisma.warehouse.findUnique({
-      where: { id: dto.warehouseId, companyId },
-    });
-
-    if (!warehouse) {
-      throw new NotFoundException('Warehouse not found');
-    }
-
     // Generate reference number if not provided
     const referenceNumber =
       dto.referenceNumber ||
       `PO-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
     // Calculate totals
-    const subtotal = dto.items.reduce(
+    const totalAmount = dto.items.reduce(
       (sum, item) => sum + item.quantity * item.unitCost,
       0,
     );
-    const totalAmount = subtotal; // Can add tax/discount later if needed
 
     // Create the purchase order with items
     const purchaseOrder = await this.prisma.purchaseOrder.create({
@@ -54,11 +44,8 @@ export class PurchasesService {
         referenceNumber,
         orderDate: new Date(dto.orderDate),
         status: dto.status || OrderStatus.PENDING,
-        subtotal,
         totalAmount,
-        notes: dto.notes || null,
         supplierId: dto.supplierId,
-        warehouseId: dto.warehouseId,
         userId,
         companyId,
         items: {
@@ -189,33 +176,44 @@ export class PurchasesService {
           throw new NotFoundException('Purchase order not found');
         }
 
-        if (purchaseOrder.status === OrderStatus.RECEIVED) {
+        if (purchaseOrder.status === OrderStatus.COMPLETED) {
           throw new BadRequestException(
             'This purchase order has already been received',
           );
         }
 
-        // 2. Update the purchase order status to RECEIVED
+        // 2. Update the purchase order status to COMPLETED
         await tx.purchaseOrder.update({
           where: { id },
           data: {
-            status: OrderStatus.RECEIVED,
+            status: OrderStatus.COMPLETED,
           },
         });
 
-        // 3. Update inventory for each item using atomic increment
+        // 3. Get the first warehouse for this company (since purchases don't have warehouse selection)
+        const warehouse = await tx.warehouse.findFirst({
+          where: { companyId },
+        });
+
+        if (!warehouse) {
+          throw new BadRequestException(
+            'No warehouse found for this company. Please create a warehouse first.',
+          );
+        }
+
+        // 4. Update inventory for each item using atomic increment
         await Promise.all(
           purchaseOrder.items.map((item) =>
             tx.inventory.upsert({
               where: {
                 productId_warehouseId: {
                   productId: item.productId,
-                  warehouseId: purchaseOrder.warehouseId,
+                  warehouseId: warehouse.id,
                 },
               },
               create: {
                 productId: item.productId,
-                warehouseId: purchaseOrder.warehouseId,
+                warehouseId: warehouse.id,
                 quantity: item.quantity,
               },
               update: {
@@ -227,7 +225,7 @@ export class PurchasesService {
           ),
         );
 
-        // 4. Return the updated purchase order
+        // 5. Return the updated purchase order
         return tx.purchaseOrder.findUnique({
           where: { id },
           include: {

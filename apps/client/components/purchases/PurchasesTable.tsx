@@ -47,7 +47,7 @@ function statusBadgeVariant(
   switch (status) {
     case "PENDING":
       return "secondary";
-    case "RECEIVED":
+    case "COMPLETED":
       return "default";
     case "CANCELLED":
       return "outline";
@@ -74,7 +74,6 @@ export function PurchasesTable({
           <TableRow>
             <TableHead>Reference #</TableHead>
             <TableHead>Supplier</TableHead>
-            <TableHead>Warehouse</TableHead>
             <TableHead>Status</TableHead>
             <TableHead>Total Amount</TableHead>
             <TableHead>Order Date</TableHead>
@@ -91,7 +90,6 @@ export function PurchasesTable({
                   {po.referenceNumber}
                 </TableCell>
                 <TableCell>{po.supplier?.name ?? "-"}</TableCell>
-                <TableCell>{po.warehouse?.name ?? "-"}</TableCell>
                 <TableCell>
                   <Badge variant={statusBadgeVariant(po.status)}>
                     {po.status}
@@ -130,7 +128,7 @@ export function PurchasesTable({
           ) : (
             <TableRow>
               <TableCell
-                colSpan={7}
+                colSpan={6}
                 className="text-center text-sm text-muted-foreground py-10"
               >
                 No purchase orders found.

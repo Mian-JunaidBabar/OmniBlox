@@ -61,7 +61,6 @@ const itemSchema = z.object({
 
 const formSchema = z.object({
   supplierId: z.string().min(1, "Supplier is required"),
-  warehouseId: z.string().min(1, "Warehouse is required"),
   referenceNumber: z.string().optional(),
   orderDate: z.date({ required_error: "Order date is required" }),
   taxRate: z.number().min(0).max(100).default(0),
@@ -178,7 +177,6 @@ function AsyncCombobox({
 export default function PurchaseOrderForm() {
   const router = useRouter();
   const { getSuppliers } = useSuppliersApi();
-  const { warehouses, loading: loadingWarehouses } = useWarehouses();
   const { getProducts } = useProductApi();
   const { create } = usePurchasesApi();
 
@@ -186,7 +184,6 @@ export default function PurchaseOrderForm() {
     resolver: zodResolver(formSchema),
     defaultValues: {
       supplierId: "",
-      warehouseId: "",
       referenceNumber: "",
       orderDate: new Date(),
       taxRate: 0,
@@ -240,7 +237,6 @@ export default function PurchaseOrderForm() {
   const onSubmit = async (values: PurchaseOrderFormValues) => {
     const payload: CreatePurchaseOrderDto = {
       supplierId: values.supplierId,
-      warehouseId: values.warehouseId,
       orderDate: values.orderDate.toISOString(),
       referenceNumber: values.referenceNumber || undefined,
       items: values.items.map((i) => ({
@@ -276,67 +272,29 @@ export default function PurchaseOrderForm() {
             <CardHeader>
               <CardTitle>Purchase Details</CardTitle>
               <CardDescription>
-                Select supplier, warehouse, and set reference/date.
+                Select supplier and set reference/date.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Supplier</Label>
-                  <Controller
-                    name="supplierId"
-                    control={form.control}
-                    render={({ field }) => (
-                      <AsyncCombobox
-                        value={field.value}
-                        onChange={(v) => field.onChange(v)}
-                        placeholder="Search suppliers..."
-                        fetcher={fetchSuppliers}
-                      />
-                    )}
-                  />
-                  {form.formState.errors.supplierId && (
-                    <p className="text-xs text-destructive">
-                      {String(form.formState.errors.supplierId.message)}
-                    </p>
+              <div className="space-y-2">
+                <Label>Supplier</Label>
+                <Controller
+                  name="supplierId"
+                  control={form.control}
+                  render={({ field }) => (
+                    <AsyncCombobox
+                      value={field.value}
+                      onChange={(v) => field.onChange(v)}
+                      placeholder="Search suppliers..."
+                      fetcher={fetchSuppliers}
+                    />
                   )}
-                </div>
-                <div className="space-y-2">
-                  <Label>Warehouse</Label>
-                  <Controller
-                    name="warehouseId"
-                    control={form.control}
-                    render={({ field }) => (
-                      <Select
-                        value={field.value}
-                        onValueChange={field.onChange}
-                        disabled={loadingWarehouses}
-                      >
-                        <SelectTrigger>
-                          <SelectValue
-                            placeholder={
-                              loadingWarehouses
-                                ? "Loading warehouses..."
-                                : "Select a warehouse"
-                            }
-                          />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {warehouses.map((w) => (
-                            <SelectItem key={w.id} value={w.id}>
-                              {w.name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    )}
-                  />
-                  {form.formState.errors.warehouseId && (
-                    <p className="text-xs text-destructive">
-                      {String(form.formState.errors.warehouseId.message)}
-                    </p>
-                  )}
-                </div>
+                />
+                {form.formState.errors.supplierId && (
+                  <p className="text-xs text-destructive">
+                    {String(form.formState.errors.supplierId.message)}
+                  </p>
+                )}
               </div>
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
