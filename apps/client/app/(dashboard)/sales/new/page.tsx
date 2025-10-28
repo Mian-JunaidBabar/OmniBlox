@@ -3,7 +3,17 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Loader2, Plus, Printer, Save, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  Check,
+  ChevronsUpDown,
+  Loader2,
+  Plus,
+  Printer,
+  Save,
+  Trash2,
+  UserPlus,
+} from "lucide-react";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -14,8 +24,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+  CommandSeparator,
+} from "@/components/ui/command";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -26,9 +50,10 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useProductApi } from "@/hooks/use-product-api";
 import { useInventoryApi } from "@/hooks/use-inventory-api";
-import { useCustomersApi } from "@/hooks/use-customers-api";
+import { useCustomersApi, type Customer } from "@/hooks/use-customers-api";
 import type { Product } from "@/lib/types";
 import type { Warehouse } from "@/hooks/use-inventory-api";
+import { cn } from "@/lib/utils";
 
 import { useSalesService } from "../_services/sales-service";
 import type { SalePaymentStatus, SaleStatus } from "../_types";
@@ -82,7 +107,7 @@ export default function NewSalePage() {
   const router = useRouter();
   const { getProducts } = useProductApi();
   const { getWarehouses } = useInventoryApi();
-  const { getCustomers } = useCustomersApi();
+  const { getCustomers, createCustomer } = useCustomersApi();
   const { createSale } = useSalesService();
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -93,11 +118,19 @@ export default function NewSalePage() {
   const [warehousesLoading, setWarehousesLoading] = useState(true);
   const [warehousesError, setWarehousesError] = useState<string | null>(null);
 
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [customersLoading, setCustomersLoading] = useState(false);
+  const [customerSearch, setCustomerSearch] = useState("");
+  const [customerComboOpen, setCustomerComboOpen] = useState(false);
+  const [showNewCustomerFields, setShowNewCustomerFields] = useState(false);
+
   const today = useMemo(() => new Date().toISOString().split("T")[0], []);
 
   const [formData, setFormData] = useState({
+    customerId: "",
     customerName: "",
     customerEmail: "",
+    customerPhone: "",
     shippingAddress: "",
     warehouseId: "",
     date: today,
@@ -129,9 +162,17 @@ export default function NewSalePage() {
         setWarehousesError(null);
         const warehousesList = await getWarehouses();
 
+        // Load customers
+        setCustomersLoading(true);
+        const customersResult = await getCustomers({ limit: 100 });
+        const customersList = Array.isArray(customersResult)
+          ? customersResult
+          : customersResult?.customers ?? [];
+
         if (active) {
           setProducts(productsList ?? []);
           setWarehouses(warehousesList ?? []);
+          setCustomers(customersList);
         }
       } catch (error) {
         if (active) {
@@ -142,6 +183,7 @@ export default function NewSalePage() {
         if (active) {
           setProductsLoading(false);
           setWarehousesLoading(false);
+          setCustomersLoading(false);
         }
       }
     };
@@ -151,7 +193,7 @@ export default function NewSalePage() {
     return () => {
       active = false;
     };
-  }, [getProducts, getWarehouses]);
+  }, [getProducts, getWarehouses, getCustomers]);
 
   const currencyFormatter = useMemo(
     () =>
@@ -226,6 +268,57 @@ export default function NewSalePage() {
       })
     );
   };
+
+  const handleSelectCustomer = (customer: Customer) => {
+    setFormData((prev) => ({
+      ...prev,
+      customerId: customer.id,
+      customerName: customer.name,
+      customerEmail: customer.email || "",
+      customerPhone: customer.phone || "",
+      shippingAddress: customer.address || prev.shippingAddress,
+    }));
+    setShowNewCustomerFields(false);
+    setCustomerComboOpen(false);
+  };
+
+  const handleCreateNewCustomer = async () => {
+    if (!formData.customerName.trim() || !formData.customerEmail.trim()) {
+      setSubmitError(
+        "Customer name and email are required to create a new customer."
+      );
+      return;
+    }
+
+    try {
+      const newCustomer = await createCustomer({
+        name: formData.customerName.trim(),
+        email: formData.customerEmail.trim(),
+        phone: formData.customerPhone.trim() || undefined,
+        address: formData.shippingAddress.trim() || undefined,
+      });
+
+      // Update customers list
+      setCustomers((prev) => [newCustomer, ...prev]);
+
+      // Update form with new customer ID
+      setFormData((prev) => ({
+        ...prev,
+        customerId: newCustomer.id,
+      }));
+
+      setShowNewCustomerFields(false);
+      setSubmitError(null);
+    } catch (error) {
+      setSubmitError(normalizeError(error));
+    }
+  };
+
+  const filteredCustomers = customers.filter(
+    (customer) =>
+      customer.name.toLowerCase().includes(customerSearch.toLowerCase()) ||
+      customer.email?.toLowerCase().includes(customerSearch.toLowerCase())
+  );
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -324,73 +417,151 @@ export default function NewSalePage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid gap-4 md:grid-cols-3">
-                <div className="space-y-2">
-                  <Label htmlFor="customerName">Customer Name *</Label>
-                  <Input
-                    id="customerName"
-                    placeholder="Enter customer name"
-                    value={formData.customerName}
-                    onChange={(event) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        customerName: event.target.value,
-                      }))
-                    }
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="customerEmail">Customer Email *</Label>
-                  <Input
-                    id="customerEmail"
-                    type="email"
-                    placeholder="Enter customer email"
-                    value={formData.customerEmail}
-                    onChange={(event) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        customerEmail: event.target.value,
-                      }))
-                    }
-                    onBlur={async () => {
-                      const email = formData.customerEmail.trim();
-                      if (!email || !email.includes("@")) return;
-                      try {
-                        const result = await getCustomers({
-                          search: email,
-                          limit: 5,
-                        });
-                        const list = Array.isArray(result)
-                          ? result
-                          : result?.customers ?? [];
-                        if (list.length > 0) {
-                          // Prefer exact email match if available
-                          const match =
-                            list.find(
-                              (c) =>
-                                (c.email ?? "").toLowerCase() ===
-                                email.toLowerCase()
-                            ) || list[0];
+              <div className="space-y-2">
+                <Label>Customer *</Label>
+                <Popover
+                  open={customerComboOpen}
+                  onOpenChange={setCustomerComboOpen}
+                >
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      role="combobox"
+                      aria-expanded={customerComboOpen}
+                      className="w-full justify-between"
+                    >
+                      {formData.customerId
+                        ? customers.find((c) => c.id === formData.customerId)
+                            ?.name || formData.customerName
+                        : "Select or create customer..."}
+                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[400px] p-0">
+                    <Command>
+                      <CommandInput
+                        placeholder="Search customers..."
+                        value={customerSearch}
+                        onValueChange={setCustomerSearch}
+                      />
+                      <CommandList>
+                        <CommandEmpty>No customer found.</CommandEmpty>
+                        <CommandGroup heading="Existing Customers">
+                          {filteredCustomers.map((customer) => (
+                            <CommandItem
+                              key={customer.id}
+                              value={customer.id}
+                              onSelect={() => handleSelectCustomer(customer)}
+                            >
+                              <Check
+                                className={cn(
+                                  "mr-2 h-4 w-4",
+                                  formData.customerId === customer.id
+                                    ? "opacity-100"
+                                    : "opacity-0"
+                                )}
+                              />
+                              <div className="flex flex-col">
+                                <span className="font-medium">
+                                  {customer.name}
+                                </span>
+                                {customer.email && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {customer.email}
+                                  </span>
+                                )}
+                              </div>
+                            </CommandItem>
+                          ))}
+                        </CommandGroup>
+                        <CommandSeparator />
+                        <CommandGroup>
+                          <CommandItem
+                            onSelect={() => {
+                              setShowNewCustomerFields(true);
+                              setCustomerComboOpen(false);
+                            }}
+                          >
+                            <UserPlus className="mr-2 h-4 w-4" />
+                            Create new customer
+                          </CommandItem>
+                        </CommandGroup>
+                      </CommandList>
+                    </Command>
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {showNewCustomerFields && (
+                <div className="space-y-4 rounded-lg border p-4">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-semibold">New Customer</h4>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowNewCustomerFields(false)}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="newCustomerName">Name *</Label>
+                      <Input
+                        id="newCustomerName"
+                        placeholder="Enter customer name"
+                        value={formData.customerName}
+                        onChange={(event) =>
                           setFormData((prev) => ({
                             ...prev,
-                            customerName:
-                              prev.customerName ||
-                              match.name ||
-                              prev.customerName,
-                            shippingAddress:
-                              prev.shippingAddress ||
-                              match.address ||
-                              prev.shippingAddress,
-                          }));
+                            customerName: event.target.value,
+                          }))
                         }
-                      } catch {
-                        // Ignore lookup errors silently; user can still type address manually
-                      }
-                    }}
-                    required
-                  />
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="newCustomerEmail">Email *</Label>
+                      <Input
+                        id="newCustomerEmail"
+                        type="email"
+                        placeholder="Enter email"
+                        value={formData.customerEmail}
+                        onChange={(event) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            customerEmail: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="newCustomerPhone">Phone</Label>
+                      <Input
+                        id="newCustomerPhone"
+                        placeholder="Enter phone"
+                        value={formData.customerPhone}
+                        onChange={(event) =>
+                          setFormData((prev) => ({
+                            ...prev,
+                            customerPhone: event.target.value,
+                          }))
+                        }
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={handleCreateNewCustomer}
+                    className="w-full"
+                  >
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Create Customer
+                  </Button>
                 </div>
+              )}
+
+              <div className="grid gap-4 md:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="warehouse">Warehouse *</Label>
                   <Select

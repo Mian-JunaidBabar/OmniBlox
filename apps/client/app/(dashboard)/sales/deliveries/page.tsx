@@ -258,7 +258,12 @@ export default function DeliveriesPage() {
                     return (
                       <TableRow key={delivery.id}>
                         <TableCell className="font-mono text-xs">
-                          {delivery.sale.invoiceNumber}
+                          <Link
+                            href={`/sales/deliveries/${delivery.id}`}
+                            className="hover:underline"
+                          >
+                            {delivery.sale.invoiceNumber}
+                          </Link>
                         </TableCell>
                         <TableCell className="font-medium">
                           {delivery.sale.customer.name}

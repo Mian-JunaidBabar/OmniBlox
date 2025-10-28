@@ -1,4 +1,13 @@
-import { Controller, Get, Patch, Param, Body, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  Delete,
+  Put,
+} from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { DeliveriesService } from './deliveries.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -7,6 +16,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { CompanyId } from '../auth/decorators/company-id.decorator';
 import { DeliveryResponseDto } from './dto/delivery-response.dto';
 import { DispatchDeliveryDto } from './dto/dispatch-delivery.dto';
+import { UpdateDeliveryDto } from './dto/update-delivery.dto';
 
 @Controller('deliveries')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -18,6 +28,14 @@ export class DeliveriesController {
     @CompanyId() companyId: string,
   ): Promise<DeliveryResponseDto[]> {
     return this.deliveriesService.findAll(companyId);
+  }
+
+  @Get(':id')
+  async findOne(
+    @Param('id') id: string,
+    @CompanyId() companyId: string,
+  ): Promise<DeliveryResponseDto> {
+    return this.deliveriesService.findOne(id, companyId);
   }
 
   @Patch(':id/dispatch')
@@ -37,5 +55,24 @@ export class DeliveriesController {
     @CompanyId() companyId: string,
   ): Promise<DeliveryResponseDto> {
     return this.deliveriesService.complete(id, companyId);
+  }
+
+  @Put(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  async update(
+    @Param('id') id: string,
+    @CompanyId() companyId: string,
+    @Body() dto: UpdateDeliveryDto,
+  ): Promise<DeliveryResponseDto> {
+    return this.deliveriesService.update(id, companyId, dto);
+  }
+
+  @Delete(':id')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  async remove(
+    @Param('id') id: string,
+    @CompanyId() companyId: string,
+  ): Promise<void> {
+    return this.deliveriesService.remove(id, companyId);
   }
 }

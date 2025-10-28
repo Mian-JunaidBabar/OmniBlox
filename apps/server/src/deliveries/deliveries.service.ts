@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { DeliveryResponseDto } from './dto/delivery-response.dto';
 import { DispatchDeliveryDto } from './dto/dispatch-delivery.dto';
+import { UpdateDeliveryDto } from './dto/update-delivery.dto';
 
 @Injectable()
 export class DeliveriesService {
@@ -45,6 +46,49 @@ export class DeliveriesService {
     });
 
     return deliveries.map((delivery) => this.transformDelivery(delivery));
+  }
+
+  async findOne(id: string, companyId: string): Promise<DeliveryResponseDto> {
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { id, companyId },
+      include: {
+        sale: {
+          select: {
+            id: true,
+            invoiceNumber: true,
+            saleDate: true,
+            totalAmount: true,
+            items: {
+              select: {
+                id: true,
+                quantity: true,
+                unitPrice: true,
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    sku: true,
+                  },
+                },
+              },
+            },
+            customer: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!delivery) {
+      throw new NotFoundException('Delivery not found');
+    }
+
+    return this.transformDelivery(delivery);
   }
 
   async dispatch(
@@ -138,6 +182,73 @@ export class DeliveriesService {
     });
 
     return this.transformDelivery(updated);
+  }
+
+  async update(
+    id: string,
+    companyId: string,
+    dto: UpdateDeliveryDto,
+  ): Promise<DeliveryResponseDto> {
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { id, companyId },
+    });
+
+    if (!delivery) {
+      throw new NotFoundException('Delivery not found');
+    }
+
+    const updated = await this.prisma.delivery.update({
+      where: { id },
+      data: {
+        ...(dto.trackingNumber !== undefined && {
+          trackingNumber: dto.trackingNumber,
+        }),
+        ...(dto.deliveryAddress !== undefined && {
+          deliveryAddress: dto.deliveryAddress,
+        }),
+        ...(dto.status !== undefined && { status: dto.status }),
+      },
+      include: {
+        sale: {
+          include: {
+            customer: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            items: {
+              include: {
+                product: {
+                  select: {
+                    id: true,
+                    name: true,
+                    sku: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return this.transformDelivery(updated);
+  }
+
+  async remove(id: string, companyId: string): Promise<void> {
+    const delivery = await this.prisma.delivery.findUnique({
+      where: { id, companyId },
+    });
+
+    if (!delivery) {
+      throw new NotFoundException('Delivery not found');
+    }
+
+    await this.prisma.delivery.delete({
+      where: { id },
+    });
   }
 
   private transformDelivery(delivery: any): DeliveryResponseDto {
