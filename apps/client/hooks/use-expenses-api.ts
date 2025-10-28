@@ -1,4 +1,5 @@
 import { useAuthenticatedApi } from "./use-authenticated-api";
+import { useCallback } from "react";
 
 export enum ExpenseStatus {
   PENDING = "PENDING",
@@ -20,24 +21,34 @@ export interface Expense {
   amount: number;
   expenseDate: string;
   description?: string;
-  vendor?: string;
+  vendor: string;
   status: ExpenseStatus;
   paymentMethod?: PaymentMethod;
-  categoryId?: string;
+  categoryId: string;
   category?: {
     id: string;
     name: string;
+    description?: string;
   };
-  attachmentUrl?: string;
-  companyId: string;
-  createdById: string;
-  createdBy?: {
+  userId: string;
+  user?: {
     id: string;
-    firstName: string;
-    lastName: string;
+    name: string;
+    email: string;
   };
+  attachments?: ExpenseAttachment[];
+  companyId: string;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ExpenseAttachment {
+  id: string;
+  url: string;
+  fileName: string;
+  fileType: string;
+  createdAt: string;
+  expenseId: string;
 }
 
 export interface CreateExpenseDto {
@@ -45,8 +56,8 @@ export interface CreateExpenseDto {
   amount: number;
   expenseDate: string;
   description?: string;
-  vendor?: string;
-  categoryId?: string;
+  vendor: string;
+  categoryId: string;
 }
 
 export interface UpdateExpenseDto {
@@ -79,47 +90,81 @@ export interface ExpenseStats {
 export function useExpensesApi() {
   const { get, post, put, patch, delete: del } = useAuthenticatedApi();
 
-  const getExpenses = async (): Promise<Expense[]> => {
-    const response = (await get("/expenses")) as { data: Expense[] };
-    return response.data;
-  };
+  const getExpenses = useCallback(async (): Promise<Expense[]> => {
+    return get("/expenses") as Promise<Expense[]>;
+  }, [get]);
 
-  const getExpense = async (id: string): Promise<Expense> => {
-    const response = (await get(`/expenses/${id}`)) as { data: Expense };
-    return response.data;
-  };
+  const getExpense = useCallback(
+    async (id: string): Promise<Expense> => {
+      return get(`/expenses/${id}`) as Promise<Expense>;
+    },
+    [get]
+  );
 
-  const getExpenseStats = async (): Promise<ExpenseStats> => {
-    const response = (await get("/expenses/stats")) as { data: ExpenseStats };
-    return response.data;
-  };
+  const getExpenseStats = useCallback(async (): Promise<ExpenseStats> => {
+    return get("/expenses/stats") as Promise<ExpenseStats>;
+  }, [get]);
 
-  const createExpense = async (data: CreateExpenseDto): Promise<Expense> => {
-    const response = (await post("/expenses", data)) as { data: Expense };
-    return response.data;
-  };
+  const createExpense = useCallback(
+    async (data: CreateExpenseDto): Promise<Expense> => {
+      return post("/expenses", data) as Promise<Expense>;
+    },
+    [post]
+  );
 
-  const updateExpense = async (
-    id: string,
-    data: UpdateExpenseDto
-  ): Promise<Expense> => {
-    const response = (await put(`/expenses/${id}`, data)) as { data: Expense };
-    return response.data;
-  };
+  const updateExpense = useCallback(
+    async (id: string, data: UpdateExpenseDto): Promise<Expense> => {
+      return put(`/expenses/${id}`, data) as Promise<Expense>;
+    },
+    [put]
+  );
 
-  const updateExpenseStatus = async (
-    id: string,
-    data: UpdateExpenseStatusDto
-  ): Promise<Expense> => {
-    const response = (await patch(`/expenses/${id}/status`, data)) as {
-      data: Expense;
-    };
-    return response.data;
-  };
+  const updateExpenseStatus = useCallback(
+    async (id: string, data: UpdateExpenseStatusDto): Promise<Expense> => {
+      return patch(`/expenses/${id}/status`, data) as Promise<Expense>;
+    },
+    [patch]
+  );
 
-  const deleteExpense = async (id: string): Promise<void> => {
-    await del(`/expenses/${id}`);
-  };
+  const deleteExpense = useCallback(
+    async (id: string): Promise<void> => {
+      await del(`/expenses/${id}`);
+    },
+    [del]
+  );
+
+  const uploadAttachment = useCallback(
+    async (id: string, file: File): Promise<ExpenseAttachment> => {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/expenses/${id}/attachments`,
+        {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem("token")}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to upload attachment");
+      }
+
+      return response.json();
+    },
+    []
+  );
+
+  const deleteAttachment = useCallback(
+    async (expenseId: string, attachmentId: string): Promise<void> => {
+      await del(`/expenses/${expenseId}/attachments/${attachmentId}`);
+    },
+    [del]
+  );
 
   return {
     getExpenses,
@@ -129,5 +174,7 @@ export function useExpensesApi() {
     updateExpense,
     updateExpenseStatus,
     deleteExpense,
+    uploadAttachment,
+    deleteAttachment,
   };
 }

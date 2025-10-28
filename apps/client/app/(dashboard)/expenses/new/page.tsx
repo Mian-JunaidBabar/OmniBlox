@@ -92,6 +92,24 @@ export default function NewExpensePage() {
       return;
     }
 
+    if (!formData.vendor.trim()) {
+      toast({
+        title: "Validation Error",
+        description: "Vendor is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!formData.categoryId) {
+      toast({
+        title: "Validation Error",
+        description: "Category is required",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setSubmitting(true);
       await expensesApi.createExpense(formData);
@@ -195,7 +213,9 @@ export default function NewExpensePage() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="vendor">Vendor</Label>
+                <Label htmlFor="vendor">
+                  Vendor <span className="text-destructive">*</span>
+                </Label>
                 <Input
                   id="vendor"
                   value={formData.vendor}
@@ -203,11 +223,14 @@ export default function NewExpensePage() {
                     setFormData({ ...formData, vendor: e.target.value })
                   }
                   placeholder="e.g., Office Depot"
+                  required
                 />
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="category">Category</Label>
+                <Label htmlFor="category">
+                  Category <span className="text-destructive">*</span>
+                </Label>
                 <Select
                   value={formData.categoryId}
                   onValueChange={(value) =>

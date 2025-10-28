@@ -1,12 +1,11 @@
 import { useAuthenticatedApi } from "./use-authenticated-api";
+import { useCallback } from "react";
 
 export interface ExpenseCategory {
   id: string;
   name: string;
   description?: string;
   companyId: string;
-  createdAt: string;
-  updatedAt: string;
 }
 
 export interface CreateExpenseCategoryDto {
@@ -22,42 +21,42 @@ export interface UpdateExpenseCategoryDto {
 export function useExpenseCategoriesApi() {
   const { get, post, put, delete: del } = useAuthenticatedApi();
 
-  const getExpenseCategories = async (): Promise<ExpenseCategory[]> => {
-    const response = (await get("/expense-categories")) as {
-      data: ExpenseCategory[];
-    };
-    return response.data;
-  };
+  const getExpenseCategories = useCallback(async (): Promise<
+    ExpenseCategory[]
+  > => {
+    return get("/expense-categories") as Promise<ExpenseCategory[]>;
+  }, [get]);
 
-  const getExpenseCategory = async (id: string): Promise<ExpenseCategory> => {
-    const response = (await get(`/expense-categories/${id}`)) as {
-      data: ExpenseCategory;
-    };
-    return response.data;
-  };
+  const getExpenseCategory = useCallback(
+    async (id: string): Promise<ExpenseCategory> => {
+      return get(`/expense-categories/${id}`) as Promise<ExpenseCategory>;
+    },
+    [get]
+  );
 
-  const createExpenseCategory = async (
-    data: CreateExpenseCategoryDto
-  ): Promise<ExpenseCategory> => {
-    const response = (await post("/expense-categories", data)) as {
-      data: ExpenseCategory;
-    };
-    return response.data;
-  };
+  const createExpenseCategory = useCallback(
+    async (data: CreateExpenseCategoryDto): Promise<ExpenseCategory> => {
+      return post("/expense-categories", data) as Promise<ExpenseCategory>;
+    },
+    [post]
+  );
 
-  const updateExpenseCategory = async (
-    id: string,
-    data: UpdateExpenseCategoryDto
-  ): Promise<ExpenseCategory> => {
-    const response = (await put(`/expense-categories/${id}`, data)) as {
-      data: ExpenseCategory;
-    };
-    return response.data;
-  };
+  const updateExpenseCategory = useCallback(
+    async (
+      id: string,
+      data: UpdateExpenseCategoryDto
+    ): Promise<ExpenseCategory> => {
+      return put(`/expense-categories/${id}`, data) as Promise<ExpenseCategory>;
+    },
+    [put]
+  );
 
-  const deleteExpenseCategory = async (id: string): Promise<void> => {
-    await del(`/expense-categories/${id}`);
-  };
+  const deleteExpenseCategory = useCallback(
+    async (id: string): Promise<void> => {
+      await del(`/expense-categories/${id}`);
+    },
+    [del]
+  );
 
   return {
     getExpenseCategories,
