@@ -51,14 +51,26 @@ export class StockAdjustmentsService {
           }),
         );
 
+        // Generate reference number
+        const referenceNumber = `SA-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
+
+        // Calculate totals
+        const totalItems = dto.items.length;
+        const netChange = itemsWithPreviousQuantities.reduce(
+          (sum, item) => sum + item.difference,
+          0,
+        );
+
         // Create the main StockAdjustment record
         const stockAdjustment = await tx.stockAdjustment.create({
           data: {
-            warehouseId: dto.warehouseId,
+            referenceNumber,
             companyId,
             userId,
             notes: dto.notes ?? null,
             adjustmentDate: new Date(dto.adjustmentDate),
+            totalItems,
+            netChange,
           },
         });
 

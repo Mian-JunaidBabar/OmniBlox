@@ -525,6 +525,7 @@ enum OrderStatus {
   PENDING
   COMPLETED
   CANCELLED
+  RECEIVED
 }
 
 enum PaymentStatus {

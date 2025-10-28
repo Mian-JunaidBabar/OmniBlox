@@ -33,6 +33,8 @@ declare module '@prisma/client' {
     PENDING = 'PENDING',
     COMPLETED = 'COMPLETED',
     CANCELLED = 'CANCELLED',
+    DRAFT = 'DRAFT',
+    RECEIVED = 'RECEIVED',
   }
 
   export enum PaymentStatus {

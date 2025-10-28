@@ -14,6 +14,7 @@ import { BillersModule } from './billers/billers.module';
 import { InventoryModule } from './inventory/inventory.module';
 import { DeliveriesModule } from './deliveries/deliveries.module';
 import { StockAdjustmentsModule } from './stock-adjustments/stock-adjustments.module';
+import { PurchasesModule } from './purchases/purchases.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { StockAdjustmentsModule } from './stock-adjustments/stock-adjustments.mo
     InventoryModule,
     DeliveriesModule,
     StockAdjustmentsModule,
+    PurchasesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
