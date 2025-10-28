@@ -2,12 +2,12 @@ import { useAuthenticatedApi } from "@/hooks/use-authenticated-api";
 
 export interface StockAdjustmentItem {
   productId: string;
-  warehouseId: string;
-  previousQuantity: number;
   newQuantity: number;
 }
 
 export interface CreateStockAdjustmentPayload {
+  warehouseId: string;
+  adjustmentDate: string;
   notes?: string;
   items: StockAdjustmentItem[];
 }
@@ -43,7 +43,7 @@ export function useStockAdjustmentService() {
   const createStockAdjustment = async (
     payload: CreateStockAdjustmentPayload
   ): Promise<StockAdjustmentResponse> => {
-    const response = await post("/products/adjustments", payload);
+    const response = await post("/stock-adjustments", payload);
     return response as StockAdjustmentResponse;
   };
 

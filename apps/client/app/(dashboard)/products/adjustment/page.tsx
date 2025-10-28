@@ -42,6 +42,7 @@ type AdjustmentItem = {
 export default function StockAdjustmentPage() {
   const router = useRouter();
   const { toast } = useToast();
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>("");
   const [items, setItems] = useState<AdjustmentItem[]>([]);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
@@ -64,11 +65,15 @@ export default function StockAdjustmentPage() {
 
   const { createStockAdjustment } = useStockAdjustmentService();
 
-  // Get the default warehouse (first one for now)
-  const defaultWarehouse = warehouses.length > 0 ? warehouses[0] : null;
+  // Auto-select first warehouse when warehouses load
+  useEffect(() => {
+    if (warehouses.length > 0 && !selectedWarehouseId) {
+      setSelectedWarehouseId(warehouses[0].id);
+    }
+  }, [warehouses, selectedWarehouseId]);
 
   const addItem = () => {
-    if (productsLoading || products.length === 0 || !defaultWarehouse) {
+    if (productsLoading || products.length === 0 || !selectedWarehouseId) {
       return;
     }
 
@@ -77,7 +82,7 @@ export default function StockAdjustmentPage() {
       {
         id: Date.now().toString(),
         productId: "",
-        warehouseId: defaultWarehouse.id,
+        warehouseId: selectedWarehouseId,
         currentStock: 0,
         newStock: 0,
         difference: 0,
@@ -107,7 +112,7 @@ export default function StockAdjustmentPage() {
           updated.productId = nextProductId;
           const product = products.find((p) => p.id === nextProductId);
           updated.currentStock = product?.stock ?? 0;
-          updated.warehouseId = defaultWarehouse?.id ?? "";
+          updated.warehouseId = selectedWarehouseId;
         } else if (field === "newStock") {
           const parsed = Number(value);
           updated.newStock = Number.isFinite(parsed) ? parsed : 0;
@@ -127,9 +132,9 @@ export default function StockAdjustmentPage() {
       return;
     }
 
-    if (!defaultWarehouse) {
+    if (!selectedWarehouseId) {
       setSubmitError(
-        "No warehouse available. Please ensure at least one warehouse exists."
+        "Please select a warehouse before creating the adjustment."
       );
       return;
     }
@@ -149,11 +154,11 @@ export default function StockAdjustmentPage() {
 
     try {
       const payload = {
+        warehouseId: selectedWarehouseId,
+        adjustmentDate: new Date().toISOString(),
         notes: notes.trim() || undefined,
         items: items.map((item) => ({
           productId: item.productId,
-          warehouseId: item.warehouseId,
-          previousQuantity: item.currentStock,
           newQuantity: item.newStock,
         })),
       };
@@ -162,7 +167,7 @@ export default function StockAdjustmentPage() {
 
       toast({
         title: "Stock Adjustment Created",
-        description: `Adjustment ${result.referenceNumber} has been successfully created.`,
+        description: `Stock adjustment has been successfully created.`,
       });
 
       router.push("/products");
@@ -199,12 +204,61 @@ export default function StockAdjustmentPage() {
         <div className="grid gap-6 md:grid-cols-3">
           <Card className="md:col-span-2">
             <CardHeader>
-              <div className="flex items-center justify-between">
+              <CardTitle>Adjustment Items</CardTitle>
+              <CardDescription>
+                Select a warehouse and adjust stock levels for products
+              </CardDescription>
+              <div className="pt-4">
+                <div className="space-y-2">
+                  <Label htmlFor="warehouse">Warehouse *</Label>
+                  <Select
+                    value={selectedWarehouseId}
+                    onValueChange={(value) => {
+                      setSelectedWarehouseId(value);
+                      // Clear items when warehouse changes
+                      setItems([]);
+                    }}
+                    disabled={warehousesLoading}
+                  >
+                    <SelectTrigger id="warehouse">
+                      <SelectValue placeholder="Select warehouse" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {warehousesLoading && (
+                        <SelectItem value="LOADING" disabled>
+                          Loading warehouses...
+                        </SelectItem>
+                      )}
+                      {!warehousesLoading && warehousesError && (
+                        <SelectItem value="ERROR" disabled>
+                          {warehousesError}
+                        </SelectItem>
+                      )}
+                      {!warehousesLoading &&
+                        !warehousesError &&
+                        warehouses.length === 0 && (
+                          <SelectItem value="NO_WAREHOUSES" disabled>
+                            No warehouses available
+                          </SelectItem>
+                        )}
+                      {!warehousesLoading &&
+                        !warehousesError &&
+                        warehouses.map((warehouse) => (
+                          <SelectItem key={warehouse.id} value={warehouse.id}>
+                            {warehouse.name}
+                            {warehouse.location && ` - ${warehouse.location}`}
+                          </SelectItem>
+                        ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              <div className="flex items-center justify-between pt-4">
                 <div>
-                  <CardTitle>Adjustment Items</CardTitle>
-                  <CardDescription>
-                    Select products and set new stock levels
-                  </CardDescription>
+                  <p className="text-sm font-medium">Products</p>
+                  <p className="text-xs text-muted-foreground">
+                    Add products to adjust their stock levels
+                  </p>
                 </div>
                 <Button
                   type="button"
@@ -213,7 +267,7 @@ export default function StockAdjustmentPage() {
                   className="gap-2"
                   disabled={
                     products.length === 0 ||
-                    !defaultWarehouse ||
+                    !selectedWarehouseId ||
                     warehousesLoading ||
                     productsLoading
                   }
@@ -264,8 +318,8 @@ export default function StockAdjustmentPage() {
                   <p className="text-sm text-muted-foreground text-center py-8">
                     {warehousesLoading || productsLoading
                       ? "Loading..."
-                      : !defaultWarehouse
-                      ? "No warehouses available. Please create a warehouse first."
+                      : !selectedWarehouseId
+                      ? "Please select a warehouse first."
                       : products.length === 0
                       ? "No products available. Add products before creating adjustments."
                       : 'No items added yet. Click "Add Item" to start.'}
@@ -328,7 +382,11 @@ export default function StockAdjustmentPage() {
                           <div className="space-y-2">
                             <Label>Warehouse</Label>
                             <Input
-                              value={defaultWarehouse?.name || "Loading..."}
+                              value={
+                                warehouses.find(
+                                  (w) => w.id === selectedWarehouseId
+                                )?.name || "Not selected"
+                              }
                               disabled
                               className="bg-muted"
                             />
@@ -418,7 +476,7 @@ export default function StockAdjustmentPage() {
                 disabled={
                   items.length === 0 ||
                   products.length === 0 ||
-                  !defaultWarehouse ||
+                  !selectedWarehouseId ||
                   saving
                 }
                 className="gap-2"
