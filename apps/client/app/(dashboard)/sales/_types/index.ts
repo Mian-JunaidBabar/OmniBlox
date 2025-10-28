@@ -74,6 +74,8 @@ export interface SaleItemPayload {
 export interface CreateSalePayload {
   invoiceNumber?: string;
   customer: SaleCustomerPayload;
+  // Destination warehouse for fulfilling the sale
+  warehouseId: string;
   saleDate: string;
   dueDate: string;
   status?: SaleStatus;
@@ -82,6 +84,8 @@ export interface CreateSalePayload {
   taxRate?: number;
   discount?: number;
   notes?: string;
+  // Optional snapshot of the shipping address captured at the time of sale
+  shippingAddress?: string;
   items: SaleItemPayload[];
 }
 

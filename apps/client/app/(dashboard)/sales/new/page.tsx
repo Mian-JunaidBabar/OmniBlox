@@ -23,8 +23,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useProductApi } from "@/hooks/use-product-api";
 import { useInventoryApi } from "@/hooks/use-inventory-api";
+import { useCustomersApi } from "@/hooks/use-customers-api";
 import type { Product } from "@/lib/types";
 import type { Warehouse } from "@/hooks/use-inventory-api";
 
@@ -80,6 +82,7 @@ export default function NewSalePage() {
   const router = useRouter();
   const { getProducts } = useProductApi();
   const { getWarehouses } = useInventoryApi();
+  const { getCustomers } = useCustomersApi();
   const { createSale } = useSalesService();
 
   const [products, setProducts] = useState<Product[]>([]);
@@ -95,6 +98,7 @@ export default function NewSalePage() {
   const [formData, setFormData] = useState({
     customerName: "",
     customerEmail: "",
+    shippingAddress: "",
     warehouseId: "",
     date: today,
     dueDate: "",
@@ -271,6 +275,7 @@ export default function NewSalePage() {
         status: formData.status,
         paymentStatus: formData.paymentStatus,
         taxRate,
+        shippingAddress: formData.shippingAddress?.trim() || undefined,
         items: items.map((item) => ({
           productId: item.productId,
           quantity: item.quantity,
@@ -348,6 +353,41 @@ export default function NewSalePage() {
                         customerEmail: event.target.value,
                       }))
                     }
+                    onBlur={async () => {
+                      const email = formData.customerEmail.trim();
+                      if (!email || !email.includes("@")) return;
+                      try {
+                        const result = await getCustomers({
+                          search: email,
+                          limit: 5,
+                        });
+                        const list = Array.isArray(result)
+                          ? result
+                          : result?.customers ?? [];
+                        if (list.length > 0) {
+                          // Prefer exact email match if available
+                          const match =
+                            list.find(
+                              (c) =>
+                                (c.email ?? "").toLowerCase() ===
+                                email.toLowerCase()
+                            ) || list[0];
+                          setFormData((prev) => ({
+                            ...prev,
+                            customerName:
+                              prev.customerName ||
+                              match.name ||
+                              prev.customerName,
+                            shippingAddress:
+                              prev.shippingAddress ||
+                              match.address ||
+                              prev.shippingAddress,
+                          }));
+                        }
+                      } catch {
+                        // Ignore lookup errors silently; user can still type address manually
+                      }
+                    }}
                     required
                   />
                 </div>
@@ -393,6 +433,22 @@ export default function NewSalePage() {
                     </SelectContent>
                   </Select>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="shippingAddress">Shipping Address</Label>
+                <Textarea
+                  id="shippingAddress"
+                  placeholder="Enter shipping address (auto-filled from customer if available)"
+                  value={formData.shippingAddress}
+                  onChange={(event) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      shippingAddress: event.target.value,
+                    }))
+                  }
+                  rows={3}
+                />
               </div>
 
               <div className="grid gap-4 md:grid-cols-3">

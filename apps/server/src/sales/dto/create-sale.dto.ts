@@ -119,6 +119,11 @@ export class CreateSaleDto {
   @IsString()
   readonly notes?: string;
 
+  // Optional snapshotted shipping address to store on Sale
+  @IsOptional()
+  @IsString()
+  readonly shippingAddress?: string;
+
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })

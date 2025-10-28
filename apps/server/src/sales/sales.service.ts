@@ -60,6 +60,29 @@ export class SalesService {
           companyId,
         );
         const providedEmail = dto.customer.email?.trim();
+        // Determine final shipping address to snapshot on the Sale
+        // Priority: dto.shippingAddress > dto.customer.address > resolved customer's address > ''
+        let finalShippingAddress: string = '';
+        if (dto.shippingAddress && dto.shippingAddress.trim().length > 0) {
+          finalShippingAddress = dto.shippingAddress.trim();
+        } else if (
+          dto.customer.address &&
+          dto.customer.address.trim().length > 0
+        ) {
+          finalShippingAddress = dto.customer.address.trim();
+        } else if (dto.customer.id) {
+          // Fetch customer's saved address if available
+          const existingCustomer = await tx.customer.findUnique({
+            where: { id: dto.customer.id, companyId },
+            select: { address: true },
+          });
+          if (
+            existingCustomer?.address &&
+            existingCustomer.address.trim().length > 0
+          ) {
+            finalShippingAddress = existingCustomer.address.trim();
+          }
+        }
         const totals = this.calculateTotals(
           dto.items,
           dto.taxRate,
@@ -80,6 +103,7 @@ export class SalesService {
             saleDate: new Date(dto.saleDate),
             dueDate: new Date(dto.dueDate),
             notes: dto.notes ?? null,
+            shippingAddress: finalShippingAddress,
             customerId: customer.id,
             customerEmail: providedEmail ?? customer.email ?? null,
             userId,
@@ -113,7 +137,10 @@ export class SalesService {
           data: {
             saleId: sale.id,
             companyId,
-            deliveryAddress: dto.customer.address ?? 'Address not provided',
+            deliveryAddress:
+              finalShippingAddress && finalShippingAddress.length > 0
+                ? finalShippingAddress
+                : 'Address not provided',
             status: 'PENDING',
           },
         });

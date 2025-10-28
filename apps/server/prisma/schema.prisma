@@ -343,6 +343,7 @@ model Sale {
   saleDate      DateTime       @default(now())
   dueDate       DateTime
   notes         String?
+  shippingAddress String?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   customerEmail String?
