@@ -10,6 +10,7 @@ import {
 import { UserRole } from '@prisma/client';
 import { PurchasesService } from './purchases.service';
 import { CreatePurchaseOrderDto } from './dto/create-purchase-order.dto';
+import { ReceivePurchaseOrderDto } from './dto/receive-purchase-order.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
@@ -43,7 +44,11 @@ export class PurchasesController {
 
   @Patch(':id/receive')
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
-  async receive(@Param('id') id: string, @CompanyId() companyId: string) {
-    return this.purchasesService.receive(id, companyId);
+  async receive(
+    @Param('id') id: string,
+    @Body() dto: ReceivePurchaseOrderDto,
+    @CompanyId() companyId: string,
+  ) {
+    return this.purchasesService.receive(id, dto.warehouseId, companyId);
   }
 }

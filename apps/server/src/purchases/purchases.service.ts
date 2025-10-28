@@ -161,10 +161,19 @@ export class PurchasesService {
     return purchaseOrder;
   }
 
-  async receive(id: string, companyId: string) {
+  async receive(id: string, warehouseId: string, companyId: string) {
     return this.prisma.$transaction(
       async (tx) => {
-        // 1. Verify the purchase order exists and belongs to this company
+        // 1. Verify the warehouse belongs to this company
+        const warehouse = await tx.warehouse.findUnique({
+          where: { id: warehouseId, companyId },
+        });
+
+        if (!warehouse) {
+          throw new NotFoundException('Warehouse not found');
+        }
+
+        // 2. Verify the purchase order exists and belongs to this company
         const purchaseOrder = await tx.purchaseOrder.findUnique({
           where: { id, companyId },
           include: {
@@ -190,30 +199,19 @@ export class PurchasesService {
           },
         });
 
-        // 3. Get the first warehouse for this company (since purchases don't have warehouse selection)
-        const warehouse = await tx.warehouse.findFirst({
-          where: { companyId },
-        });
-
-        if (!warehouse) {
-          throw new BadRequestException(
-            'No warehouse found for this company. Please create a warehouse first.',
-          );
-        }
-
-        // 4. Update inventory for each item using atomic increment
+        // 3. Update inventory for each item using atomic increment
         await Promise.all(
           purchaseOrder.items.map((item) =>
             tx.inventory.upsert({
               where: {
                 productId_warehouseId: {
                   productId: item.productId,
-                  warehouseId: warehouse.id,
+                  warehouseId: warehouseId,
                 },
               },
               create: {
                 productId: item.productId,
-                warehouseId: warehouse.id,
+                warehouseId: warehouseId,
                 quantity: item.quantity,
               },
               update: {
@@ -225,7 +223,7 @@ export class PurchasesService {
           ),
         );
 
-        // 5. Return the updated purchase order
+        // 4. Return the updated purchase order
         return tx.purchaseOrder.findUnique({
           where: { id },
           include: {

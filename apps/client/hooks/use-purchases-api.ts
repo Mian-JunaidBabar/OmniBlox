@@ -52,8 +52,13 @@ export function usePurchasesApi() {
     create: async (data: CreatePurchaseOrderDto): Promise<PurchaseOrder> => {
       return (await post("/purchases", data)) as PurchaseOrder;
     },
-    receive: async (id: string): Promise<PurchaseOrder> => {
-      return (await patch(`/purchases/${id}/receive`)) as PurchaseOrder;
+    receive: async (
+      id: string,
+      warehouseId: string
+    ): Promise<PurchaseOrder> => {
+      return (await patch(`/purchases/${id}/receive`, {
+        warehouseId,
+      })) as PurchaseOrder;
     },
   };
 }

@@ -15,6 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Search, Plus } from "lucide-react";
 import PurchasesTable from "@/components/purchases/PurchasesTable";
+import { ReceivePurchaseDialog } from "@/components/purchases/ReceivePurchaseDialog";
 import { toast } from "@/hooks/use-toast";
 
 export default function PurchasesPage() {
@@ -24,6 +25,8 @@ export default function PurchasesPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
+  const [receivingPurchase, setReceivingPurchase] =
+    useState<PurchaseOrder | null>(null);
 
   const canManage = useMemo(() => {
     const role = user?.role;
@@ -63,9 +66,15 @@ export default function PurchasesPage() {
     );
   }, [purchases, search]);
 
-  const markReceived = async (id: string) => {
+  const markReceived = async (purchase: PurchaseOrder) => {
+    setReceivingPurchase(purchase);
+  };
+
+  const handleReceiveConfirm = async (warehouseId: string) => {
+    if (!receivingPurchase) return;
+
     try {
-      await receive(id);
+      await receive(receivingPurchase.id, warehouseId);
       toast({ title: "Purchase received", description: "Inventory updated." });
       await load();
     } catch (e: any) {
@@ -74,6 +83,7 @@ export default function PurchasesPage() {
         description: e?.message || "Try again",
         variant: "destructive" as any,
       });
+      throw e; // Re-throw to keep dialog open on error
     }
   };
 
@@ -132,6 +142,13 @@ export default function PurchasesPage() {
           )}
         </CardContent>
       </Card>
+
+      <ReceivePurchaseDialog
+        open={!!receivingPurchase}
+        onOpenChange={(open) => !open && setReceivingPurchase(null)}
+        onConfirm={handleReceiveConfirm}
+        purchaseReference={receivingPurchase?.referenceNumber || ""}
+      />
     </div>
   );
 }

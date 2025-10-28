@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -59,7 +60,7 @@ function statusBadgeVariant(
 export interface PurchasesTableProps {
   purchases: PurchaseOrder[];
   canManage: boolean; // OWNER | ADMIN | MANAGER
-  onReceive?: (id: string) => Promise<void> | void;
+  onReceive?: (purchase: PurchaseOrder) => Promise<void> | void;
 }
 
 export function PurchasesTable({
@@ -87,7 +88,12 @@ export function PurchasesTable({
             purchases.map((po) => (
               <TableRow key={po.id}>
                 <TableCell className="font-mono text-xs">
-                  {po.referenceNumber}
+                  <Link
+                    href={`/purchases/${po.id}`}
+                    className="text-primary hover:underline"
+                  >
+                    {po.referenceNumber}
+                  </Link>
                 </TableCell>
                 <TableCell>{po.supplier?.name ?? "-"}</TableCell>
                 <TableCell>
@@ -113,7 +119,7 @@ export function PurchasesTable({
                           <DropdownMenuSeparator />
                           <DropdownMenuItem
                             onClick={async () => {
-                              if (onReceive) await onReceive(po.id);
+                              if (onReceive) await onReceive(po);
                             }}
                           >
                             Mark as Received
