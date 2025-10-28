@@ -2,8 +2,14 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useExpensesApi, type CreateExpenseDto } from "@/hooks/use-expenses-api";
-import { useExpenseCategoriesApi, type ExpenseCategory } from "@/hooks/use-expense-categories-api";
+import {
+  useExpensesApi,
+  type CreateExpenseDto,
+} from "@/hooks/use-expenses-api";
+import {
+  useExpenseCategoriesApi,
+  type ExpenseCategory,
+} from "@/hooks/use-expense-categories-api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,7 +21,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -46,13 +58,14 @@ export default function NewExpensePage() {
     try {
       setLoading(true);
       const data = await categoriesApi.getExpenseCategories();
-      setCategories(data);
+      setCategories(data || []);
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message || "Failed to fetch categories",
         variant: "destructive",
       });
+      setCategories([]);
     } finally {
       setLoading(false);
     }
@@ -111,18 +124,12 @@ export default function NewExpensePage() {
   return (
     <div className="container mx-auto py-6 space-y-6">
       <div className="flex items-center gap-4">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => router.back()}
-        >
+        <Button variant="ghost" size="icon" onClick={() => router.back()}>
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <div>
           <h1 className="text-3xl font-bold">New Expense</h1>
-          <p className="text-muted-foreground">
-            Create a new expense record
-          </p>
+          <p className="text-muted-foreground">Create a new expense record</p>
         </div>
       </div>
 
@@ -162,7 +169,10 @@ export default function NewExpensePage() {
                   min="0"
                   value={formData.amount}
                   onChange={(e) =>
-                    setFormData({ ...formData, amount: parseFloat(e.target.value) })
+                    setFormData({
+                      ...formData,
+                      amount: parseFloat(e.target.value),
+                    })
                   }
                   placeholder="0.00"
                   required
@@ -241,7 +251,9 @@ export default function NewExpensePage() {
                 Cancel
               </Button>
               <Button type="submit" disabled={submitting}>
-                {submitting && <Loader2 className="h-4 w-4 mr-2 animate-spin" />}
+                {submitting && (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                )}
                 Create Expense
               </Button>
             </div>

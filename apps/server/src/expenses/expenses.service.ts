@@ -1,8 +1,19 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateExpenseDto } from './dto/create-expense.dto';
 import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { UpdateExpenseStatusDto } from './dto/update-expense-status.dto';
+import * as fs from 'fs';
+import * as path from 'path';
+import { promisify } from 'util';
+
+const writeFile = promisify(fs.writeFile);
+const mkdir = promisify(fs.mkdir);
+const unlink = promisify(fs.unlink);
 
 @Injectable()
 export class ExpensesService {
@@ -54,33 +65,27 @@ export class ExpensesService {
       ];
     }
 
-    const [expenses, total] = await Promise.all([
-      this.prisma.expense.findMany({
-        where,
-        include: {
-          category: true,
-          user: {
-            select: {
-              id: true,
-              email: true,
-            },
+    const expenses = await this.prisma.expense.findMany({
+      where,
+      include: {
+        category: true,
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
           },
         },
-        orderBy: { expenseDate: 'desc' },
-        skip,
-        take: limit,
-      }),
-      this.prisma.expense.count({ where }),
-    ]);
+      },
+      orderBy: { expenseDate: 'desc' },
+      skip,
+      take: limit,
+    });
 
-    return {
-      expenses: expenses.map((exp) => ({
-        ...exp,
-        amount: exp.amount.toString(),
-      })),
-      total,
-      pages: Math.ceil(total / limit),
-    };
+    return expenses.map((exp) => ({
+      ...exp,
+      amount: parseFloat(exp.amount.toString()),
+    }));
   }
 
   async findOne(id: string, companyId: string) {
@@ -91,6 +96,7 @@ export class ExpensesService {
         user: {
           select: {
             id: true,
+            name: true,
             email: true,
           },
         },
@@ -104,7 +110,7 @@ export class ExpensesService {
 
     return {
       ...expense,
-      amount: expense.amount.toString(),
+      amount: parseFloat(expense.amount.toString()),
     };
   }
 
@@ -143,6 +149,7 @@ export class ExpensesService {
         user: {
           select: {
             id: true,
+            name: true,
             email: true,
           },
         },
@@ -151,7 +158,7 @@ export class ExpensesService {
 
     return {
       ...updated,
-      amount: updated.amount.toString(),
+      amount: parseFloat(updated.amount.toString()),
     };
   }
 
@@ -170,6 +177,7 @@ export class ExpensesService {
         user: {
           select: {
             id: true,
+            name: true,
             email: true,
           },
         },
@@ -178,7 +186,7 @@ export class ExpensesService {
 
     return {
       ...updated,
-      amount: updated.amount.toString(),
+      amount: parseFloat(updated.amount.toString()),
     };
   }
 
@@ -202,14 +210,116 @@ export class ExpensesService {
     const stats = expenses.reduce(
       (acc, exp) => {
         const amount = Number(exp.amount);
-        if (exp.status === 'PENDING') acc.totalPending += amount;
-        if (exp.status === 'APPROVED') acc.totalApproved += amount;
-        if (exp.status === 'PAID') acc.totalPaid += amount;
+        acc.totalExpenses += 1;
+        acc.totalAmount += amount;
+
+        if (exp.status === 'PENDING') {
+          acc.pendingExpenses += 1;
+          acc.pendingAmount += amount;
+        }
+        if (exp.status === 'APPROVED') {
+          acc.approvedExpenses += 1;
+          acc.approvedAmount += amount;
+        }
+        if (exp.status === 'PAID') {
+          acc.paidExpenses += 1;
+          acc.paidAmount += amount;
+        }
+        if (exp.status === 'REJECTED') {
+          acc.rejectedExpenses += 1;
+        }
         return acc;
       },
-      { totalPending: 0, totalApproved: 0, totalPaid: 0 },
+      {
+        totalExpenses: 0,
+        pendingExpenses: 0,
+        approvedExpenses: 0,
+        paidExpenses: 0,
+        rejectedExpenses: 0,
+        totalAmount: 0,
+        pendingAmount: 0,
+        approvedAmount: 0,
+        paidAmount: 0,
+      },
     );
 
     return stats;
+  }
+
+  async uploadAttachment(
+    expenseId: string,
+    companyId: string,
+    file: Express.Multer.File,
+  ) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    // Verify expense exists and belongs to company
+    const expense = await this.findOne(expenseId, companyId);
+
+    // Create uploads directory if it doesn't exist
+    const uploadsDir = path.join(process.cwd(), 'uploads', 'expenses');
+    try {
+      await mkdir(uploadsDir, { recursive: true });
+    } catch (error) {
+      // Directory already exists
+    }
+
+    // Generate unique filename
+    const fileExtension = path.extname(file.originalname);
+    const fileName = `${expenseId}-${Date.now()}${fileExtension}`;
+    const filePath = path.join(uploadsDir, fileName);
+
+    // Save file to disk
+    await writeFile(filePath, file.buffer);
+
+    // Create attachment record in database
+    const attachment = await this.prisma.expenseAttachment.create({
+      data: {
+        url: `/uploads/expenses/${fileName}`,
+        fileName: file.originalname,
+        fileType: file.mimetype,
+        expenseId: expense.id,
+      },
+    });
+
+    return attachment;
+  }
+
+  async deleteAttachment(
+    expenseId: string,
+    attachmentId: string,
+    companyId: string,
+  ) {
+    // Verify expense exists and belongs to company
+    await this.findOne(expenseId, companyId);
+
+    // Find attachment
+    const attachment = await this.prisma.expenseAttachment.findFirst({
+      where: {
+        id: attachmentId,
+        expenseId,
+      },
+    });
+
+    if (!attachment) {
+      throw new NotFoundException('Attachment not found');
+    }
+
+    // Delete file from disk
+    const filePath = path.join(process.cwd(), attachment.url);
+    try {
+      await unlink(filePath);
+    } catch (error) {
+      // File might not exist, continue with database deletion
+    }
+
+    // Delete attachment record
+    await this.prisma.expenseAttachment.delete({
+      where: { id: attachment.id },
+    });
+
+    return { message: 'Attachment deleted successfully' };
   }
 }

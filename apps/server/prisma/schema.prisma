@@ -314,8 +314,9 @@ model ExpenseAttachment {
 }
 
 model ExpenseCategory {
-  id   String @id @default(uuid())
-  name String
+  id          String  @id @default(uuid())
+  name        String
+  description String?
 
   // NEW: Link to Company
   companyId String

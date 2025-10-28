@@ -10,8 +10,11 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { UserRole } from '@prisma/client';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
@@ -86,5 +89,26 @@ export class ExpensesController {
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
   remove(@Param('id') id: string, @CompanyId() companyId: string) {
     return this.expensesService.remove(id, companyId);
+  }
+
+  @Post(':id/attachments')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadAttachment(
+    @Param('id') id: string,
+    @CompanyId() companyId: string,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.expensesService.uploadAttachment(id, companyId, file);
+  }
+
+  @Delete(':id/attachments/:attachmentId')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  async deleteAttachment(
+    @Param('id') id: string,
+    @Param('attachmentId') attachmentId: string,
+    @CompanyId() companyId: string,
+  ) {
+    return this.expensesService.deleteAttachment(id, attachmentId, companyId);
   }
 }
