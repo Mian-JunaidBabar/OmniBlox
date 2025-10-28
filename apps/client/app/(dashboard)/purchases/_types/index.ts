@@ -1,32 +1,38 @@
-﻿// Re-export types from lib for consistency
-import type { Purchase } from "@/lib/types"
-export type { Purchase }
+﻿export type PurchaseStatus = "PENDING" | "RECEIVED" | "CANCELLED";
 
-export type PurchaseStatus = 
+export type Purchase = {
+  id: string;
+  referenceNumber: string;
+  status: PurchaseStatus;
+  orderDate: string;
+  totalAmount: number;
+  supplier: { id: string; name: string };
+  warehouse?: { id: string; name: string } | null;
+};
 
 export type PurchaseStats = {
-  totalPurchases: number
-  activePurchases: number
+  totalPurchases: number;
+  activePurchases: number;
   // Add more stats as needed
-}
+};
 
 export type PurchaseFilters = {
-  searchQuery: string
-  statusFilter: string
-}
+  searchQuery: string;
+  statusFilter: string;
+};
 
 export type PurchaseTableProps = {
-  purchases: Purchase[]
-  onPurchaseClick: (id: string) => void
-}
+  purchases: Purchase[];
+  onPurchaseClick: (id: string) => void;
+};
 
 export type PurchaseStatsCardsProps = {
-  stats: PurchaseStats
-}
+  stats: PurchaseStats;
+};
 
 export type PurchaseFiltersProps = {
-  filters: PurchaseFilters
-  onFiltersChange: (filters: PurchaseFilters) => void
-}
+  filters: PurchaseFilters;
+  onFiltersChange: (filters: PurchaseFilters) => void;
+};
 
-export type PurchaseFormData = Omit<Purchase, "id">
+export type PurchaseFormData = Omit<Purchase, "id">;

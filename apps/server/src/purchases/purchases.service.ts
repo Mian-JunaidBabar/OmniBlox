@@ -88,19 +88,11 @@ export class PurchasesService {
             email: true,
           },
         },
-        warehouse: {
-          select: {
-            id: true,
-            name: true,
-            location: true,
-          },
-        },
         user: {
           select: {
             id: true,
             email: true,
-            firstName: true,
-            lastName: true,
+            name: true,
           },
         },
       },
@@ -131,19 +123,11 @@ export class PurchasesService {
             email: true,
           },
         },
-        warehouse: {
-          select: {
-            id: true,
-            name: true,
-            location: true,
-          },
-        },
         user: {
           select: {
             id: true,
             email: true,
-            firstName: true,
-            lastName: true,
+            name: true,
           },
         },
       },
@@ -173,19 +157,11 @@ export class PurchasesService {
             email: true,
           },
         },
-        warehouse: {
-          select: {
-            id: true,
-            name: true,
-            location: true,
-          },
-        },
         user: {
           select: {
             id: true,
             email: true,
-            firstName: true,
-            lastName: true,
+            name: true,
           },
         },
       },
@@ -273,19 +249,11 @@ export class PurchasesService {
                 email: true,
               },
             },
-            warehouse: {
-              select: {
-                id: true,
-                name: true,
-                location: true,
-              },
-            },
             user: {
               select: {
                 id: true,
                 email: true,
-                firstName: true,
-                lastName: true,
+                name: true,
               },
             },
           },
