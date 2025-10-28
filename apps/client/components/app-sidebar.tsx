@@ -18,6 +18,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Building,
+  DollarSign,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,17 @@ const navigation = [
     ],
   },
   {
+    name: "Expenses",
+    href: "/expenses",
+    icon: DollarSign,
+    children: [
+      { name: "All Expenses", href: "/expenses" },
+      { name: "New Expense", href: "/expenses/new" },
+      { name: "Expense Categories", href: "/expenses/categories" },
+      { name: "Expense Reports", href: "/expenses/reports" },
+    ],
+  },
+  {
     name: "Sales",
     href: "/sales",
     icon: FileText,
@@ -59,7 +71,6 @@ const navigation = [
     children: [
       { name: "All Purchases", href: "/purchases" },
       { name: "New Purchase", href: "/purchases/new" },
-      { name: "Expenses", href: "/purchases/expenses" },
     ],
   },
   {

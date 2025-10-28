@@ -78,7 +78,7 @@ export default function ExpensesPage() {
         api.getExpenses(),
         api.getExpenseStats(),
       ]);
-      setExpenses(expensesData);
+      setExpenses(expensesData || []);
       setStats(statsData);
     } catch (error: any) {
       toast({
@@ -86,6 +86,8 @@ export default function ExpensesPage() {
         description: error.message || "Failed to fetch expenses",
         variant: "destructive",
       });
+      setExpenses([]);
+      setStats(null);
     } finally {
       setLoading(false);
     }
