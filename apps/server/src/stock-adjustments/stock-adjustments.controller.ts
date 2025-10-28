@@ -6,7 +6,7 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CompanyId } from '../auth/decorators/company-id.decorator';
-import { GetCurrentUser } from '../auth/decorators/current-user.decorator';
+import { GetCurrentUserId } from '../auth/decorators/current-user.decorator';
 
 @Controller('stock-adjustments')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -19,7 +19,7 @@ export class StockAdjustmentsController {
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
   async create(
     @Body() dto: CreateStockAdjustmentDto,
-    @GetCurrentUser('userId') userId: string,
+    @GetCurrentUserId() userId: string,
     @CompanyId() companyId: string,
   ) {
     return this.stockAdjustmentsService.create(dto, userId, companyId);

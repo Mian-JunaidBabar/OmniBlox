@@ -331,7 +331,7 @@ export default function StockAdjustmentPage() {
                       className="border border-border rounded-lg p-4 space-y-4"
                     >
                       <div className="flex items-start justify-between">
-                        <div className="flex-1 grid gap-4 md:grid-cols-5">
+                        <div className="flex-1 grid gap-4 md:grid-cols-4">
                           <div className="space-y-2">
                             <Label>Product</Label>
                             <Select
@@ -379,18 +379,7 @@ export default function StockAdjustmentPage() {
                               </SelectContent>
                             </Select>
                           </div>
-                          <div className="space-y-2">
-                            <Label>Warehouse</Label>
-                            <Input
-                              value={
-                                warehouses.find(
-                                  (w) => w.id === selectedWarehouseId
-                                )?.name || "Not selected"
-                              }
-                              disabled
-                              className="bg-muted"
-                            />
-                          </div>
+                          {/* Warehouse column removed because warehouse is selected above */}
                           <div className="space-y-2">
                             <Label>Current Stock</Label>
                             <Input value={item.currentStock} disabled />

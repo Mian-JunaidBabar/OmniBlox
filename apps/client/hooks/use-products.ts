@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import type { Product } from "@/lib/types";
 import { useProductApi, type ProductListResponse } from "./use-product-api";
+import { useAuth } from "@/contexts/auth-context";
 
 const CACHE_TTL_MS = 60_000;
 
@@ -49,6 +50,7 @@ export function useAllProducts(
 ): UseAllProductsResult {
   const { skip = false, refreshInterval } = options;
   const { getProducts } = useProductApi();
+  const { isAuthenticated } = useAuth();
 
   const [products, setProducts] = useState<Product[]>(
     () => cachedResponse?.products ?? []
@@ -140,6 +142,11 @@ export function useAllProducts(
       return;
     }
 
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
+
     if (!isCacheFresh()) {
       fetchAll().catch(() => {
         /* error state already handled */
@@ -148,7 +155,7 @@ export function useAllProducts(
       updateStateFromResponse(cachedResponse);
       setLoading(false);
     }
-  }, [fetchAll, skip, updateStateFromResponse]);
+  }, [fetchAll, skip, updateStateFromResponse, isAuthenticated]);
 
   useEffect(() => {
     if (skip || !refreshInterval) {

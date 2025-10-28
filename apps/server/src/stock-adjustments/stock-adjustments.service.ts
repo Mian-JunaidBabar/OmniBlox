@@ -79,7 +79,7 @@ export class StockAdjustmentsService {
           itemsWithPreviousQuantities.map((item) =>
             tx.stockAdjustmentItem.create({
               data: {
-                adjustmentId: stockAdjustment.id,
+                stockAdjustmentId: stockAdjustment.id,
                 productId: item.productId,
                 warehouseId: dto.warehouseId,
                 previousQuantity: item.previousQuantity,
@@ -104,7 +104,6 @@ export class StockAdjustmentsService {
                 productId: item.productId,
                 warehouseId: dto.warehouseId,
                 quantity: item.newQuantity,
-                companyId,
               },
               update: {
                 quantity: item.newQuantity,
@@ -126,20 +125,19 @@ export class StockAdjustmentsService {
                     sku: true,
                   },
                 },
-              },
-            },
-            warehouse: {
-              select: {
-                id: true,
-                name: true,
+                warehouse: {
+                  select: {
+                    id: true,
+                    name: true,
+                  },
+                },
               },
             },
             user: {
               select: {
                 id: true,
                 email: true,
-                firstName: true,
-                lastName: true,
+                name: true,
               },
             },
           },

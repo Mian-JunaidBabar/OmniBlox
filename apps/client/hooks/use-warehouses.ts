@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuthenticatedApi } from "@/hooks/use-authenticated-api";
+import { useAuth } from "@/contexts/auth-context";
 
 export interface Warehouse {
   id: string;
@@ -9,6 +10,7 @@ export interface Warehouse {
 
 export function useWarehouses() {
   const { get } = useAuthenticatedApi();
+  const { isAuthenticated } = useAuth();
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -29,8 +31,13 @@ export function useWarehouses() {
   };
 
   useEffect(() => {
+    if (!isAuthenticated) {
+      setLoading(false);
+      return;
+    }
     loadWarehouses();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAuthenticated]);
 
   return {
     warehouses,

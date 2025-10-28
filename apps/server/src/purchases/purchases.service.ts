@@ -241,7 +241,6 @@ export class PurchasesService {
                 productId: item.productId,
                 warehouseId: purchaseOrder.warehouseId,
                 quantity: item.quantity,
-                companyId,
               },
               update: {
                 quantity: {
