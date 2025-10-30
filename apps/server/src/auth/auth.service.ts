@@ -6,7 +6,7 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
-import * as bcrypt from 'bcrypt';
+import { hashPassword, verifyPassword } from 'better-auth/crypto';
 
 @Injectable()
 export class AuthService {
@@ -42,8 +42,8 @@ export class AuthService {
       throw new ConflictException('Workspace URL is already taken');
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
+    // Hash password using Better Auth's hashing (compatible with their login)
+    const hashedPassword = await hashPassword(password);
 
     // Use transaction to create company and owner user
     const result = await this.prisma.$transaction(async (tx) => {
@@ -74,8 +74,8 @@ export class AuthService {
       await tx.account.create({
         data: {
           userId: user.id,
-          accountId: user.id,
-          providerId: 'credential',
+          accountId: email, // Use email as accountId for email/password auth
+          providerId: 'email', // Better Auth uses 'email' for email/password provider
           password: hashedPassword,
         },
       });
@@ -124,8 +124,11 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    // Verify password using Better Auth's verifyPassword
+    const isPasswordValid = await verifyPassword({
+      password,
+      hash: user.password,
+    });
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
@@ -218,16 +221,16 @@ export class AuthService {
       throw new UnauthorizedException('User not found');
     }
 
-    const isCurrentPasswordValid = await bcrypt.compare(
-      currentPassword,
-      user.password,
-    );
+    const isCurrentPasswordValid = await verifyPassword({
+      password: currentPassword,
+      hash: user.password,
+    });
 
     if (!isCurrentPasswordValid) {
       throw new UnauthorizedException('Current password is incorrect');
     }
 
-    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    const hashedNewPassword = await hashPassword(newPassword);
 
     await this.prisma.user.update({
       where: { id: userId },
@@ -238,7 +241,7 @@ export class AuthService {
     await this.prisma.account.updateMany({
       where: {
         userId: userId,
-        providerId: 'credential',
+        providerId: 'email', // Better Auth uses 'email' for email/password
       },
       data: {
         password: hashedNewPassword,

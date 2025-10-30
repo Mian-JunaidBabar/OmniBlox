@@ -61,6 +61,14 @@ async function bootstrap() {
   // Add cookie parser middleware
   app.use(cookieParser());
 
+  // Suppress harmless Chrome DevTools .well-known requests
+  app.use((req, res, next) => {
+    if (req.path.startsWith('/.well-known/')) {
+      return res.status(204).end();
+    }
+    next();
+  });
+
   // Register logging middleware early so all requests/responses are captured
   app.use(new LoggingMiddleware().use as any);
 

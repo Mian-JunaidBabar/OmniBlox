@@ -87,6 +87,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       await api.signup(data);
+      // Small delay to avoid potential read-after-write lag in the auth adapter
+      await new Promise((r) => setTimeout(r, 250));
       await login(data.email, data.password);
     } catch (error: any) {
       console.error("Signup failed:", error);
