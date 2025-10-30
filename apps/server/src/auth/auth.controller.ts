@@ -16,6 +16,12 @@ import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { VerifyEmailDto } from './dto/verify-email.dto';
+import { RequestMagicLinkDto } from './dto/request-magic-link.dto';
+import { VerifyMagicLinkDto } from './dto/verify-magic-link.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { ResendOtpDto } from './dto/resend-otp.dto';
+import { UpdateSignupEmailDto } from './dto/update-signup-email.dto';
 import {
   AuthGuard,
   Session,
@@ -201,5 +207,81 @@ export class AuthController {
       companyId: session.session.companyId,
       expiresAt: session.session.expiresAt,
     };
+  }
+
+  @Post('verify-email')
+  @AllowAnonymous()
+  @HttpCode(HttpStatus.OK)
+  async verifyEmail(@Body() verifyEmailDto: VerifyEmailDto) {
+    return this.authService.verifyEmail(verifyEmailDto.token);
+  }
+
+  @Post('magic-login/request')
+  @AllowAnonymous()
+  @HttpCode(HttpStatus.OK)
+  async requestMagicLink(@Body() requestMagicLinkDto: RequestMagicLinkDto) {
+    return this.authService.requestMagicLink(requestMagicLinkDto.email);
+  }
+
+  @Post('magic-login/verify')
+  @AllowAnonymous()
+  @HttpCode(HttpStatus.OK)
+  async verifyMagicLink(
+    @Body() verifyMagicLinkDto: VerifyMagicLinkDto,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    // Verify the magic link token and get user info
+    const userInfo = await this.authService.verifyMagicLink(
+      verifyMagicLinkDto.token,
+    );
+
+    // Create session manually
+    const { sessionToken, user } =
+      await this.authService.createMagicLinkSession(userInfo.id);
+
+    // Set the session cookie manually
+    res.cookie('better-auth.session_token', sessionToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    });
+
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        companyId: user.companyId,
+        company: user.company,
+      },
+      message: 'Logged in successfully via magic link',
+    };
+  }
+
+  @Post('verify-otp')
+  @AllowAnonymous()
+  @HttpCode(HttpStatus.OK)
+  async verifyOtp(@Body() verifyOtpDto: VerifyOtpDto) {
+    return this.authService.verifyOtp(verifyOtpDto.userId, verifyOtpDto.otp);
+  }
+
+  @Post('resend-otp')
+  @AllowAnonymous()
+  @HttpCode(HttpStatus.OK)
+  async resendOtp(@Body() resendOtpDto: ResendOtpDto) {
+    return this.authService.resendOtp(resendOtpDto.userId);
+  }
+
+  @Post('update-signup-email')
+  @AllowAnonymous()
+  @HttpCode(HttpStatus.OK)
+  async updateSignupEmail(@Body() updateSignupEmailDto: UpdateSignupEmailDto) {
+    return this.authService.updateSignupEmail(
+      updateSignupEmailDto.userId,
+      updateSignupEmailDto.newEmail,
+    );
   }
 }

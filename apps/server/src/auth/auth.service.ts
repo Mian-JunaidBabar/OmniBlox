@@ -2,15 +2,22 @@ import {
   Injectable,
   ConflictException,
   UnauthorizedException,
+  BadRequestException,
+  NotFoundException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
 import { hashPassword, verifyPassword } from 'better-auth/crypto';
+import { EmailService } from '../email/email.service';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private emailService: EmailService,
+  ) {}
 
   async signup(signupDto: SignupDto) {
     const {
@@ -66,7 +73,7 @@ export class AuthService {
           name,
           role: 'OWNER',
           companyId: company.id,
-          emailVerified: false, // Better Auth field
+          emailVerified: null, // Not verified yet; will be set when user clicks verification link
         },
       });
 
@@ -90,8 +97,8 @@ export class AuthService {
       return { user, company: updatedCompany };
     });
 
-    // Return user and company for Better Auth to create session
-    return {
+    // Prepare response
+    const signupResult = {
       userId: result.user.id,
       role: result.user.role,
       companyId: result.user.companyId,
@@ -110,6 +117,50 @@ export class AuthService {
         country: result.company.country,
       },
     };
+
+    // Send verification email asynchronously (don't block the response)
+    this._sendVerificationOtp(result.user).catch((error) => {
+      console.error('Failed to send verification OTP:', error);
+    });
+
+    return signupResult;
+  }
+
+  /**
+   * Private method to send verification OTP
+   */
+  private async _sendVerificationOtp(user: {
+    id: string;
+    email: string;
+    name: string;
+  }): Promise<string> {
+    // Generate 6-digit OTP
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 10); // 10 minutes from now
+
+    // Delete any existing verification tokens for this user
+    await this.prisma.authToken.deleteMany({
+      where: {
+        userId: user.id,
+        type: 'EMAIL_VERIFICATION',
+      },
+    });
+
+    // Store OTP in database
+    await this.prisma.authToken.create({
+      data: {
+        token: otp,
+        type: 'EMAIL_VERIFICATION',
+        expiresAt,
+        userId: user.id,
+      },
+    });
+
+    // Send email
+    await this.emailService.sendOtpEmail(user.email, user.name, otp);
+
+    return otp;
   }
 
   async validateCredentials(loginDto: LoginDto) {
@@ -250,5 +301,337 @@ export class AuthService {
     });
 
     return { message: 'Password updated successfully' };
+  }
+
+  /**
+   * Verify email with token
+   */
+  async verifyEmail(token: string): Promise<{ message: string }> {
+    // Find the token
+    const authToken = await this.prisma.authToken.findUnique({
+      where: { token },
+      include: { user: true },
+    });
+
+    if (!authToken || authToken.type !== 'EMAIL_VERIFICATION') {
+      throw new BadRequestException('Invalid verification token');
+    }
+
+    // Check if expired
+    if (authToken.expiresAt < new Date()) {
+      await this.prisma.authToken.delete({ where: { id: authToken.id } });
+      throw new BadRequestException('Verification token has expired');
+    }
+
+    // Update user's emailVerified field
+    await this.prisma.user.update({
+      where: { id: authToken.userId },
+      data: { emailVerified: new Date() },
+    });
+
+    // Delete the token (single-use)
+    await this.prisma.authToken.delete({ where: { id: authToken.id } });
+
+    return { message: 'Email verified successfully' };
+  }
+
+  /**
+   * Request magic link login
+   */
+  async requestMagicLink(email: string): Promise<{ message: string }> {
+    // Find user by email
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    // Always return success to prevent user enumeration
+    if (!user) {
+      return {
+        message:
+          'If an account exists, a magic link has been sent to your email',
+      };
+    }
+
+    // Generate secure token
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15); // 15 minutes from now
+
+    // Store token in database
+    await this.prisma.authToken.create({
+      data: {
+        token,
+        type: 'MAGIC_LINK_LOGIN',
+        expiresAt,
+        userId: user.id,
+      },
+    });
+
+    // Send email
+    await this.emailService.sendMagicLinkEmail(user.email, user.name, token);
+
+    return {
+      message: 'If an account exists, a magic link has been sent to your email',
+    };
+  }
+
+  /**
+   * Verify magic link token and return user info for session creation
+   */
+  async verifyMagicLink(token: string): Promise<{
+    id: string;
+    email: string;
+    name: string;
+    role: string;
+    companyId: string;
+    company: {
+      id: string;
+      name: string;
+      workspaceUrl: string;
+      industry: string | null;
+      country: string | null;
+    };
+  }> {
+    // Find the token
+    const authToken = await this.prisma.authToken.findUnique({
+      where: { token },
+      include: {
+        user: {
+          include: {
+            company: true,
+          },
+        },
+      },
+    });
+
+    if (!authToken || authToken.type !== 'MAGIC_LINK_LOGIN') {
+      throw new BadRequestException('Invalid magic link token');
+    }
+
+    // Check if expired
+    if (authToken.expiresAt < new Date()) {
+      await this.prisma.authToken.delete({ where: { id: authToken.id } });
+      throw new BadRequestException('Magic link has expired');
+    }
+
+    const user = authToken.user;
+
+    // Delete the token (single-use)
+    await this.prisma.authToken.delete({ where: { id: authToken.id } });
+
+    // Return full user info for session creation
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      companyId: user.companyId,
+      company: {
+        id: user.company.id,
+        name: user.company.name,
+        workspaceUrl: user.company.workspaceUrl,
+        industry: user.company.industry,
+        country: user.company.country,
+      },
+    };
+  }
+
+  /**
+   * Create a session manually for magic link login (bypass password check)
+   */
+  async createMagicLinkSession(userId: string): Promise<{
+    sessionToken: string;
+    user: {
+      id: string;
+      email: string;
+      name: string;
+      role: string;
+      companyId: string;
+      company: any;
+    };
+  }> {
+    const user = await this.getUserById(userId);
+
+    // Create session in database
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
+
+    const sessionToken = randomBytes(32).toString('hex');
+
+    await this.prisma.session.create({
+      data: {
+        userId: user.id,
+        token: sessionToken,
+        expiresAt,
+        companyId: user.companyId,
+        role: user.role,
+      },
+    });
+
+    return {
+      sessionToken,
+      user,
+    };
+  }
+
+  /**
+   * Verify OTP for email verification
+   */
+  async verifyOtp(
+    userId: string,
+    otp: string,
+  ): Promise<{ message: string; user: any }> {
+    // Find the user
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: { company: true },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check if already verified
+    if (user.emailVerified) {
+      return {
+        message: 'Email already verified',
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          emailVerified: user.emailVerified,
+        },
+      };
+    }
+
+    // Find the OTP token
+    const authToken = await this.prisma.authToken.findFirst({
+      where: {
+        userId,
+        type: 'EMAIL_VERIFICATION',
+        token: otp,
+      },
+    });
+
+    if (!authToken) {
+      throw new BadRequestException('Invalid OTP code');
+    }
+
+    // Check if expired
+    if (authToken.expiresAt < new Date()) {
+      await this.prisma.authToken.delete({ where: { id: authToken.id } });
+      throw new BadRequestException(
+        'OTP has expired. Please request a new one.',
+      );
+    }
+
+    // Update user's emailVerified field
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { emailVerified: new Date() },
+    });
+
+    // Delete the token (single-use)
+    await this.prisma.authToken.delete({ where: { id: authToken.id } });
+
+    return {
+      message: 'Email verified successfully',
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        emailVerified: new Date(),
+        company: {
+          id: user.company.id,
+          name: user.company.name,
+          workspaceUrl: user.company.workspaceUrl,
+        },
+      },
+    };
+  }
+
+  /**
+   * Resend OTP to user
+   */
+  async resendOtp(userId: string): Promise<{ message: string }> {
+    // Find the user
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check if already verified
+    if (user.emailVerified) {
+      throw new BadRequestException('Email already verified');
+    }
+
+    // Send new OTP
+    await this._sendVerificationOtp(user);
+
+    return { message: 'OTP sent successfully' };
+  }
+
+  /**
+   * Update email during signup process (before verification)
+   */
+  async updateSignupEmail(
+    userId: string,
+    newEmail: string,
+  ): Promise<{ message: string; email: string }> {
+    // Find the user
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    // Check if already verified
+    if (user.emailVerified) {
+      throw new BadRequestException(
+        'Cannot change email after verification. Please contact support.',
+      );
+    }
+
+    // Check if new email already exists
+    const existingUser = await this.prisma.user.findUnique({
+      where: { email: newEmail },
+    });
+
+    if (existingUser && existingUser.id !== userId) {
+      throw new ConflictException('Email already in use');
+    }
+
+    // Update user email
+    const updatedUser = await this.prisma.user.update({
+      where: { id: userId },
+      data: { email: newEmail },
+    });
+
+    // Update account email
+    await this.prisma.account.updateMany({
+      where: { userId },
+      data: { accountId: newEmail },
+    });
+
+    // Delete old OTP tokens
+    await this.prisma.authToken.deleteMany({
+      where: {
+        userId,
+        type: 'EMAIL_VERIFICATION',
+      },
+    });
+
+    // Send new OTP to new email
+    await this._sendVerificationOtp(updatedUser);
+
+    return {
+      message: 'Email updated successfully. New OTP sent.',
+      email: newEmail,
+    };
   }
 }

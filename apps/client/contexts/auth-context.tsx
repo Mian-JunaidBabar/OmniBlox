@@ -28,7 +28,7 @@ interface AuthContextType {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  signup: (data: SignupData) => Promise<void>;
+  signup: (data: SignupData) => Promise<{ userId: string }>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
 }
@@ -86,14 +86,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signup = async (data: SignupData) => {
     try {
       setIsLoading(true);
-      await api.signup(data);
-      // Small delay to avoid potential read-after-write lag in the auth adapter
-      await new Promise((r) => setTimeout(r, 250));
-      await login(data.email, data.password);
+      const response = await api.signup(data);
+      // Return userId for OTP verification page
+      return { userId: response.userId };
     } catch (error: any) {
       console.error("Signup failed:", error);
       setIsLoading(false);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 

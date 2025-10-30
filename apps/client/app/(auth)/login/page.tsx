@@ -14,16 +14,26 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Package, Mail, Lock, Loader2, AlertCircle } from "lucide-react";
+import {
+  Package,
+  Mail,
+  Lock,
+  Loader2,
+  AlertCircle,
+  Sparkles,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { useAuth } from "@/contexts/auth-context";
 import { GuestRoute } from "@/lib/route-guard";
+import { api } from "@/lib/api";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
+  const [showMagicLink, setShowMagicLink] = useState(false);
+  const [magicLinkSent, setMagicLinkSent] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
 
@@ -42,6 +52,21 @@ export default function LoginPage() {
     }
   };
 
+  const handleMagicLinkRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setError("");
+
+    try {
+      await api.post("/auth/magic-login/request", { email });
+      setMagicLinkSent(true);
+    } catch (err: any) {
+      setError(err.message || "Failed to send magic link");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <GuestRoute>
       <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-muted to-background p-4">
@@ -54,82 +79,184 @@ export default function LoginPage() {
               Welcome to OmniBlox
             </CardTitle>
             <CardDescription className="text-base text-muted-foreground">
-              Sign in to access your workspace
+              {showMagicLink
+                ? "Get a magic link sent to your email"
+                : "Sign in to access your workspace"}
             </CardDescription>
           </CardHeader>
 
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-5">
-              {/* Error Alert */}
-              {error && (
-                <Alert variant="destructive">
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>{error}</AlertDescription>
+            {magicLinkSent ? (
+              <div className="space-y-4">
+                <Alert className="bg-green-50 border-green-200">
+                  <Mail className="h-4 w-4 text-green-600" />
+                  <AlertDescription className="text-green-800">
+                    Check your email for your magic login link! It will expire
+                    in 15 minutes.
+                  </AlertDescription>
                 </Alert>
-              )}
-
-              {/* Email Field */}
-              <div className="space-y-2">
-                <Label htmlFor="email" className="text-sm font-medium">
-                  Email
-                </Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    placeholder="name@company.com"
-                    className="pl-10 text-sm font-medium"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    required
-                  />
-                </div>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setMagicLinkSent(false);
+                    setShowMagicLink(false);
+                    setEmail("");
+                  }}
+                >
+                  Back to Login
+                </Button>
               </div>
-
-              {/* Password Field */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <Label htmlFor="password" className="text-sm font-medium">
-                    Password
-                  </Label>
-                  <Link
-                    href="/forgot-password"
-                    className="text-xs font-medium text-primary hover:underline"
-                  >
-                    Forgot password?
-                  </Link>
-                </div>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                  <PasswordInput
-                    id="password"
-                    placeholder="Your password"
-                    className="pl-10 text-sm font-medium"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete="current-password"
-                    required
-                  />
-                </div>
-              </div>
-
-              {/* Submit Button */}
-              <Button
-                type="submit"
-                className="w-full font-semibold tracking-wide"
-                disabled={isLoading}
-              >
-                {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing
-                    in...
-                  </>
-                ) : (
-                  "Sign in"
+            ) : showMagicLink ? (
+              <form onSubmit={handleMagicLinkRequest} className="space-y-5">
+                {/* Error Alert */}
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
                 )}
-              </Button>
-            </form>
+
+                {/* Email Field */}
+                <div className="space-y-2">
+                  <Label htmlFor="magic-email" className="text-sm font-medium">
+                    Email
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="magic-email"
+                      type="email"
+                      placeholder="name@company.com"
+                      className="pl-10 text-sm font-medium"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <Button
+                  type="submit"
+                  className="w-full font-semibold tracking-wide"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />{" "}
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-4 w-4" /> Send Magic Link
+                    </>
+                  )}
+                </Button>
+
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full"
+                  onClick={() => setShowMagicLink(false)}
+                >
+                  Back to Password Login
+                </Button>
+              </form>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-5">
+                {/* Error Alert */}
+                {error && (
+                  <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>{error}</AlertDescription>
+                  </Alert>
+                )}
+
+                {/* Email Field */}
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-sm font-medium">
+                    Email
+                  </Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="name@company.com"
+                      className="pl-10 text-sm font-medium"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Password Field */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label htmlFor="password" className="text-sm font-medium">
+                      Password
+                    </Label>
+                    <Link
+                      href="/forgot-password"
+                      className="text-xs font-medium text-primary hover:underline"
+                    >
+                      Forgot password?
+                    </Link>
+                  </div>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <PasswordInput
+                      id="password"
+                      placeholder="Your password"
+                      className="pl-10 text-sm font-medium"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete="current-password"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* Submit Button */}
+                <Button
+                  type="submit"
+                  className="w-full font-semibold tracking-wide"
+                  disabled={isLoading}
+                >
+                  {isLoading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Signing
+                      in...
+                    </>
+                  ) : (
+                    "Sign in"
+                  )}
+                </Button>
+
+                {/* Magic Link Option */}
+                <div className="relative">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-background px-2 text-muted-foreground">
+                      Or
+                    </span>
+                  </div>
+                </div>
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => setShowMagicLink(true)}
+                >
+                  <Sparkles className="mr-2 h-4 w-4" /> Login with Magic Link
+                </Button>
+              </form>
+            )}
 
             <div className="mt-5 text-center text-sm text-muted-foreground">
               Don&apos;t have an account?{" "}

@@ -67,8 +67,13 @@ export default function SignupPage() {
     };
 
     try {
-      await signup(payload);
-      router.push("/dashboard");
+      const result = await signup(payload);
+      // Redirect to OTP verification page with userId and email
+      router.push(
+        `/verify-otp?email=${encodeURIComponent(payload.email)}&userId=${
+          result.userId
+        }`
+      );
     } catch (err: any) {
       setError(err.message || "An error occurred during signup");
     } finally {
