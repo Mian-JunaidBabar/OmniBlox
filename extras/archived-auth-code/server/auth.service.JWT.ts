@@ -3,6 +3,8 @@ import {
   ConflictException,
   UnauthorizedException,
 } from '@nestjs/common';
+import type { Response, Request } from 'express';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { SignupDto } from './dto/signup.dto';
 import { LoginDto } from './dto/login.dto';
@@ -10,9 +12,12 @@ import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private jwtService: JwtService,
+  ) {}
 
-  async signup(signupDto: SignupDto) {
+  async signup(signupDto: SignupDto, res: Response) {
     const {
       email,
       password,
@@ -58,7 +63,7 @@ export class AuthService {
         },
       });
 
-      // Create owner user with Better Auth fields
+      // Create owner user
       const user = await tx.user.create({
         data: {
           email,
@@ -66,17 +71,6 @@ export class AuthService {
           name,
           role: 'OWNER',
           companyId: company.id,
-          emailVerified: false, // Better Auth field
-        },
-      });
-
-      // Create Better Auth account entry
-      await tx.account.create({
-        data: {
-          userId: user.id,
-          accountId: user.id,
-          providerId: 'credential',
-          password: hashedPassword,
         },
       });
 
@@ -89,29 +83,11 @@ export class AuthService {
       return { user, company: updatedCompany };
     });
 
-    // Return user and company for Better Auth to create session
-    return {
-      userId: result.user.id,
-      role: result.user.role,
-      companyId: result.user.companyId,
-      user: {
-        id: result.user.id,
-        email: result.user.email,
-        name: result.user.name,
-        role: result.user.role,
-        companyId: result.user.companyId,
-      },
-      company: {
-        id: result.company.id,
-        name: result.company.name,
-        workspaceUrl: result.company.workspaceUrl,
-        industry: result.company.industry,
-        country: result.company.country,
-      },
-    };
+    // Set JWT tokens as HTTP-only cookies
+    return this.buildAuthResponse(result.user, result.company, res);
   }
 
-  async validateCredentials(loginDto: LoginDto) {
+  async login(loginDto: LoginDto, res: Response) {
     const { email, password } = loginDto;
 
     // Fetch user by email with company information
@@ -125,35 +101,39 @@ export class AuthService {
     }
 
     // Verify password
-    const isPasswordValid = await bcrypt.compare(password, user.password);
+    const isPasswordValid = await bcrypt.compare(
+      password,
+      user.password as string,
+    );
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Return user data for Better Auth session creation
-    return {
-      userId: user.id,
-      role: user.role,
-      companyId: user.companyId,
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        companyId: user.companyId,
-      },
-      company: {
-        id: user.company.id,
-        name: user.company.name,
-        workspaceUrl: user.company.workspaceUrl,
-        industry: user.company.industry,
-        country: user.company.country,
-      },
-    };
+    // Set JWT tokens as HTTP-only cookies
+    return this.buildAuthResponse(user, user.company, res);
   }
 
-  async getUserById(userId: string) {
+  async logout(req: Request, res: Response) {
+    // Clear the HTTP-only cookies
+    res.clearCookie('accessToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    res.clearCookie('refreshToken', {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+
+    return { message: 'Logged out successfully' };
+  }
+
+  async validateUser(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
       include: { company: true },
@@ -177,6 +157,30 @@ export class AuthService {
         country: user.company.country,
       },
     };
+  }
+
+  async refreshToken(refreshToken: string, res: Response) {
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
+
+    try {
+      const payload = this.jwtService.verify(refreshToken, {
+        secret:
+          process.env.JWT_REFRESH_SECRET ||
+          process.env.JWT_SECRET ||
+          'your-secret-key-change-in-production',
+      });
+
+      const user = await this.validateUser(payload.sub);
+      return this.buildAuthResponse(user, user.company, res);
+    } catch (error) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+  }
+
+  async getUserById(userId: string) {
+    return this.validateUser(userId);
   }
 
   async updateUserProfile(
@@ -234,17 +238,64 @@ export class AuthService {
       data: { password: hashedNewPassword },
     });
 
-    // Update Better Auth account password
-    await this.prisma.account.updateMany({
-      where: {
-        userId: userId,
-        providerId: 'credential',
-      },
-      data: {
-        password: hashedNewPassword,
-      },
+    return { message: 'Password updated successfully' };
+  }
+
+  private buildAuthResponse(user: any, company: any, res: Response) {
+    const payload = {
+      sub: user.id,
+      email: user.email,
+      role: user.role,
+      companyId: user.companyId,
+      workspaceUrl: company.workspaceUrl,
+    };
+
+    const accessToken = this.jwtService.sign(payload, {
+      secret: process.env.JWT_SECRET || 'your-secret-key-change-in-production',
+      expiresIn: (process.env.JWT_EXPIRES_IN as any) || '15m',
+    } as JwtSignOptions);
+
+    const refreshToken = this.jwtService.sign(payload, {
+      secret:
+        process.env.JWT_REFRESH_SECRET ||
+        process.env.JWT_SECRET ||
+        'your-secret-key-change-in-production',
+      expiresIn: (process.env.JWT_REFRESH_EXPIRES_IN as any) || '7d',
+    } as JwtSignOptions);
+
+    // Set tokens as HTTP-only cookies
+    res.cookie('accessToken', accessToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 15 * 60 * 1000, // 15 minutes
+      path: '/',
     });
 
-    return { message: 'Password updated successfully' };
+    res.cookie('refreshToken', refreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      path: '/',
+    });
+
+    // Return user and company data (no tokens in response!)
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        companyId: user.companyId,
+      },
+      company: {
+        id: company.id,
+        name: company.name,
+        workspaceUrl: company.workspaceUrl,
+        industry: company.industry,
+        country: company.country,
+      },
+    };
   }
 }

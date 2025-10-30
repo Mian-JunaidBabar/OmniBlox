@@ -11,14 +11,14 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AuthGuard } from '@thallesp/nestjs-better-auth';
 import { GetCurrentCompanyId } from '../auth/decorators/current-user.decorator';
 import { WarehousesService } from './warehouses.service';
 import { CreateWarehouseDto } from './dto/create-warehouse.dto';
 import { UpdateWarehouseDto } from './dto/update-warehouse.dto';
 
 @Controller('warehouses')
-@UseGuards(JwtAuthGuard)
+@UseGuards(AuthGuard)
 export class WarehousesController {
   constructor(private readonly warehousesService: WarehousesService) {}
 

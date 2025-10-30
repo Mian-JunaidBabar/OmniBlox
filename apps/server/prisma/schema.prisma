@@ -47,13 +47,15 @@ model Company {
 // --- MODIFIED USER & CONTACT MODELS ---
 
 model User {
-  id        String   @id @default(uuid())
-  email     String   @unique
-  password  String
-  name      String
-  role      UserRole @default(STAFF) // Role *within* the company
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id            String   @id @default(uuid())
+  email         String   @unique
+  password      String
+  name          String
+  role          UserRole @default(STAFF) // Role *within* the company
+  emailVerified Boolean  @default(false) // Required by Better Auth
+  image         String?  // Optional profile image
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // MODIFIED: User now belongs to a Company
   companyId String
@@ -67,8 +69,63 @@ model User {
   sales            Sale[]
   salesReturns     SalesReturn[]
   stockAdjustments StockAdjustment[]
+  
+  // Better Auth Relations
+  accounts Account[]
+  sessions Session[]
 
   @@map("users")
+}
+
+// Better Auth Models
+model Account {
+  id                    String    @id @default(uuid())
+  userId                String
+  accountId             String
+  providerId            String
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("accounts")
+}
+
+model Session {
+  id        String   @id @default(uuid())
+  userId    String
+  expiresAt DateTime
+  token     String   @unique
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  // Multi-tenant session fields
+  companyId String
+  role      String
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model Verification {
+  id         String   @id @default(uuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@map("verifications")
 }
 
 model Biller {

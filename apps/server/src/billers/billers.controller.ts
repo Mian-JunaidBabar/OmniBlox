@@ -10,7 +10,7 @@ import {
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AuthGuard } from '@thallesp/nestjs-better-auth';
 import { BillersService } from './billers.service';
 import { GetCurrentCompanyId } from '../auth/decorators/current-user.decorator';
 import {
@@ -21,7 +21,7 @@ import {
   BillerStatsDto,
 } from './dto/billers.dto';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(AuthGuard)
 @Controller('billers')
 export class BillersController {
   constructor(private readonly billersService: BillersService) {}

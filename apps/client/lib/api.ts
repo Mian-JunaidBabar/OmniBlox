@@ -17,8 +17,6 @@ export interface User {
 }
 
 export interface AuthResponse {
-  accessToken: string;
-  refreshToken: string;
   user: User;
   company: {
     id: string;
@@ -35,118 +33,12 @@ export interface ApiError {
   details?: any;
 }
 
-// Token management utilities
-class TokenManager {
-  private static ACCESS_TOKEN_KEY = "omniblox_access_token";
-  private static REFRESH_TOKEN_KEY = "omniblox_refresh_token";
-  private static USER_KEY = "omniblox_user";
-
-  static getAccessToken(): string | null {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(this.ACCESS_TOKEN_KEY);
-  }
-
-  static getRefreshToken(): string | null {
-    if (typeof window === "undefined") return null;
-    return localStorage.getItem(this.REFRESH_TOKEN_KEY);
-  }
-
-  static getUser(): User | null {
-    if (typeof window === "undefined") return null;
-    const user = localStorage.getItem(this.USER_KEY);
-    return user ? JSON.parse(user) : null;
-  }
-
-  static setTokens(
-    accessToken: string,
-    refreshToken: string,
-    user: User
-  ): void {
-    if (typeof window === "undefined") return;
-    localStorage.setItem(this.ACCESS_TOKEN_KEY, accessToken);
-    localStorage.setItem(this.REFRESH_TOKEN_KEY, refreshToken);
-    localStorage.setItem(this.USER_KEY, JSON.stringify(user));
-    try {
-      // Set a lightweight non-sensitive cookie so middleware can detect logged-in users during SSR.
-      // This cookie does not contain tokens; it's just a presence flag used for redirecting.
-      document.cookie = `omniblox_logged_in=1; path=/; max-age=${
-        60 * 60 * 24 * 7
-      }`; // 7 days
-    } catch (e) {
-      // ignore in environments where document isn't available
-    }
-  }
-
-  static clearTokens(): void {
-    if (typeof window === "undefined") return;
-    localStorage.removeItem(this.ACCESS_TOKEN_KEY);
-    localStorage.removeItem(this.REFRESH_TOKEN_KEY);
-    localStorage.removeItem(this.USER_KEY);
-    try {
-      // Remove the presence cookie
-      document.cookie = "omniblox_logged_in=; path=/; max-age=0";
-    } catch (e) {
-      // ignore
-    }
-  }
-
-  static isAuthenticated(): boolean {
-    return !!this.getAccessToken() && !!this.getUser();
-  }
-}
-
-// API Client with automatic token management
+// API Client with cookie-based authentication
 class ApiClient {
   private baseUrl: string;
-  private isRefreshing = false;
-  private failedQueue: Array<{
-    resolve: (value?: any) => void;
-    reject: (error?: any) => void;
-  }> = [];
 
   constructor() {
     this.baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
-  }
-
-  private async processQueue(error: any = null, token: string | null = null) {
-    this.failedQueue.forEach(({ resolve, reject }) => {
-      if (error) {
-        reject(error);
-      } else {
-        resolve(token);
-      }
-    });
-
-    this.failedQueue = [];
-  }
-
-  private async refreshToken(): Promise<string | null> {
-    const refreshToken = TokenManager.getRefreshToken();
-
-    if (!refreshToken) {
-      throw new Error("No refresh token available");
-    }
-
-    try {
-      const response = await fetch(`${this.baseUrl}/auth/refresh`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ refreshToken }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to refresh token");
-      }
-
-      const data: AuthResponse = await response.json();
-      TokenManager.setTokens(data.accessToken, data.refreshToken, data.user);
-      return data.accessToken;
-    } catch (error) {
-      TokenManager.clearTokens();
-      throw error;
-    }
   }
 
   private async request<T>(
@@ -154,57 +46,19 @@ class ApiClient {
     options: RequestInit = {}
   ): Promise<T> {
     const url = `${this.baseUrl}${endpoint}`;
-    const accessToken = TokenManager.getAccessToken();
 
-    // Add authorization header if token exists
+    // Add default headers
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
       ...(options.headers as Record<string, string>),
     };
 
-    if (accessToken) {
-      headers["Authorization"] = `Bearer ${accessToken}`;
-    }
-
     try {
       const response = await fetch(url, {
         ...options,
         headers,
+        credentials: "include", // Critical: sends cookies with every request
       });
-
-      // Handle 401 errors with token refresh
-      if (response.status === 401 && accessToken) {
-        if (this.isRefreshing) {
-          // If already refreshing, queue this request
-          return new Promise((resolve, reject) => {
-            this.failedQueue.push({ resolve, reject });
-          }).then(() => {
-            // Retry the original request with new token
-            return this.request<T>(endpoint, options);
-          });
-        }
-
-        this.isRefreshing = true;
-
-        try {
-          const newToken = await this.refreshToken();
-          this.processQueue(null, newToken);
-          this.isRefreshing = false;
-
-          // Retry the original request with new token
-          return this.request<T>(endpoint, options);
-        } catch (refreshError) {
-          this.processQueue(refreshError, null);
-          this.isRefreshing = false;
-
-          // Clear tokens and redirect to login
-          TokenManager.clearTokens();
-          if (typeof window !== "undefined") {
-            window.location.href = "/login";
-          }
-          throw refreshError;
-        }
-      }
 
       if (!response.ok) {
         // Try to read text first, then parse JSON for better diagnostics
@@ -227,9 +81,9 @@ class ApiClient {
         // Log a compact string; warn for client errors, error for server errors
         const logFn = response.status >= 500 ? console.error : console.warn;
         logFn(
-          `API Error: ${error.message} (${options.method || "GET"} ${url}) [$
+          `API Error: ${error.message} (${options.method || "GET"} ${url}) [${
             response.status
-          ]`
+          }]`
         );
         console.debug("API Error details:", {
           url,
@@ -283,31 +137,17 @@ class ApiClient {
     otherIndustry?: string;
     country: string;
   }): Promise<AuthResponse> {
-    const response = await this.request<AuthResponse>("/auth/signup", {
+    return this.request<AuthResponse>("/auth/signup", {
       method: "POST",
       body: JSON.stringify(data),
     });
-
-    TokenManager.setTokens(
-      response.accessToken,
-      response.refreshToken,
-      response.user
-    );
-    return response;
   }
 
   async login(email: string, password: string): Promise<AuthResponse> {
-    const response = await this.request<AuthResponse>("/auth/login", {
+    return this.request<AuthResponse>("/auth/login", {
       method: "POST",
       body: JSON.stringify({ email, password }),
     });
-
-    TokenManager.setTokens(
-      response.accessToken,
-      response.refreshToken,
-      response.user
-    );
-    return response;
   }
 
   async logout(): Promise<void> {
@@ -315,8 +155,6 @@ class ApiClient {
       await this.request("/auth/logout", { method: "POST" });
     } catch {
       // Ignore errors on logout
-    } finally {
-      TokenManager.clearTokens();
     }
   }
 
@@ -331,19 +169,10 @@ class ApiClient {
     otherIndustry?: string;
     country?: string;
   }): Promise<User> {
-    const user = await this.request<User>("/auth/profile", {
+    return this.request<User>("/auth/profile", {
       method: "PUT",
       body: JSON.stringify(data),
     });
-
-    // Update stored user data
-    TokenManager.setTokens(
-      TokenManager.getAccessToken()!,
-      TokenManager.getRefreshToken()!,
-      user
-    );
-
-    return user;
   }
 
   async changePassword(
@@ -393,24 +222,13 @@ class ApiClient {
 
 // Export singleton instance
 export const api = new ApiClient();
-export { TokenManager };
 
-// Utility functions
-export function isAuthenticated(): boolean {
-  return TokenManager.isAuthenticated();
-}
-
-export function getCurrentUser(): User | null {
-  return TokenManager.getUser();
-}
-
-export function requireAuth(): User {
-  const user = getCurrentUser();
-  if (!user || !isAuthenticated()) {
-    if (typeof window !== "undefined") {
-      window.location.href = "/login";
-    }
-    throw new Error("Authentication required");
+// Utility function for requiring auth (will be handled by AuthContext)
+export function requireAuth(): void {
+  // This will be handled by the AuthContext and middleware
+  // If we reach this point without auth, redirect to login
+  if (typeof window !== "undefined") {
+    window.location.href = "/login";
   }
-  return user;
+  throw new Error("Authentication required");
 }

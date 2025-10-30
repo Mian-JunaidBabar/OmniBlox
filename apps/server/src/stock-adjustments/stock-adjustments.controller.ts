@@ -2,14 +2,14 @@ import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { StockAdjustmentsService } from './stock-adjustments.service';
 import { CreateStockAdjustmentDto } from './dto/create-stock-adjustment.dto';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AuthGuard } from '@thallesp/nestjs-better-auth';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CompanyId } from '../auth/decorators/company-id.decorator';
 import { GetCurrentUserId } from '../auth/decorators/current-user.decorator';
 
 @Controller('stock-adjustments')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard)
 export class StockAdjustmentsController {
   constructor(
     private readonly stockAdjustmentsService: StockAdjustmentsService,

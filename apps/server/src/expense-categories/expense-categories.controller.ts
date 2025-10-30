@@ -12,13 +12,13 @@ import { UserRole } from '@prisma/client';
 import { ExpenseCategoriesService } from './expense-categories.service';
 import { CreateExpenseCategoryDto } from './dto/create-expense-category.dto';
 import { UpdateExpenseCategoryDto } from './dto/update-expense-category.dto';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AuthGuard } from '@thallesp/nestjs-better-auth';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CompanyId } from '../auth/decorators/company-id.decorator';
 
 @Controller('expense-categories')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard)
 export class ExpenseCategoriesController {
   constructor(
     private readonly expenseCategoriesService: ExpenseCategoriesService,

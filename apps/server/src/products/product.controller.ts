@@ -15,7 +15,7 @@ import { ProductService } from './product.service';
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { CreateStockAdjustmentDto } from './dto/create-stock-adjustment.dto';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AuthGuard } from '@thallesp/nestjs-better-auth';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CompanyId } from '../auth/decorators/company-id.decorator';
@@ -23,7 +23,7 @@ import { UserRole } from '@prisma/client';
 import { GetCurrentUserId } from '../auth/decorators/current-user.decorator';
 
 @Controller('products')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard)
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 

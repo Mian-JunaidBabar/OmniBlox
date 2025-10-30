@@ -16,9 +16,12 @@ import { DeliveriesModule } from './deliveries/deliveries.module';
 import { StockAdjustmentsModule } from './stock-adjustments/stock-adjustments.module';
 import { PurchasesModule } from './purchases/purchases.module';
 import { ExpenseCategoriesModule } from './expense-categories/expense-categories.module';
+import { AuthModule as BetterAuthModule } from '@thallesp/nestjs-better-auth';
+import { auth } from './auth/auth.config';
 
 @Module({
   imports: [
+    BetterAuthModule.forRoot({ auth }),
     PrismaModule,
     AuthModule,
     ProductModule,

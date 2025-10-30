@@ -16,7 +16,7 @@ import {
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UserRole } from '@prisma/client';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AuthGuard } from '@thallesp/nestjs-better-auth';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CompanyId } from '../auth/decorators/company-id.decorator';
@@ -27,7 +27,7 @@ import { UpdateExpenseDto } from './dto/update-expense.dto';
 import { UpdateExpenseStatusDto } from './dto/update-expense-status.dto';
 
 @Controller('expenses')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard)
 export class ExpensesController {
   constructor(private readonly expensesService: ExpensesService) {}
 

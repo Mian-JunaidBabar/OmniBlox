@@ -9,7 +9,7 @@ import {
   Query,
   UseGuards,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AuthGuard } from '@thallesp/nestjs-better-auth';
 import {
   GetCurrentUserId,
   GetCurrentCompanyId,
@@ -25,7 +25,7 @@ import {
 } from './dto/inventory.dto';
 
 @Controller('inventory')
-@UseGuards(JwtAuthGuard)
+@UseGuards(AuthGuard)
 export class InventoryController {
   constructor(private inventoryService: InventoryService) {}
 

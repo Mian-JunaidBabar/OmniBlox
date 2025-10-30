@@ -10,7 +10,7 @@ import {
   UseGuards,
   ParseIntPipe,
 } from '@nestjs/common';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AuthGuard } from '@thallesp/nestjs-better-auth';
 import { TeamService } from './team.service';
 import {
   GetCurrentUser,
@@ -27,7 +27,7 @@ import {
   UserStatsDto,
 } from './dto/team.dto';
 
-@UseGuards(JwtAuthGuard)
+@UseGuards(AuthGuard)
 @Controller('team')
 export class TeamController {
   constructor(private readonly teamService: TeamService) {}

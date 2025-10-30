@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { UserRole } from '@prisma/client';
 import { DeliveriesService } from './deliveries.service';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { AuthGuard } from '@thallesp/nestjs-better-auth';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { CompanyId } from '../auth/decorators/company-id.decorator';
@@ -19,7 +19,7 @@ import { DispatchDeliveryDto } from './dto/dispatch-delivery.dto';
 import { UpdateDeliveryDto } from './dto/update-delivery.dto';
 
 @Controller('deliveries')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard)
 export class DeliveriesController {
   constructor(private readonly deliveriesService: DeliveriesService) {}
 

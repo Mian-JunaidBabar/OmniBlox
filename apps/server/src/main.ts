@@ -10,7 +10,10 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // Disable built-in body parser (Better Auth handles raw bodies)
+  const app = await NestFactory.create(AppModule, {
+    bodyParser: false,
+  });
 
   // Initialize database connection check
   const databaseUrl =
