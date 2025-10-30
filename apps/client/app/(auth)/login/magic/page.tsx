@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { api } from "@/lib/api";
 import { useAuth } from "@/contexts/auth-context";
@@ -22,8 +22,13 @@ export default function MagicLoginPage() {
     "loading"
   );
   const [message, setMessage] = useState("Logging you in...");
+  const hasRun = useRef(false);
 
   useEffect(() => {
+    // Prevent double execution in React Strict Mode (dev)
+    if (hasRun.current) return;
+    hasRun.current = true;
+
     const token = searchParams.get("token");
 
     if (!token) {
@@ -42,8 +47,20 @@ export default function MagicLoginPage() {
         setStatus("success");
         setMessage("Successfully logged in! Redirecting to dashboard...");
 
-        // Refresh user context to update auth state
-        await refreshUser();
+        // Tiny delay to ensure the browser has persisted the Set-Cookie
+        // before we issue the next credentialed fetch
+        await new Promise((r) => setTimeout(r, 200));
+
+        // Refresh user context to update auth state; on failure, still redirect
+        try {
+          await refreshUser({ silent: true });
+        } catch (e) {
+          // Non-fatal: cookie may not be immediately available; proceed
+          console.warn(
+            "Refresh after magic link failed; proceeding to dashboard",
+            e
+          );
+        }
 
         // Redirect to dashboard after a brief delay
         setTimeout(() => {

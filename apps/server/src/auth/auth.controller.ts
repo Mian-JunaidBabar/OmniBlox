@@ -239,11 +239,12 @@ export class AuthController {
     const { sessionToken, user } =
       await this.authService.createMagicLinkSession(userInfo.id);
 
-    // Set the session cookie manually
+    // Set the session cookie manually; prefer dev-friendly flags locally
+    const isDev = process.env.NODE_ENV !== 'production';
     res.cookie('better-auth.session_token', sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
+      secure: isDev ? false : true,
+      sameSite: isDev ? 'lax' : 'none',
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
       path: '/',
     });

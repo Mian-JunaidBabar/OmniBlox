@@ -39,7 +39,14 @@ class ApiClient {
   private baseUrl: string;
 
   constructor() {
-    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
+    if (process.env.NEXT_PUBLIC_API_URL) {
+      this.baseUrl = process.env.NEXT_PUBLIC_API_URL;
+    } else if (typeof window !== "undefined") {
+      // Use Next.js rewrite to proxy to the API during development
+      this.baseUrl = `${window.location.origin}/api`;
+    } else {
+      this.baseUrl = "http://localhost:5000";
+    }
   }
 
   private async request<T>(

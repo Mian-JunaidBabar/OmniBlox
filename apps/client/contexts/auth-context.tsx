@@ -30,7 +30,7 @@ interface AuthContextType {
   login: (email: string, password: string) => Promise<void>;
   signup: (data: SignupData) => Promise<{ userId: string }>;
   logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
+  refreshUser: (opts?: { silent?: boolean }) => Promise<void>;
 }
 
 interface SignupData {
@@ -86,9 +86,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signup = async (data: SignupData) => {
     try {
       setIsLoading(true);
-      const response = await api.signup(data);
+      const response = (await api.signup(data)) as any;
       // Return userId for OTP verification page
-      return { userId: response.userId };
+      return { userId: response.userId as string };
     } catch (error: any) {
       console.error("Signup failed:", error);
       setIsLoading(false);
@@ -113,12 +113,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const refreshUser = async () => {
+  const refreshUser = async (opts?: { silent?: boolean }) => {
     try {
       const userData = await api.getProfile();
       setUser(userData as User);
     } catch (error) {
-      console.error("Failed to refresh user:", error);
+      if (!opts?.silent) {
+        // Provide more useful diagnostics without crashing the app
+        const err = error as any;
+        const message = err?.message || "Unknown error";
+        const status = err?.statusCode;
+        console.error("Failed to refresh user:", {
+          message,
+          status,
+          error: err,
+        });
+      }
       setUser(null);
     }
   };
