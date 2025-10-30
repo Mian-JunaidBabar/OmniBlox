@@ -224,11 +224,12 @@ class ApiClient {
           details: errorData,
         } as ApiError;
 
-        // Log a compact, always-visible string plus a structured object
-        console.error(
-          `API Error: ${error.message} (${options.method || "GET"} ${url}) [${
+        // Log a compact string; warn for client errors, error for server errors
+        const logFn = response.status >= 500 ? console.error : console.warn;
+        logFn(
+          `API Error: ${error.message} (${options.method || "GET"} ${url}) [$
             response.status
-          }]`
+          ]`
         );
         console.debug("API Error details:", {
           url,

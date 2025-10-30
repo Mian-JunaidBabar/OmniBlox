@@ -40,7 +40,8 @@ interface TransferItem {
 export default function StockTransferPage() {
   const router = useRouter();
   const { toast } = useToast();
-  const { getWarehouses, transferStock } = useInventoryApi();
+  const { getWarehouses, transferStock, getWarehouseInventory } =
+    useInventoryApi();
   const { getProducts } = useProductApi();
 
   const [loading, setLoading] = useState(true);
@@ -53,6 +54,9 @@ export default function StockTransferPage() {
   const [items, setItems] = useState<TransferItem[]>([
     { id: "1", productId: "", quantity: 1 },
   ]);
+  const [productAvailability, setProductAvailability] = useState<
+    Record<string, number>
+  >({});
 
   useEffect(() => {
     loadData();
@@ -79,14 +83,40 @@ export default function StockTransferPage() {
     }
   }
 
+  // Load availability for source warehouse and clamp quantities
+  useEffect(() => {
+    (async () => {
+      if (!fromWarehouse) {
+        setProductAvailability({});
+        setItems((prev) => prev.map((row) => ({ ...row, quantity: 0 })));
+        return;
+      }
+      try {
+        const data = await getWarehouseInventory(fromWarehouse);
+        const map: Record<string, number> = {};
+        for (const row of data.inventory || []) {
+          map[row.productId] = row.quantity;
+        }
+        setProductAvailability(map);
+        setItems((prev) =>
+          prev.map((row) => {
+            const avail = map[row.productId] ?? 0;
+            const nextQty = avail <= 0 ? 0 : Math.min(row.quantity, avail);
+            return { ...row, quantity: nextQty };
+          })
+        );
+      } catch (e) {
+        setProductAvailability({});
+        setItems((prev) => prev.map((row) => ({ ...row, quantity: 0 })));
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fromWarehouse]);
+
   const addItem = () => {
     setItems([
       ...items,
-      {
-        id: Date.now().toString(),
-        productId: "",
-        quantity: 1,
-      },
+      { id: Date.now().toString(), productId: "", quantity: 1 },
     ]);
   };
 
@@ -97,20 +127,32 @@ export default function StockTransferPage() {
   };
 
   const updateItem = (id: string, field: keyof TransferItem, value: any) => {
-    setItems(
-      items.map((item) => {
+    setItems((prev) =>
+      prev.map((item) => {
         if (item.id === id) {
           return { ...item, [field]: value };
         }
         return item;
       })
     );
+    if (field === "productId") {
+      const avail = productAvailability[value as string] ?? 0;
+      setItems((prev) =>
+        prev.map((row) =>
+          row.id === id
+            ? {
+                ...row,
+                quantity: avail <= 0 ? 0 : Math.min(row.quantity, avail),
+              }
+            : row
+        )
+      );
+    }
   };
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    // Validation
     if (!fromWarehouse || !toWarehouse) {
       toast({
         title: "Validation Error",
@@ -141,10 +183,22 @@ export default function StockTransferPage() {
       return;
     }
 
+    const insufficient = validItems.filter((it) => {
+      const available = productAvailability[it.productId] ?? 0;
+      return it.quantity > available;
+    });
+    if (insufficient.length > 0) {
+      toast({
+        title: "Insufficient stock",
+        description:
+          "One or more items exceed available quantity in the source warehouse.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       setSubmitting(true);
-
-      // Process each item as a separate transfer
       for (const item of validItems) {
         await transferStock({
           productId: item.productId,
@@ -154,19 +208,15 @@ export default function StockTransferPage() {
           notes: notes || undefined,
         });
       }
-
       toast({
         title: "Success",
         description: `Successfully transferred ${validItems.length} item(s)`,
       });
       router.push("/inventory");
-    } catch (error) {
-      console.error("Failed to transfer stock:", error);
-      toast({
-        title: "Error",
-        description: "Failed to transfer stock. Please try again.",
-        variant: "destructive",
-      });
+    } catch (error: any) {
+      const message =
+        error?.message || "Failed to transfer stock. Please try again.";
+      toast({ title: "Error", description: message, variant: "destructive" });
     } finally {
       setSubmitting(false);
     }
@@ -304,11 +354,20 @@ export default function StockTransferPage() {
                           <SelectValue placeholder="Select product" />
                         </SelectTrigger>
                         <SelectContent>
-                          {products.map((product) => (
-                            <SelectItem key={product.id} value={product.id}>
-                              {product.name} ({product.sku})
-                            </SelectItem>
-                          ))}
+                          {products.map((product) => {
+                            const avail = productAvailability[product.id] ?? 0;
+                            const disabled = !!fromWarehouse && avail <= 0;
+                            return (
+                              <SelectItem
+                                key={product.id}
+                                value={product.id}
+                                disabled={disabled}
+                              >
+                                {product.name} ({product.sku})
+                                {fromWarehouse ? `  ${avail} available` : ""}
+                              </SelectItem>
+                            );
+                          })}
                         </SelectContent>
                       </Select>
                     </div>
@@ -317,19 +376,44 @@ export default function StockTransferPage() {
                       <Label>
                         Quantity <span className="text-destructive">*</span>
                       </Label>
-                      <Input
-                        type="number"
-                        min="1"
-                        value={item.quantity}
-                        onChange={(e) =>
-                          updateItem(
-                            item.id,
-                            "quantity",
-                            Number.parseInt(e.target.value) || 0
-                          )
-                        }
-                        required
-                      />
+                      {(() => {
+                        const available = productAvailability[item.productId];
+                        const hasAvail = typeof available === "number";
+                        const isDisabled =
+                          !item.productId ||
+                          !fromWarehouse ||
+                          (hasAvail && available <= 0);
+                        return (
+                          <Input
+                            type="number"
+                            min={hasAvail && available > 0 ? 1 : undefined}
+                            max={
+                              hasAvail && available > 0 ? available : undefined
+                            }
+                            value={item.quantity}
+                            onChange={(e) =>
+                              updateItem(
+                                item.id,
+                                "quantity",
+                                Number.parseInt(e.target.value) || 0
+                              )
+                            }
+                            required={hasAvail && available > 0}
+                            disabled={isDisabled}
+                          />
+                        );
+                      })()}
+                      <p className="text-xs text-muted-foreground">
+                        {!fromWarehouse
+                          ? "Select source warehouse"
+                          : !item.productId
+                          ? "Select product"
+                          : (productAvailability[item.productId] ?? 0) <= 0
+                          ? "No stock available in source"
+                          : `Available in source: ${
+                              productAvailability[item.productId]
+                            }`}
+                      </p>
                     </div>
                   </div>
 
