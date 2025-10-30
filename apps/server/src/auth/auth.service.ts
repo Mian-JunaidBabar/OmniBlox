@@ -71,11 +71,12 @@ export class AuthService {
       });
 
       // Create Better Auth account entry
+      // Better Auth's email/password uses 'credential' as providerId
       await tx.account.create({
         data: {
           userId: user.id,
-          accountId: email, // Use email as accountId for email/password auth
-          providerId: 'email', // Better Auth uses 'email' for email/password provider
+          accountId: user.id, // Use user.id as accountId for credential provider
+          providerId: 'credential', // Better Auth uses 'credential' for email/password
           password: hashedPassword,
         },
       });
@@ -241,7 +242,7 @@ export class AuthService {
     await this.prisma.account.updateMany({
       where: {
         userId: userId,
-        providerId: 'email', // Better Auth uses 'email' for email/password
+        providerId: 'credential', // Better Auth uses 'credential' for email/password
       },
       data: {
         password: hashedNewPassword,
