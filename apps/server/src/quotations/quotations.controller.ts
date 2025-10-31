@@ -77,9 +77,21 @@ export class QuotationsController {
   @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
   convertToSale(
     @Param('id') id: string,
+    @Body() body: { warehouseId?: string },
     @UserId() userId: string,
     @CompanyId() companyId: string,
   ) {
-    return this.quotationsService.convertToSale(id, userId, companyId);
+    return this.quotationsService.convertToSale(
+      id,
+      userId,
+      companyId,
+      body.warehouseId,
+    );
+  }
+
+  @Get(':id/stock-levels')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER, UserRole.STAFF)
+  getStockLevels(@Param('id') id: string, @CompanyId() companyId: string) {
+    return this.quotationsService.getStockLevels(id, companyId);
   }
 }

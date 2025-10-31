@@ -105,10 +105,19 @@ export function useQuotationsApi() {
   );
 
   const convertQuotationToSale = useCallback(
-    async (id: string): Promise<any> => {
-      return post(`/quotations/${id}/convert-to-sale`, {}) as Promise<any>;
+    async (id: string, warehouseId: string): Promise<any> => {
+      return post(`/quotations/${id}/convert-to-sale`, {
+        warehouseId,
+      }) as Promise<any>;
     },
     [post]
+  );
+
+  const getQuotationStockLevels = useCallback(
+    async (id: string): Promise<any> => {
+      return get(`/quotations/${id}/stock-levels`) as Promise<any>;
+    },
+    [get]
   );
 
   return {
@@ -119,5 +128,6 @@ export function useQuotationsApi() {
     updateQuotationStatus,
     deleteQuotation,
     convertQuotationToSale,
+    getQuotationStockLevels,
   };
 }

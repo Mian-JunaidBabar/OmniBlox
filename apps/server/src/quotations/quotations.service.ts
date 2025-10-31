@@ -272,7 +272,12 @@ export class QuotationsService {
    * Convert an accepted quotation to a sale
    * This is the critical method that handles the conversion workflow
    */
-  async convertToSale(id: string, userId: string, companyId: string) {
+  async convertToSale(
+    id: string,
+    userId: string,
+    companyId: string,
+    warehouseId?: string,
+  ) {
     // 1) Load quotation and validate status (no long-running transaction)
     const quotation = await this.prisma.quotation.findFirst({
       where: { id, companyId },
@@ -292,15 +297,24 @@ export class QuotationsService {
       );
     }
 
-    // 2) Resolve default warehouse outside of a transaction
-    const warehouse = await this.prisma.warehouse.findFirst({
-      where: { companyId },
-    });
-
-    if (!warehouse) {
-      throw new BadRequestException(
-        'No warehouse found. Please create a warehouse first.',
-      );
+    // 2) Resolve warehouse (use provided or default)
+    let warehouse;
+    if (warehouseId) {
+      warehouse = await this.prisma.warehouse.findFirst({
+        where: { id: warehouseId, companyId },
+      });
+      if (!warehouse) {
+        throw new BadRequestException('Selected warehouse not found.');
+      }
+    } else {
+      warehouse = await this.prisma.warehouse.findFirst({
+        where: { companyId },
+      });
+      if (!warehouse) {
+        throw new BadRequestException(
+          'No warehouse found. Please create a warehouse first.',
+        );
+      }
     }
 
     // 3) Build CreateSaleDto and delegate to SalesService (which handles its own atomic transaction)
@@ -337,6 +351,93 @@ export class QuotationsService {
       sale,
       quotation,
       message: 'Quotation successfully converted to sale',
+    };
+  }
+
+  /**
+   * Get stock levels for all products in a quotation across all warehouses
+   */
+  async getStockLevels(id: string, companyId: string) {
+    const quotation = await this.prisma.quotation.findFirst({
+      where: { id, companyId },
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+      },
+    });
+
+    if (!quotation) {
+      throw new NotFoundException(`Quotation with ID ${id} not found`);
+    }
+
+    // Get all warehouses for the company
+    const warehouses = await this.prisma.warehouse.findMany({
+      where: { companyId },
+      select: {
+        id: true,
+        name: true,
+        location: true,
+      },
+    });
+
+    if (!warehouses.length) {
+      throw new BadRequestException(
+        'No warehouses found. Please create a warehouse first.',
+      );
+    }
+
+    // Get inventory for each product in each warehouse
+    const productIds = quotation.items.map((item) => item.productId);
+    const inventory = await this.prisma.inventory.findMany({
+      where: {
+        productId: { in: productIds },
+        warehouseId: { in: warehouses.map((w) => w.id) },
+      },
+      select: {
+        productId: true,
+        warehouseId: true,
+        quantity: true,
+      },
+    });
+
+    // Build response with stock levels per warehouse
+    const stockLevels = warehouses.map((warehouse) => {
+      const products = quotation.items.map((item) => {
+        const stock = inventory.find(
+          (inv) =>
+            inv.productId === item.productId &&
+            inv.warehouseId === warehouse.id,
+        );
+        const available = stock ? Number(stock.quantity) : 0;
+        const required = Number(item.quantity);
+        return {
+          productId: item.productId,
+          productName: item.product.name,
+          sku: item.product.sku,
+          required,
+          available,
+          sufficient: available >= required,
+        };
+      });
+
+      const allSufficient = products.every((p) => p.sufficient);
+
+      return {
+        warehouseId: warehouse.id,
+        warehouseName: warehouse.name,
+        location: warehouse.location,
+        products,
+        canFulfill: allSufficient,
+      };
+    });
+
+    return {
+      quotationId: quotation.id,
+      referenceNumber: quotation.referenceNumber,
+      warehouses: stockLevels,
     };
   }
 }

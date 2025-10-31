@@ -24,6 +24,8 @@ import {
   ShoppingCart,
   Loader2,
   AlertCircle,
+  Warehouse,
+  Package,
 } from "lucide-react";
 import Link from "next/link";
 import {
@@ -42,6 +44,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
 
 const statusConfig = {
   PENDING: {
@@ -66,14 +76,21 @@ export default function QuotationDetailPage() {
   const router = useRouter();
   const quotationId = params.id as string;
 
-  const { getQuotation, updateQuotationStatus, convertQuotationToSale } =
-    useQuotationsApi();
+  const {
+    getQuotation,
+    updateQuotationStatus,
+    convertQuotationToSale,
+    getQuotationStockLevels,
+  } = useQuotationsApi();
 
   const [quotation, setQuotation] = useState<QuotationWithDetails | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [showConvertDialog, setShowConvertDialog] = useState(false);
+  const [stockLevels, setStockLevels] = useState<any>(null);
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string>("");
+  const [loadingStock, setLoadingStock] = useState(false);
 
   useEffect(() => {
     loadQuotation();
@@ -123,27 +140,66 @@ export default function QuotationDetailPage() {
   };
 
   const handleConvertToSale = async () => {
-    if (!quotation) return;
+    if (!quotation || !selectedWarehouse) {
+      toast.error("Please select a warehouse");
+      return;
+    }
 
     try {
       setActionLoading(true);
       setShowConvertDialog(false);
 
-      // Call the conversion API
-      const sale = await convertQuotationToSale(quotation.id);
+      // Call the conversion API with selected warehouse
+      const result = await convertQuotationToSale(
+        quotation.id,
+        selectedWarehouse
+      );
+      const sale = result.sale;
 
       toast.success("Quotation converted to sale successfully!", {
-        description: `Sale ${sale.referenceNumber} has been created`,
+        description: `Sale ${sale.invoiceNumber} has been created`,
       });
 
       // Navigate to the new sale detail page
       router.push(`/sales/${sale.id}`);
     } catch (err: any) {
-      toast.error(err.message || "Failed to convert quotation to sale", {
-        description:
-          "Please ensure you have a warehouse configured and sufficient inventory",
-      });
+      console.error("Conversion error:", err);
+
+      // Extract the actual error message from the nested structure
+      let errorMessage = "Failed to convert quotation to sale";
+
+      if (err?.message) {
+        errorMessage = err.message;
+      } else if (err?.details?.message) {
+        errorMessage = Array.isArray(err.details.message)
+          ? err.details.message.join(", ")
+          : err.details.message;
+      }
+
+      toast.error(errorMessage);
       setActionLoading(false);
+    }
+  };
+
+  const handleShowConvertDialog = async () => {
+    try {
+      setLoadingStock(true);
+      setShowConvertDialog(true);
+      const levels = await getQuotationStockLevels(quotationId);
+      setStockLevels(levels);
+
+      // Auto-select first warehouse that can fulfill
+      const canFulfill = levels.warehouses.find((w: any) => w.canFulfill);
+      if (canFulfill) {
+        setSelectedWarehouse(canFulfill.warehouseId);
+      } else if (levels.warehouses.length > 0) {
+        setSelectedWarehouse(levels.warehouses[0].warehouseId);
+      }
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to load stock levels");
+      setShowConvertDialog(false);
+    } finally {
+      setLoadingStock(false);
     }
   };
 
@@ -254,7 +310,7 @@ export default function QuotationDetailPage() {
 
             {quotation.status === "COMPLETED" && (
               <Button
-                onClick={() => setShowConvertDialog(true)}
+                onClick={handleShowConvertDialog}
                 disabled={actionLoading}
                 className="gap-2 bg-emerald-600 hover:bg-emerald-700"
                 size="lg"
@@ -457,46 +513,179 @@ export default function QuotationDetailPage() {
 
       {/* Convert to Sale Confirmation Dialog */}
       <AlertDialog open={showConvertDialog} onOpenChange={setShowConvertDialog}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <ShoppingCart className="h-5 w-5" />
               Convert Quotation to Sale
             </AlertDialogTitle>
-            {/* Keep description to plain text only to avoid invalid <p> nesting */}
             <AlertDialogDescription>
-              This will create a new sale record based on this quotation.
+              Select a warehouse to fulfill this sale from.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {/* Additional rich content should not be inside AlertDialogDescription since it renders a <p> */}
-          <div className="space-y-2">
-            <p>The sale will include:</p>
-            <ul className="list-disc list-inside space-y-1 text-sm">
-              <li>All items from this quotation</li>
-              <li>Customer information</li>
-              <li>Pricing and totals</li>
-              <li>Automatic inventory adjustments</li>
-              <li>Delivery record creation</li>
-            </ul>
-            <p className="font-medium pt-2">
-              Total amount: $
-              {Number(quotation.totalAmount).toLocaleString(undefined, {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </p>
-            <p className="text-xs pt-2">
-              Make sure you have sufficient inventory and a warehouse configured
-              before proceeding.
-            </p>
-          </div>
+
+          {loadingStock ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+            </div>
+          ) : stockLevels ? (
+            <div className="space-y-4">
+              {/* Warehouse Selection */}
+              <div className="space-y-2">
+                <Label htmlFor="warehouse">Select Warehouse</Label>
+                <Select
+                  value={selectedWarehouse}
+                  onValueChange={setSelectedWarehouse}
+                >
+                  <SelectTrigger id="warehouse">
+                    <SelectValue placeholder="Choose a warehouse..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {stockLevels.warehouses.map((wh: any) => (
+                      <SelectItem key={wh.warehouseId} value={wh.warehouseId}>
+                        <div className="flex items-center gap-2">
+                          <Warehouse className="h-4 w-4" />
+                          <span>{wh.warehouseName}</span>
+                          {wh.location && (
+                            <span className="text-xs text-muted-foreground">
+                              ({wh.location})
+                            </span>
+                          )}
+                          {wh.canFulfill ? (
+                            <Badge
+                              variant="outline"
+                              className="ml-2 bg-emerald-50 text-emerald-700 border-emerald-200"
+                            >
+                              <CheckCircle className="h-3 w-3 mr-1" />
+                              Can Fulfill
+                            </Badge>
+                          ) : (
+                            <Badge
+                              variant="outline"
+                              className="ml-2 bg-red-50 text-red-700 border-red-200"
+                            >
+                              <XCircle className="h-3 w-3 mr-1" />
+                              Insufficient Stock
+                            </Badge>
+                          )}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Stock Level Details for Selected Warehouse */}
+              {selectedWarehouse &&
+                (() => {
+                  const warehouse = stockLevels.warehouses.find(
+                    (w: any) => w.warehouseId === selectedWarehouse
+                  );
+                  return warehouse ? (
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="text-base">
+                          Stock Levels - {warehouse.warehouseName}
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <div className="space-y-2">
+                          {warehouse.products.map((product: any) => (
+                            <div
+                              key={product.productId}
+                              className={`flex items-center justify-between p-3 rounded-lg border ${
+                                product.sufficient
+                                  ? "bg-emerald-50 border-emerald-200"
+                                  : "bg-red-50 border-red-200"
+                              }`}
+                            >
+                              <div className="flex items-center gap-3">
+                                <Package className="h-4 w-4" />
+                                <div>
+                                  <div className="font-medium">
+                                    {product.productName}
+                                  </div>
+                                  {product.sku && (
+                                    <div className="text-xs text-muted-foreground">
+                                      SKU: {product.sku}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="flex items-center gap-4">
+                                <div className="text-sm text-right">
+                                  <div className="font-medium">
+                                    Required: {product.required}
+                                  </div>
+                                  <div
+                                    className={
+                                      product.sufficient
+                                        ? "text-emerald-600"
+                                        : "text-red-600"
+                                    }
+                                  >
+                                    Available: {product.available}
+                                  </div>
+                                </div>
+                                {product.sufficient ? (
+                                  <CheckCircle className="h-5 w-5 text-emerald-600" />
+                                ) : (
+                                  <XCircle className="h-5 w-5 text-red-600" />
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {!warehouse.canFulfill && (
+                          <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                            <div className="flex gap-2">
+                              <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                              <div className="text-sm text-amber-800">
+                                <p className="font-medium">
+                                  Insufficient Stock Warning
+                                </p>
+                                <p>
+                                  This warehouse does not have enough stock to
+                                  fulfill all items. The conversion will fail
+                                  unless you select a different warehouse or
+                                  adjust inventory levels.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ) : null;
+                })()}
+
+              <div className="pt-2 text-sm text-muted-foreground">
+                <p className="font-medium">The sale will include:</p>
+                <ul className="list-disc list-inside space-y-1 mt-1">
+                  <li>All items from this quotation</li>
+                  <li>Customer information and pricing</li>
+                  <li>Automatic inventory deduction from selected warehouse</li>
+                  <li>Delivery record creation</li>
+                </ul>
+              </div>
+            </div>
+          ) : null}
+
           <AlertDialogFooter>
             <AlertDialogCancel disabled={actionLoading}>
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleConvertToSale}
-              disabled={actionLoading}
+              disabled={
+                actionLoading ||
+                !selectedWarehouse ||
+                (stockLevels &&
+                  !stockLevels.warehouses.find(
+                    (w: any) => w.warehouseId === selectedWarehouse
+                  )?.canFulfill)
+              }
               className="bg-emerald-600 hover:bg-emerald-700"
             >
               {actionLoading ? (
