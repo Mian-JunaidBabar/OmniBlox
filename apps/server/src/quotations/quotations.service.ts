@@ -273,83 +273,70 @@ export class QuotationsService {
    * This is the critical method that handles the conversion workflow
    */
   async convertToSale(id: string, userId: string, companyId: string) {
-    return await this.prisma.$transaction(async (tx) => {
-      // 1. Find the quotation and ensure it's accepted
-      const quotation = await tx.quotation.findFirst({
-        where: {
-          id,
-          companyId,
-        },
-        include: {
-          items: {
-            include: {
-              product: true,
-            },
-          },
-          customer: true,
-        },
-      });
-
-      if (!quotation) {
-        throw new NotFoundException(`Quotation with ID ${id} not found`);
-      }
-
-      if (quotation.status !== OrderStatus.COMPLETED) {
-        throw new BadRequestException(
-          'Only accepted quotations can be converted to sales',
-        );
-      }
-
-      // 2. Get the default warehouse (first warehouse of the company)
-      const warehouse = await tx.warehouse.findFirst({
-        where: { companyId },
-      });
-
-      if (!warehouse) {
-        throw new BadRequestException(
-          'No warehouse found. Please create a warehouse first.',
-        );
-      }
-
-      // 3. Prepare CreateSaleDto from quotation data
-      const createSaleDto: CreateSaleDto = {
-        customer: {
-          id: quotation.customer.id,
-          name: quotation.customer.name,
-          email: quotation.customer.email || undefined,
-          phone: quotation.customer.phone || undefined,
-          address: quotation.customer.address || undefined,
-        },
-        warehouseId: warehouse.id,
-        saleDate: new Date().toISOString(),
-        dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(), // 30 days from now
-        items: quotation.items.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          unitPrice: Number(item.unitPrice),
-        })),
-        taxRate: 0,
-        discount: 0,
-        notes: `Converted from Quotation ${quotation.referenceNumber}`,
-        shippingAddress: quotation.customer.address || undefined,
-      };
-
-      // 4. Create the sale using SalesService (reuses existing logic including inventory decrement)
-      const sale = await this.salesService.create(
-        createSaleDto,
-        userId,
-        companyId,
-        quotation.id, // Pass quotation ID to track source
-      );
-
-      // 5. Optionally update quotation to mark as converted
-      // For now, we keep status as COMPLETED
-
-      return {
-        sale,
-        quotation,
-        message: 'Quotation successfully converted to sale',
-      };
+    // 1) Load quotation and validate status (no long-running transaction)
+    const quotation = await this.prisma.quotation.findFirst({
+      where: { id, companyId },
+      include: {
+        items: { include: { product: true } },
+        customer: true,
+      },
     });
+
+    if (!quotation) {
+      throw new NotFoundException(`Quotation with ID ${id} not found`);
+    }
+
+    if (quotation.status !== OrderStatus.COMPLETED) {
+      throw new BadRequestException(
+        'Only accepted quotations can be converted to sales',
+      );
+    }
+
+    // 2) Resolve default warehouse outside of a transaction
+    const warehouse = await this.prisma.warehouse.findFirst({
+      where: { companyId },
+    });
+
+    if (!warehouse) {
+      throw new BadRequestException(
+        'No warehouse found. Please create a warehouse first.',
+      );
+    }
+
+    // 3) Build CreateSaleDto and delegate to SalesService (which handles its own atomic transaction)
+    const createSaleDto: CreateSaleDto = {
+      customer: {
+        id: quotation.customer.id,
+        name: quotation.customer.name,
+        email: quotation.customer.email || undefined,
+        phone: quotation.customer.phone || undefined,
+        address: quotation.customer.address || undefined,
+      },
+      warehouseId: warehouse.id,
+      saleDate: new Date().toISOString(),
+      dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+      items: quotation.items.map((item) => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: Number(item.unitPrice),
+      })),
+      taxRate: 0,
+      discount: 0,
+      notes: `Converted from Quotation ${quotation.referenceNumber}`,
+      shippingAddress: quotation.customer.address || undefined,
+    };
+
+    const sale = await this.salesService.create(
+      createSaleDto,
+      userId,
+      companyId,
+      quotation.id,
+    );
+
+    return {
+      sale,
+      quotation,
+      message: 'Quotation successfully converted to sale',
+    };
   }
 }
