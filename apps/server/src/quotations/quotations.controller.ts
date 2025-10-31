@@ -13,7 +13,7 @@ import { QuotationsService } from './quotations.service';
 import { CreateQuotationDto } from './dto/create-quotation.dto';
 import { UpdateQuotationDto } from './dto/update-quotation.dto';
 import { UpdateQuotationStatusDto } from './dto/update-quotation-status.dto';
-import { BetterAuthGuard } from '../auth/guards/better-auth.guard';
+import { AuthGuard } from '@thallesp/nestjs-better-auth';
 import { RolesGuard } from '../auth/guards/roles.guard';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { UserRole } from '@prisma/client';
@@ -21,7 +21,7 @@ import { UserId } from '../auth/decorators/user-id.decorator';
 import { CompanyId } from '../auth/decorators/company-id.decorator';
 
 @Controller('quotations')
-@UseGuards(BetterAuthGuard, RolesGuard)
+@UseGuards(AuthGuard, RolesGuard)
 export class QuotationsController {
   constructor(private readonly quotationsService: QuotationsService) {}
 
