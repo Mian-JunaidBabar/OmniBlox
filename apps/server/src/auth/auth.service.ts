@@ -505,6 +505,102 @@ export class AuthService {
   }
 
   /**
+   * Request password reset - send reset link via email
+   */
+  async requestPasswordReset(email: string): Promise<{ message: string }> {
+    // Find user by email
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    // Always return success to prevent user enumeration
+    if (!user) {
+      return {
+        message:
+          'If an account exists, a password reset link has been sent to your email',
+      };
+    }
+
+    // Generate secure token
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 15); // 15 minutes from now
+
+    // Store token in database
+    await this.prisma.authToken.create({
+      data: {
+        token,
+        type: 'PASSWORD_RESET',
+        expiresAt,
+        userId: user.id,
+      },
+    });
+
+    // Send email
+    await this.emailService.sendPasswordResetEmail(
+      user.email,
+      user.name,
+      token,
+    );
+
+    return {
+      message:
+        'If an account exists, a password reset link has been sent to your email',
+    };
+  }
+
+  /**
+   * Verify password reset token and update password
+   */
+  async verifyPasswordReset(
+    token: string,
+    newPassword: string,
+  ): Promise<{ message: string }> {
+    // Find the token
+    const authToken = await this.prisma.authToken.findUnique({
+      where: { token },
+      include: {
+        user: true,
+      },
+    });
+
+    if (!authToken || authToken.type !== 'PASSWORD_RESET') {
+      throw new BadRequestException('Invalid password reset token');
+    }
+
+    // Check if expired
+    if (authToken.expiresAt < new Date()) {
+      await this.prisma.authToken.delete({ where: { id: authToken.id } });
+      throw new BadRequestException('Password reset link has expired');
+    }
+
+    const user = authToken.user;
+
+    // Hash the new password
+    const hashedPassword = await hashPassword(newPassword);
+
+    // Update user password
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { password: hashedPassword },
+    });
+
+    // Also update the account record
+    await this.prisma.account.updateMany({
+      where: { userId: user.id, providerId: 'credential' },
+      data: { password: hashedPassword },
+    });
+
+    // Delete the token (single-use)
+    await this.prisma.authToken.delete({ where: { id: authToken.id } });
+
+    return {
+      message:
+        'Password reset successful. You can now log in with your new password.',
+    };
+  }
+
+  /**
    * Verify OTP for email verification
    */
   async verifyOtp(

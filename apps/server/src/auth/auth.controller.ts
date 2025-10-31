@@ -22,6 +22,8 @@ import { VerifyMagicLinkDto } from './dto/verify-magic-link.dto';
 import { VerifyOtpDto } from './dto/verify-otp.dto';
 import { ResendOtpDto } from './dto/resend-otp.dto';
 import { UpdateSignupEmailDto } from './dto/update-signup-email.dto';
+import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
+import { VerifyPasswordResetDto } from './dto/verify-password-reset.dto';
 import {
   AuthGuard,
   Session,
@@ -297,6 +299,27 @@ export class AuthController {
     return this.authService.updateSignupEmail(
       updateSignupEmailDto.userId,
       updateSignupEmailDto.newEmail,
+    );
+  }
+
+  @Post('password-reset/request')
+  @AllowAnonymous()
+  @HttpCode(HttpStatus.OK)
+  async requestPasswordReset(
+    @Body() requestPasswordResetDto: RequestPasswordResetDto,
+  ) {
+    return this.authService.requestPasswordReset(requestPasswordResetDto.email);
+  }
+
+  @Post('password-reset/verify')
+  @AllowAnonymous()
+  @HttpCode(HttpStatus.OK)
+  async verifyPasswordReset(
+    @Body() verifyPasswordResetDto: VerifyPasswordResetDto,
+  ) {
+    return this.authService.verifyPasswordReset(
+      verifyPasswordResetDto.token,
+      verifyPasswordResetDto.newPassword,
     );
   }
 }
