@@ -1,5 +1,9 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -7,17 +11,240 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { TrendingDown, TrendingUp, ArrowLeft } from "lucide-react";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  ArrowLeft,
+  Plus,
+  Trash2,
+  TrendingDown,
+  TrendingUp,
+} from "lucide-react";
+import { useWarehouses } from "@/hooks/use-warehouses";
+import { useAllProducts } from "@/hooks/use-products";
+import { useSuppliersApi } from "@/hooks/use-suppliers-api";
+import { useReturnsApi } from "@/hooks/use-returns-api";
+import { useToast } from "@/hooks/use-toast";
+
+type ItemRow = {
+  id: string;
+  productId: string;
+  quantity: number;
+  unitPrice: number;
+};
+
+function useSuppliersList() {
+  const { getSuppliers } = useSuppliersApi();
+  const [suppliers, setSuppliers] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = (await getSuppliers({ limit: 1000 })) as any;
+        const list = Array.isArray(res)
+          ? res
+          : Array.isArray(res?.suppliers)
+          ? res.suppliers
+          : [];
+        if (mounted) {
+          setSuppliers(list.map((s: any) => ({ id: s.id, name: s.name })));
+        }
+      } catch (e: any) {
+        setError(e?.message || "Failed to load suppliers");
+      } finally {
+        setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [getSuppliers]);
+
+  return { suppliers, loading, error };
+}
 
 export default function NewReturnPage() {
   const router = useRouter();
+  const { toast } = useToast();
+  const { warehouses, loading: whLoading } = useWarehouses();
+  const { products, loading: prodLoading } = useAllProducts();
+  const { suppliers, loading: suppLoading } = useSuppliersList();
+  const { createSalesReturn, createPurchaseReturn } = useReturnsApi();
+
+  const [tab, setTab] = useState<"customer" | "supplier">("customer");
+
+  const [customerForm, setCustomerForm] = useState({
+    warehouseId: "",
+    reason: "",
+    items: [
+      { id: crypto.randomUUID(), productId: "", quantity: 1, unitPrice: 0 },
+    ] as ItemRow[],
+  });
+
+  const [supplierForm, setSupplierForm] = useState({
+    warehouseId: "",
+    supplierId: "",
+    reason: "",
+    items: [
+      { id: crypto.randomUUID(), productId: "", quantity: 1, unitPrice: 0 },
+    ] as ItemRow[],
+  });
+
+  const productsById = useMemo(() => {
+    const map = new Map<string, any>();
+    for (const p of products) map.set(p.id, p);
+    return map;
+  }, [products]);
+
+  const customerTotal = useMemo(
+    () =>
+      customerForm.items.reduce(
+        (sum, it) =>
+          sum + (Number(it.unitPrice) || 0) * (Number(it.quantity) || 0),
+        0
+      ),
+    [customerForm.items]
+  );
+  const supplierTotal = useMemo(
+    () =>
+      supplierForm.items.reduce(
+        (sum, it) =>
+          sum + (Number(it.unitPrice) || 0) * (Number(it.quantity) || 0),
+        0
+      ),
+    [supplierForm.items]
+  );
+
+  const addItem = (kind: "customer" | "supplier") => {
+    const row: ItemRow = {
+      id: crypto.randomUUID(),
+      productId: "",
+      quantity: 1,
+      unitPrice: 0,
+    };
+    if (kind === "customer")
+      setCustomerForm((f) => ({ ...f, items: [...f.items, row] }));
+    else setSupplierForm((f) => ({ ...f, items: [...f.items, row] }));
+  };
+
+  const removeItem = (kind: "customer" | "supplier", id: string) => {
+    if (kind === "customer")
+      setCustomerForm((f) => ({
+        ...f,
+        items: f.items.filter((i) => i.id !== id),
+      }));
+    else
+      setSupplierForm((f) => ({
+        ...f,
+        items: f.items.filter((i) => i.id !== id),
+      }));
+  };
+
+  const updateItem = (
+    kind: "customer" | "supplier",
+    id: string,
+    patch: Partial<ItemRow>
+  ) => {
+    const up = (items: ItemRow[]) =>
+      items.map((i) => (i.id === id ? { ...i, ...patch } : i));
+    if (kind === "customer")
+      setCustomerForm((f) => ({ ...f, items: up(f.items) }));
+    else setSupplierForm((f) => ({ ...f, items: up(f.items) }));
+  };
+
+  const onProductSelected = (
+    kind: "customer" | "supplier",
+    id: string,
+    productId: string
+  ) => {
+    const p = productsById.get(productId);
+    const defaultPrice =
+      kind === "customer"
+        ? Number(p?.salePrice ?? 0)
+        : Number(p?.costPrice ?? 0);
+    updateItem(kind, id, { productId, unitPrice: defaultPrice });
+  };
+
+  const submitting = false; // can be wired if needed
+
+  const handleCreateCustomer = async () => {
+    try {
+      if (!customerForm.warehouseId) throw new Error("Select a warehouse");
+      const items = customerForm.items
+        .filter((it) => it.productId && it.quantity > 0)
+        .map((it) => ({
+          productId: it.productId,
+          quantity: it.quantity,
+          unitPrice: Number(it.unitPrice),
+        }));
+      if (!items.length) throw new Error("Add at least one item");
+      await createSalesReturn({
+        warehouseId: customerForm.warehouseId,
+        reason: customerForm.reason || undefined,
+        items,
+      });
+      toast({ title: "Customer return created" });
+      router.push("/returns");
+    } catch (e: any) {
+      toast({
+        title: "Failed to create",
+        description: e?.message || "Unknown error",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCreateSupplier = async () => {
+    try {
+      if (!supplierForm.warehouseId) throw new Error("Select a warehouse");
+      if (!supplierForm.supplierId) throw new Error("Select a supplier");
+      const items = supplierForm.items
+        .filter((it) => it.productId && it.quantity > 0)
+        .map((it) => ({
+          productId: it.productId,
+          quantity: it.quantity,
+          unitPrice: Number(it.unitPrice),
+        }));
+      if (!items.length) throw new Error("Add at least one item");
+      await createPurchaseReturn({
+        warehouseId: supplierForm.warehouseId,
+        supplierId: supplierForm.supplierId,
+        reason: supplierForm.reason || undefined,
+        items,
+      });
+      toast({ title: "Supplier return created" });
+      router.push("/returns");
+    } catch (e: any) {
+      toast({
+        title: "Failed to create",
+        description: e?.message || "Unknown error",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const disabled =
+    whLoading || prodLoading || (tab === "supplier" && suppLoading);
 
   return (
     <div className="p-6 space-y-6">
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-4 mb-2">
         <Link href="/returns">
           <Button variant="ghost" size="icon">
             <ArrowLeft className="h-4 w-4" />
@@ -26,100 +253,346 @@ export default function NewReturnPage() {
         <div>
           <h1 className="text-3xl font-semibold tracking-tight">New Return</h1>
           <p className="text-sm text-muted-foreground">
-            Select the type of return you want to create
+            Create a customer or supplier return
           </p>
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto">
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card
-            className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-primary/50"
-            onClick={() => router.push("/returns/new/customer")}
-          >
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setTab(v as any)}
+        className="max-w-5xl"
+      >
+        <TabsList>
+          <TabsTrigger value="customer" className="gap-2">
+            <TrendingDown className="h-4 w-4 text-red-600" /> Customer Return
+          </TabsTrigger>
+          <TabsTrigger value="supplier" className="gap-2">
+            <TrendingUp className="h-4 w-4 text-emerald-600" /> Supplier Return
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Customer Return */}
+        <TabsContent value="customer">
+          <Card>
             <CardHeader>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="h-12 w-12 rounded-lg bg-red-100 flex items-center justify-center">
-                  <TrendingDown className="h-6 w-6 text-red-600" />
-                </div>
-                <CardTitle className="text-2xl">Customer Return</CardTitle>
-              </div>
-              <CardDescription className="text-base">
-                Process returns from customers for sales transactions
-              </CardDescription>
+              <CardTitle>Customer Return</CardTitle>
+              <CardDescription>Add items back to inventory</CardDescription>
             </CardHeader>
-            <CardContent>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-start gap-2">
-                  <span className="text-primary mt-0.5">•</span>
-                  <span>Return products sold to customers</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary mt-0.5">•</span>
-                  <span>Add items back to inventory</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary mt-0.5">•</span>
-                  <span>Issue refunds or credit notes</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary mt-0.5">•</span>
-                  <span>Track return reasons and conditions</span>
-                </li>
-              </ul>
-              <Button className="w-full mt-6">Create Customer Return</Button>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="flex flex-col gap-2">
+                  <Label>Warehouse</Label>
+                  <Select
+                    value={customerForm.warehouseId}
+                    onValueChange={(v) =>
+                      setCustomerForm((f) => ({ ...f, warehouseId: v }))
+                    }
+                    disabled={disabled}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select warehouse" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {warehouses.map((w) => (
+                        <SelectItem key={w.id} value={w.id}>
+                          {w.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label>Reason</Label>
+                  <Input
+                    placeholder="Optional reason"
+                    value={customerForm.reason}
+                    onChange={(e) =>
+                      setCustomerForm((f) => ({ ...f, reason: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium">Items</h3>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => addItem("customer")}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Add item
+                  </Button>
+                </div>
+
+                {customerForm.items.map((it) => (
+                  <div
+                    key={it.id}
+                    className="grid gap-3 md:grid-cols-12 items-end border rounded-md p-3"
+                  >
+                    <div className="md:col-span-6 flex flex-col gap-2">
+                      <Label>Product</Label>
+                      <Select
+                        value={it.productId}
+                        onValueChange={(v) =>
+                          onProductSelected("customer", it.id, v)
+                        }
+                        disabled={disabled}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select product" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          {products.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="md:col-span-2 flex flex-col gap-2">
+                      <Label>Qty</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={it.quantity}
+                        onChange={(e) =>
+                          updateItem("customer", it.id, {
+                            quantity: Math.max(1, Number(e.target.value) || 1),
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="md:col-span-2 flex flex-col gap-2">
+                      <Label>Unit Price</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={it.unitPrice}
+                        onChange={(e) =>
+                          updateItem("customer", it.id, {
+                            unitPrice: Math.max(0, Number(e.target.value) || 0),
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="md:col-span-2 flex items-center justify-between gap-2">
+                      <div className="text-sm text-muted-foreground">
+                        {(
+                          Number(it.unitPrice) * Number(it.quantity) || 0
+                        ).toFixed(2)}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removeItem("customer", it.id)}
+                        disabled={customerForm.items.length <= 1}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="flex justify-end text-sm text-muted-foreground">
+                  <div>Total: ${customerTotal.toFixed(2)}</div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => router.push("/returns")}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateCustomer}
+                  disabled={disabled || submitting}
+                >
+                  Create Return
+                </Button>
+              </div>
             </CardContent>
           </Card>
+        </TabsContent>
 
-          <Card
-            className="hover:shadow-lg transition-shadow cursor-pointer border-2 hover:border-primary/50"
-            onClick={() => router.push("/returns/new/supplier")}
-          >
+        {/* Supplier Return */}
+        <TabsContent value="supplier">
+          <Card>
             <CardHeader>
-              <div className="flex items-center gap-3 mb-2">
-                <div className="h-12 w-12 rounded-lg bg-emerald-100 flex items-center justify-center">
-                  <TrendingUp className="h-6 w-6 text-emerald-600" />
-                </div>
-                <CardTitle className="text-2xl">Supplier Return</CardTitle>
-              </div>
-              <CardDescription className="text-base">
-                Return products back to suppliers for purchase orders
-              </CardDescription>
+              <CardTitle>Supplier Return</CardTitle>
+              <CardDescription>Send items back to supplier</CardDescription>
             </CardHeader>
-            <CardContent>
-              <ul className="space-y-2 text-sm text-muted-foreground">
-                <li className="flex items-start gap-2">
-                  <span className="text-primary mt-0.5">•</span>
-                  <span>Return defective or incorrect items</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary mt-0.5">•</span>
-                  <span>Remove items from inventory</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary mt-0.5">•</span>
-                  <span>Request refund or replacement</span>
-                </li>
-                <li className="flex items-start gap-2">
-                  <span className="text-primary mt-0.5">•</span>
-                  <span>Document quality issues</span>
-                </li>
-              </ul>
-              <Button className="w-full mt-6">Create Supplier Return</Button>
+            <CardContent className="space-y-6">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="flex flex-col gap-2">
+                  <Label>Warehouse</Label>
+                  <Select
+                    value={supplierForm.warehouseId}
+                    onValueChange={(v) =>
+                      setSupplierForm((f) => ({ ...f, warehouseId: v }))
+                    }
+                    disabled={disabled}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select warehouse" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {warehouses.map((w) => (
+                        <SelectItem key={w.id} value={w.id}>
+                          {w.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label>Supplier</Label>
+                  <Select
+                    value={supplierForm.supplierId}
+                    onValueChange={(v) =>
+                      setSupplierForm((f) => ({ ...f, supplierId: v }))
+                    }
+                    disabled={disabled}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select supplier" />
+                    </SelectTrigger>
+                    <SelectContent className="max-h-72">
+                      {suppliers.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Label>Reason</Label>
+                  <Input
+                    placeholder="Optional reason"
+                    value={supplierForm.reason}
+                    onChange={(e) =>
+                      setSupplierForm((f) => ({ ...f, reason: e.target.value }))
+                    }
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium">Items</h3>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    onClick={() => addItem("supplier")}
+                  >
+                    <Plus className="h-4 w-4 mr-1" /> Add item
+                  </Button>
+                </div>
+
+                {supplierForm.items.map((it) => (
+                  <div
+                    key={it.id}
+                    className="grid gap-3 md:grid-cols-12 items-end border rounded-md p-3"
+                  >
+                    <div className="md:col-span-6 flex flex-col gap-2">
+                      <Label>Product</Label>
+                      <Select
+                        value={it.productId}
+                        onValueChange={(v) =>
+                          onProductSelected("supplier", it.id, v)
+                        }
+                        disabled={disabled}
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select product" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          {products.map((p) => (
+                            <SelectItem key={p.id} value={p.id}>
+                              {p.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="md:col-span-2 flex flex-col gap-2">
+                      <Label>Qty</Label>
+                      <Input
+                        type="number"
+                        min={1}
+                        value={it.quantity}
+                        onChange={(e) =>
+                          updateItem("supplier", it.id, {
+                            quantity: Math.max(1, Number(e.target.value) || 1),
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="md:col-span-2 flex flex-col gap-2">
+                      <Label>Unit Price</Label>
+                      <Input
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={it.unitPrice}
+                        onChange={(e) =>
+                          updateItem("supplier", it.id, {
+                            unitPrice: Math.max(0, Number(e.target.value) || 0),
+                          })
+                        }
+                      />
+                    </div>
+                    <div className="md:col-span-2 flex items-center justify-between gap-2">
+                      <div className="text-sm text-muted-foreground">
+                        {(
+                          Number(it.unitPrice) * Number(it.quantity) || 0
+                        ).toFixed(2)}
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => removeItem("supplier", it.id)}
+                        disabled={supplierForm.items.length <= 1}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+
+                <div className="flex justify-end text-sm text-muted-foreground">
+                  <div>Total: ${supplierTotal.toFixed(2)}</div>
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => router.push("/returns")}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleCreateSupplier}
+                  disabled={disabled || submitting}
+                >
+                  Create Return
+                </Button>
+              </div>
             </CardContent>
           </Card>
-        </div>
-
-        <div className="mt-8 p-6 bg-muted/50 rounded-lg">
-          <h3 className="font-semibold mb-2">Need Help?</h3>
-          <p className="text-sm text-muted-foreground">
-            Choose <strong>Customer Return</strong> if you&apos;re processing a
-            return from a customer who purchased from you. Choose{" "}
-            <strong>Supplier Return</strong> if you&apos;re returning products
-            back to your supplier.
-          </p>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
