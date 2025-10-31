@@ -463,31 +463,33 @@ export default function QuotationDetailPage() {
               <ShoppingCart className="h-5 w-5" />
               Convert Quotation to Sale
             </AlertDialogTitle>
-            <AlertDialogDescription className="space-y-2">
-              <p>
-                This will create a new sale record based on this quotation. The
-                sale will include:
-              </p>
-              <ul className="list-disc list-inside space-y-1 text-sm">
-                <li>All items from this quotation</li>
-                <li>Customer information</li>
-                <li>Pricing and totals</li>
-                <li>Automatic inventory adjustments</li>
-                <li>Delivery record creation</li>
-              </ul>
-              <p className="font-medium pt-2">
-                Total amount: $
-                {Number(quotation.totalAmount).toLocaleString(undefined, {
-                  minimumFractionDigits: 2,
-                  maximumFractionDigits: 2,
-                })}
-              </p>
-              <p className="text-xs pt-2">
-                Make sure you have sufficient inventory and a warehouse
-                configured before proceeding.
-              </p>
+            {/* Keep description to plain text only to avoid invalid <p> nesting */}
+            <AlertDialogDescription>
+              This will create a new sale record based on this quotation.
             </AlertDialogDescription>
           </AlertDialogHeader>
+          {/* Additional rich content should not be inside AlertDialogDescription since it renders a <p> */}
+          <div className="space-y-2">
+            <p>The sale will include:</p>
+            <ul className="list-disc list-inside space-y-1 text-sm">
+              <li>All items from this quotation</li>
+              <li>Customer information</li>
+              <li>Pricing and totals</li>
+              <li>Automatic inventory adjustments</li>
+              <li>Delivery record creation</li>
+            </ul>
+            <p className="font-medium pt-2">
+              Total amount: $
+              {Number(quotation.totalAmount).toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}
+            </p>
+            <p className="text-xs pt-2">
+              Make sure you have sufficient inventory and a warehouse configured
+              before proceeding.
+            </p>
+          </div>
           <AlertDialogFooter>
             <AlertDialogCancel disabled={actionLoading}>
               Cancel
