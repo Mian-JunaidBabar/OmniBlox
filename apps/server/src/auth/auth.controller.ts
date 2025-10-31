@@ -228,6 +228,7 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async verifyMagicLink(
     @Body() verifyMagicLinkDto: VerifyMagicLinkDto,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ) {
     // Verify the magic link token and get user info
@@ -235,20 +236,33 @@ export class AuthController {
       verifyMagicLinkDto.token,
     );
 
-    // Create session manually
-    const { sessionToken, user } =
-      await this.authService.createMagicLinkSession(userInfo.id);
-
-    // Set the session cookie manually; prefer dev-friendly flags locally
-    const isDev = process.env.NODE_ENV !== 'production';
-    res.cookie('better-auth.session_token', sessionToken, {
-      httpOnly: true,
-      secure: isDev ? false : true,
-      sameSite: isDev ? 'lax' : 'none',
-      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      path: '/',
+    // Use Better Auth's native sign-in to create a proper session
+    // This ensures the session is recognized by Better Auth's middleware
+    const signInResponse = await this.betterAuthService.api.signInEmail({
+      body: {
+        email: userInfo.email,
+        password: userInfo.email, // Use email as password for magic link users
+        callbackURL: '/',
+      },
+      headers: fromNodeHeaders(req.headers),
+      asResponse: true,
     });
 
+    // Forward the Set-Cookie headers from Better Auth
+    const cookies: string[] = [];
+    signInResponse.headers.forEach((value, key) => {
+      if (key.toLowerCase() === 'set-cookie') {
+        cookies.push(value);
+      }
+    });
+    if (cookies.length > 0) {
+      res.setHeader('Set-Cookie', cookies);
+    }
+
+    const body = await signInResponse.json().catch(() => ({}));
+
+    // Return user info
+    const user = await this.authService.getUserById(userInfo.id);
     return {
       user: {
         id: user.id,

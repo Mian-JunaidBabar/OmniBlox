@@ -11,6 +11,7 @@ import { LoginDto } from './dto/login.dto';
 import { hashPassword, verifyPassword } from 'better-auth/crypto';
 import { EmailService } from '../email/email.service';
 import { randomBytes } from 'crypto';
+import { Request as ExpressRequest } from 'express';
 
 @Injectable()
 export class AuthService {
@@ -352,6 +353,20 @@ export class AuthService {
       };
     }
 
+    // Set user's password to their email (hashed) to enable Better Auth sign-in
+    // This allows magic link to use Better Auth's native session creation
+    const magicPassword = await hashPassword(user.email);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { password: magicPassword },
+    });
+
+    // Also update the account record
+    await this.prisma.account.updateMany({
+      where: { userId: user.id, providerId: 'credential' },
+      data: { password: magicPassword },
+    });
+
     // Generate secure token
     const token = randomBytes(32).toString('hex');
     const expiresAt = new Date();
@@ -438,8 +453,13 @@ export class AuthService {
 
   /**
    * Create a session manually for magic link login (bypass password check)
+   * CRITICAL: Better Auth looks up sessions by the token field,
+   * and the cookie value MUST match the token in the database
    */
-  async createMagicLinkSession(userId: string): Promise<{
+  async createMagicLinkSession(
+    userId: string,
+    request?: ExpressRequest,
+  ): Promise<{
     sessionToken: string;
     user: {
       id: string;
@@ -452,24 +472,34 @@ export class AuthService {
   }> {
     const user = await this.getUserById(userId);
 
-    // Create session in database
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // 7 days
-
+    // Generate a secure random token for the session
+    // This will be stored in BOTH the database AND the cookie
     const sessionToken = randomBytes(32).toString('hex');
 
-    await this.prisma.session.create({
+    // Get IP and user agent for session tracking
+    const ipAddress = request?.ip || null;
+    const userAgent = request?.get('user-agent') || null;
+
+    // Create the session in the database
+    // Generate both the raw token and the hashed version
+    // Better Auth stores the hashed version in the DB but sends the raw version as cookie
+    const { createHash } = await import('crypto');
+    const hashedToken = createHash('sha256').update(sessionToken).digest('hex');
+
+    const session = await this.prisma.session.create({
       data: {
         userId: user.id,
-        token: sessionToken,
-        expiresAt,
+        token: hashedToken, // Better Auth stores SHA-256 hash of the token
+        expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
         companyId: user.companyId,
         role: user.role,
+        ipAddress,
+        userAgent,
       },
     });
 
     return {
-      sessionToken,
+      sessionToken: session.token,
       user,
     };
   }
