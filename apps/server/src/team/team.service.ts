@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole } from '@prisma/client';
-import * as bcrypt from 'bcryptjs';
+import { hashPassword, verifyPassword } from 'better-auth/crypto';
 import {
   CreateUserDto,
   UpdateUserDto,
@@ -65,15 +65,30 @@ export class TeamService {
       throw new ForbiddenException('Only company owner can create admin users');
     }
 
-    // Hash password
-    const hashedPassword = await bcrypt.hash(dto.password, 12);
+    // Hash password using Better Auth (compatible with login)
+    const hashedPassword = await hashPassword(dto.password);
 
-    const user = await this.prisma.user.create({
-      data: {
-        ...dto,
-        password: hashedPassword,
-        companyId,
-      },
+    // Create user in transaction to ensure account record is also created
+    const user = await this.prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          ...dto,
+          password: hashedPassword,
+          companyId,
+        },
+      });
+
+      // Create Better Auth account entry for credential provider
+      await tx.account.create({
+        data: {
+          userId: newUser.id,
+          accountId: newUser.id,
+          providerId: 'credential',
+          password: hashedPassword,
+        },
+      });
+
+      return newUser;
     });
 
     return this.mapToUserResponse(user);
@@ -208,21 +223,30 @@ export class TeamService {
       throw new NotFoundException('User not found');
     }
 
-    // Verify current password
-    const isPasswordValid = await bcrypt.compare(
-      dto.currentPassword,
-      user.password,
-    );
+    // Verify current password using Better Auth
+    const isPasswordValid = await verifyPassword({
+      password: dto.currentPassword,
+      hash: user.password,
+    });
     if (!isPasswordValid) {
       throw new BadRequestException('Current password is incorrect');
     }
 
-    // Hash new password
-    const hashedPassword = await bcrypt.hash(dto.newPassword, 12);
+    // Hash new password using Better Auth
+    const hashedPassword = await hashPassword(dto.newPassword);
 
-    await this.prisma.user.update({
-      where: { id: userId },
-      data: { password: hashedPassword },
+    // Update both user and account tables
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: { password: hashedPassword },
+      });
+
+      // Update account table to keep passwords in sync
+      await tx.account.updateMany({
+        where: { userId: userId, providerId: 'credential' },
+        data: { password: hashedPassword },
+      });
     });
 
     return { message: 'Password changed successfully' };

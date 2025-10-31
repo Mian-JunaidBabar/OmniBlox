@@ -12,6 +12,7 @@ import { hashPassword, verifyPassword } from 'better-auth/crypto';
 import { EmailService } from '../email/email.service';
 import { randomBytes } from 'crypto';
 import { Request as ExpressRequest } from 'express';
+import * as bcrypt from 'bcrypt';
 
 @Injectable()
 export class AuthService {
@@ -177,14 +178,65 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    // Verify password using Better Auth's verifyPassword
-    const isPasswordValid = await verifyPassword({
-      password,
-      hash: user.password,
-    });
+    let isPasswordValid = false;
+    let needsPasswordMigration = false;
+
+    // Try Better Auth's verifyPassword first
+    try {
+      isPasswordValid = await verifyPassword({
+        password,
+        hash: user.password,
+      });
+    } catch (error) {
+      // If Better Auth verification fails, try bcrypt (legacy passwords)
+      try {
+        isPasswordValid = await bcrypt.compare(password, user.password);
+        needsPasswordMigration = isPasswordValid; // If bcrypt works, we need to migrate
+      } catch (bcryptError) {
+        isPasswordValid = false;
+      }
+    }
 
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    // If password was verified with bcrypt, migrate it to Better Auth format
+    if (needsPasswordMigration) {
+      const newHashedPassword = await hashPassword(password);
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { password: newHashedPassword },
+      });
+      // Update user object for the account sync below
+      user.password = newHashedPassword;
+    }
+
+    // Ensure account table is in sync with user table
+    // This fixes any legacy accounts that might have different passwords
+    const account = await this.prisma.account.findFirst({
+      where: {
+        userId: user.id,
+        providerId: 'credential',
+      },
+    });
+
+    if (account && account.password !== user.password) {
+      // Account exists but password is out of sync - update it
+      await this.prisma.account.update({
+        where: { id: account.id },
+        data: { password: user.password },
+      });
+    } else if (!account) {
+      // Account doesn't exist - create it
+      await this.prisma.account.create({
+        data: {
+          userId: user.id,
+          accountId: user.id,
+          providerId: 'credential',
+          password: user.password,
+        },
+      });
     }
 
     // Return user data for Better Auth session creation
