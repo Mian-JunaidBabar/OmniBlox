@@ -33,11 +33,13 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/auth-context";
 import {
   useProductCategoriesApi,
   ProductCategory,
+  AffectedProduct,
 } from "@/hooks/use-product-categories-api";
 import { Plus, MoreVertical, Pencil, Trash2, Loader2 } from "lucide-react";
 import {
@@ -54,17 +56,29 @@ import {
 export default function CategoriesPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const { getCategories, createCategory, updateCategory, deleteCategory } =
-    useProductCategoriesApi();
+  const {
+    getCategories,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    bulkDeleteCategories,
+  } = useProductCategoriesApi();
 
   const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isBulkDeleteDialogOpen, setIsBulkDeleteDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] =
     useState<ProductCategory | null>(null);
   const [deletingCategory, setDeletingCategory] =
     useState<ProductCategory | null>(null);
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(
+    new Set()
+  );
+  const [affectedProducts, setAffectedProducts] = useState<AffectedProduct[]>(
+    []
+  );
   const [categoryName, setCategoryName] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -151,6 +165,7 @@ export default function CategoriesPage() {
   const handleCloseDeleteDialog = () => {
     setIsDeleteDialogOpen(false);
     setDeletingCategory(null);
+    setAffectedProducts([]);
   };
 
   const handleDelete = async () => {
@@ -158,17 +173,90 @@ export default function CategoriesPage() {
 
     try {
       setIsSubmitting(true);
-      await deleteCategory(deletingCategory.id);
-      toast({
-        title: "Success",
-        description: "Category deleted successfully",
-      });
+      const response = await deleteCategory(deletingCategory.id);
+
+      if (response.affectedProducts && response.affectedProducts.length > 0) {
+        const productNames = response.affectedProducts
+          .map((p) => p.name)
+          .join(", ");
+        toast({
+          title: "Category deleted",
+          description: `${response.affectedProducts.length} product(s) moved to "Uncategorized": ${productNames}`,
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: "Category deleted successfully",
+        });
+      }
+
       handleCloseDeleteDialog();
       loadCategories();
     } catch (error: any) {
       toast({
         title: "Error",
         description: error.message || "Failed to delete category",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const toggleSelectCategory = (categoryId: string) => {
+    const newSelection = new Set(selectedCategories);
+    if (newSelection.has(categoryId)) {
+      newSelection.delete(categoryId);
+    } else {
+      newSelection.add(categoryId);
+    }
+    setSelectedCategories(newSelection);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedCategories.size === categories.length) {
+      setSelectedCategories(new Set());
+    } else {
+      setSelectedCategories(new Set(categories.map((c) => c.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedCategories.size === 0) return;
+
+    try {
+      setIsSubmitting(true);
+      const response = await bulkDeleteCategories(
+        Array.from(selectedCategories)
+      );
+
+      if (response.totalAffectedProducts > 0) {
+        toast({
+          title: "Categories deleted",
+          description: `${response.deleted.length} categories deleted. ${response.totalAffectedProducts} products moved to "Uncategorized".`,
+        });
+      } else {
+        toast({
+          title: "Success",
+          description: `${response.deleted.length} categories deleted successfully`,
+        });
+      }
+
+      if (response.failed.length > 0) {
+        toast({
+          title: "Some deletions failed",
+          description: `${response.failed.length} categories could not be deleted`,
+          variant: "destructive",
+        });
+      }
+
+      setSelectedCategories(new Set());
+      setIsBulkDeleteDialogOpen(false);
+      loadCategories();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete categories",
         variant: "destructive",
       });
     } finally {
@@ -197,10 +285,24 @@ export default function CategoriesPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>All Categories</CardTitle>
-          <CardDescription>
-            A list of all product categories in your system
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>All Categories</CardTitle>
+              <CardDescription>
+                A list of all product categories in your system
+              </CardDescription>
+            </div>
+            {canManage && selectedCategories.size > 0 && (
+              <Button
+                variant="destructive"
+                size="sm"
+                onClick={() => setIsBulkDeleteDialogOpen(true)}
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete Selected ({selectedCategories.size})
+              </Button>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -215,6 +317,17 @@ export default function CategoriesPage() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  {canManage && (
+                    <TableHead className="w-[50px]">
+                      <Checkbox
+                        checked={
+                          selectedCategories.size === categories.length &&
+                          categories.length > 0
+                        }
+                        onCheckedChange={toggleSelectAll}
+                      />
+                    </TableHead>
+                  )}
                   <TableHead>Category Name</TableHead>
                   {canManage && (
                     <TableHead className="w-[70px]">Actions</TableHead>
@@ -224,6 +337,17 @@ export default function CategoriesPage() {
               <TableBody>
                 {categories.map((category) => (
                   <TableRow key={category.id}>
+                    {canManage && (
+                      <TableCell>
+                        <Checkbox
+                          checked={selectedCategories.has(category.id)}
+                          onCheckedChange={() =>
+                            toggleSelectCategory(category.id)
+                          }
+                          disabled={category.name === "Uncategorized"}
+                        />
+                      </TableCell>
+                    )}
                     <TableCell className="font-medium">
                       {category.name}
                     </TableCell>
@@ -323,11 +447,11 @@ export default function CategoriesPage() {
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogTitle>Delete Category?</AlertDialogTitle>
             <AlertDialogDescription>
-              This will permanently delete the category &quot;
-              {deletingCategory?.name}&quot;. This action cannot be undone. You
-              cannot delete a category that is being used by products.
+              You are about to delete the category &quot;
+              {deletingCategory?.name}&quot;. Any products using this category
+              will be moved to &quot;Uncategorized&quot;.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -337,7 +461,7 @@ export default function CategoriesPage() {
             <AlertDialogAction
               onClick={handleDelete}
               disabled={isSubmitting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="bg-destructive hover:bg-destructive/90"
             >
               {isSubmitting ? (
                 <>
@@ -345,7 +469,43 @@ export default function CategoriesPage() {
                   Deleting...
                 </>
               ) : (
-                "Delete"
+                "Delete Category"
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog
+        open={isBulkDeleteDialogOpen}
+        onOpenChange={setIsBulkDeleteDialogOpen}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Multiple Categories?</AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to delete {selectedCategories.size} categories. Any
+              products using these categories will be moved to
+              &quot;Uncategorized&quot;. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSubmitting}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkDelete}
+              disabled={isSubmitting}
+              className="bg-destructive hover:bg-destructive/90"
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                `Delete ${selectedCategories.size} Categories`
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

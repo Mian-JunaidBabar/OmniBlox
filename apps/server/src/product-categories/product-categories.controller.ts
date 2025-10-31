@@ -58,4 +58,10 @@ export class ProductCategoriesController {
   remove(@Param('id') id: string, @CompanyId() companyId: string) {
     return this.productCategoriesService.remove(id, companyId);
   }
+
+  @Post('bulk-delete')
+  @Roles(UserRole.OWNER, UserRole.ADMIN, UserRole.MANAGER)
+  bulkDelete(@Body() body: { ids: string[] }, @CompanyId() companyId: string) {
+    return this.productCategoriesService.bulkDelete(body.ids, companyId);
+  }
 }

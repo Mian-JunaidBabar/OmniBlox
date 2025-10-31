@@ -15,6 +15,25 @@ export interface UpdateProductCategoryDto {
   name: string;
 }
 
+export interface AffectedProduct {
+  id: string;
+  name: string;
+  sku: string;
+}
+
+export interface DeleteCategoryResponse {
+  message: string;
+  affectedProducts: AffectedProduct[];
+}
+
+export interface BulkDeleteResponse {
+  message: string;
+  deleted: string[];
+  failed: Array<{ id: string; error: string }>;
+  totalAffectedProducts: number;
+  affectedProductsList: AffectedProduct[];
+}
+
 export function useProductCategoriesApi() {
   const { get, post, put, delete: del } = useAuthenticatedApi();
 
@@ -47,10 +66,21 @@ export function useProductCategoriesApi() {
   );
 
   const deleteCategory = useCallback(
-    async (id: string): Promise<{ message: string }> => {
-      return del(`/product-categories/${id}`) as Promise<{ message: string }>;
+    async (id: string): Promise<DeleteCategoryResponse> => {
+      return del(
+        `/product-categories/${id}`
+      ) as Promise<DeleteCategoryResponse>;
     },
     [del]
+  );
+
+  const bulkDeleteCategories = useCallback(
+    async (ids: string[]): Promise<BulkDeleteResponse> => {
+      return post(`/product-categories/bulk-delete`, {
+        ids,
+      }) as Promise<BulkDeleteResponse>;
+    },
+    [post]
   );
 
   return {
@@ -59,5 +89,6 @@ export function useProductCategoriesApi() {
     createCategory,
     updateCategory,
     deleteCategory,
+    bulkDeleteCategories,
   };
 }

@@ -116,6 +116,9 @@ async function main() {
   // Create product categories
   const categories = await Promise.all([
     prisma.productCategory.create({
+      data: { name: 'Uncategorized', companyId: company.id },
+    }),
+    prisma.productCategory.create({
       data: { name: 'Electronics', companyId: company.id },
     }),
     prisma.productCategory.create({
@@ -141,8 +144,9 @@ async function main() {
     }),
   ]);
 
-  const electronicsCategory = categories[0];
-  const clothingCategory = categories[6];
+  const uncategorizedCategory = categories[0];
+  const electronicsCategory = categories[1];
+  const clothingCategory = categories[7];
 
   // Create brands
   const appleBrand = await prisma.brand.create({

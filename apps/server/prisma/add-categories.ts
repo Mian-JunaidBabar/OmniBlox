@@ -15,6 +15,7 @@ async function addDefaultCategories() {
     }
 
     const defaultCategories = [
+      'Uncategorized',
       'Electronics',
       'Accessories',
       'Furniture',
