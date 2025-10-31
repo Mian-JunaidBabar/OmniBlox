@@ -1,0 +1,242 @@
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import {
+  CreateSalesReturnDto,
+  CreateSalesReturnItemDto,
+} from './dto/create-sales-return.dto';
+import { UpdateSalesReturnDto } from './dto/update-sales-return.dto';
+
+@Injectable()
+export class SalesReturnsService {
+  constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * Create a new sales return and update inventory atomically
+   * This is the MOST CRITICAL METHOD - it must be transactional
+   */
+  async create(dto: CreateSalesReturnDto, userId: string, companyId: string) {
+    // Validate warehouse belongs to company
+    const warehouse = await this.prisma.warehouse.findFirst({
+      where: { id: dto.warehouseId, companyId },
+    });
+
+    if (!warehouse) {
+      throw new NotFoundException('Warehouse not found');
+    }
+
+    // Validate all products exist
+    const productIds = dto.items.map((item) => item.productId);
+    const products = await this.prisma.product.findMany({
+      where: { id: { in: productIds }, companyId },
+    });
+
+    if (products.length !== productIds.length) {
+      throw new BadRequestException('One or more products not found');
+    }
+
+    // Use transaction to ensure atomicity
+    return await this.prisma.$transaction(
+      async (tx) => {
+        // Generate reference number
+        const count = await tx.salesReturn.count({ where: { companyId } });
+        const referenceNumber = `SR-${String(count + 1).padStart(6, '0')}`;
+
+        // Calculate total
+        const totalAmount = dto.items.reduce(
+          (sum, item) => sum + item.quantity * item.unitPrice,
+          0,
+        );
+
+        // Create sales return with items
+        const salesReturn = await tx.salesReturn.create({
+          data: {
+            referenceNumber,
+            totalAmount,
+            reason: dto.reason,
+            warehouseId: dto.warehouseId,
+            userId,
+            companyId,
+            items: {
+              create: dto.items.map((item) => ({
+                productId: item.productId,
+                quantity: item.quantity,
+                unitPrice: item.unitPrice,
+              })),
+            },
+          },
+          include: {
+            items: {
+              include: {
+                product: true,
+              },
+            },
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+            warehouse: true,
+          },
+        });
+
+        // Update inventory - ADD stock back (customer returning goods)
+        for (const item of dto.items) {
+          await tx.inventory.upsert({
+            where: {
+              productId_warehouseId: {
+                productId: item.productId,
+                warehouseId: dto.warehouseId,
+              },
+            },
+            update: {
+              quantity: {
+                increment: item.quantity, // Atomic increment
+              },
+            },
+            create: {
+              productId: item.productId,
+              warehouseId: dto.warehouseId,
+              quantity: item.quantity,
+            },
+          });
+        }
+
+        return salesReturn;
+      },
+      { timeout: 20000 },
+    );
+  }
+
+  /**
+   * Get all sales returns for a company
+   */
+  async findAll(companyId: string) {
+    return this.prisma.salesReturn.findMany({
+      where: { companyId },
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        warehouse: true,
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+  }
+
+  /**
+   * Get a single sales return by ID
+   */
+  async findOne(id: string, companyId: string) {
+    const salesReturn = await this.prisma.salesReturn.findFirst({
+      where: { id, companyId },
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        warehouse: true,
+      },
+    });
+
+    if (!salesReturn) {
+      throw new NotFoundException(`Sales return with ID ${id} not found`);
+    }
+
+    return salesReturn;
+  }
+
+  /**
+   * Update a sales return (status changes primarily)
+   */
+  async update(id: string, dto: UpdateSalesReturnDto, companyId: string) {
+    // Verify it exists
+    await this.findOne(id, companyId);
+
+    return this.prisma.salesReturn.update({
+      where: { id },
+      data: {
+        ...(dto.status && { status: dto.status }),
+        ...(dto.reason && { reason: dto.reason }),
+      },
+      include: {
+        items: {
+          include: {
+            product: true,
+          },
+        },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        warehouse: true,
+      },
+    });
+  }
+
+  /**
+   * Delete a sales return
+   * NOTE: This should reverse inventory changes if status is COMPLETED
+   */
+  async remove(id: string, companyId: string) {
+    const salesReturn = await this.findOne(id, companyId);
+
+    // If completed, we need to reverse inventory changes
+    if (salesReturn.status === 'COMPLETED') {
+      return await this.prisma.$transaction(async (tx) => {
+        // Reverse inventory changes (decrement what was added)
+        for (const item of salesReturn.items) {
+          await tx.inventory.update({
+            where: {
+              productId_warehouseId: {
+                productId: item.productId,
+                warehouseId: salesReturn.warehouseId,
+              },
+            },
+            data: {
+              quantity: {
+                decrement: item.quantity,
+              },
+            },
+          });
+        }
+
+        // Delete the return
+        await tx.salesReturn.delete({ where: { id } });
+
+        return { message: 'Sales return deleted successfully' };
+      });
+    }
+
+    // If not completed, just delete
+    await this.prisma.salesReturn.delete({ where: { id } });
+    return { message: 'Sales return deleted successfully' };
+  }
+}

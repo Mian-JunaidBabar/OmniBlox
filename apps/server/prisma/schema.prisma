@@ -36,6 +36,7 @@ model Company {
   purchaseOrders      PurchaseOrder[]
   quotations          Quotation[]
   salesReturns        SalesReturn[]
+  purchaseReturns     PurchaseReturn[]
   expenses            Expense[]
   expenseCategories   ExpenseCategory[]
   stockAdjustments    StockAdjustment[]
@@ -62,13 +63,14 @@ model User {
   company   Company @relation("CompanyUsers", fields: [companyId], references: [id])
 
   // Relations
-  ownedCompany     Company?        @relation("CompanyOwner")
-  expenses         Expense[]
-  purchaseOrders   PurchaseOrder[]
-  quotations       Quotation[]
-  sales            Sale[]
-  salesReturns     SalesReturn[]
-  stockAdjustments StockAdjustment[]
+  ownedCompany      Company?          @relation("CompanyOwner")
+  expenses          Expense[]
+  purchaseOrders    PurchaseOrder[]
+  quotations        Quotation[]
+  sales             Sale[]
+  salesReturns      SalesReturn[]
+  purchaseReturns   PurchaseReturn[]
+  stockAdjustments  StockAdjustment[]
   
   // Better Auth Relations
   accounts Account[]
@@ -202,7 +204,8 @@ model Supplier {
   company   Company @relation(fields: [companyId], references: [id])
 
   // Relations
-  purchaseOrders PurchaseOrder[]
+  purchaseOrders   PurchaseOrder[]
+  purchaseReturns  PurchaseReturn[]
 
   @@unique([companyId, email]) // Email unique per company
   @@map("suppliers")
@@ -237,6 +240,7 @@ model Product {
   quotationItems       QuotationItem[]
   saleItems            SaleItem[]
   salesReturnItems     SalesReturnItem[]
+  purchaseReturnItems  PurchaseReturnItem[]
   stockAdjustmentItems StockAdjustmentItem[]
 
   @@unique([companyId, sku]) // Ensures SKU is unique only within a company
@@ -287,6 +291,8 @@ model Warehouse {
   // Relations
   inventory            Inventory[]
   stockAdjustmentItems StockAdjustmentItem[]
+  salesReturns         SalesReturn[]
+  purchaseReturns      PurchaseReturn[]
 
   @@map("warehouses")
 }
@@ -553,13 +559,15 @@ model QuotationItem {
 }
 
 model SalesReturn {
-  id              String            @id @default(uuid())
+  id              String       @id @default(uuid())
   referenceNumber String
-  totalAmount     Decimal           @db.Decimal(10, 2)
+  totalAmount     Decimal      @db.Decimal(10, 2)
   reason          String?
-  returnDate      DateTime          @default(now())
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  status          ReturnStatus @default(PENDING)
+  warehouseId     String
+  returnDate      DateTime     @default(now())
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
 
   // NEW: Link to Company
   companyId String
@@ -569,8 +577,9 @@ model SalesReturn {
   userId String
 
   // Relations
-  items SalesReturnItem[]
-  user  User              @relation(fields: [userId], references: [id])
+  items     SalesReturnItem[]
+  user      User              @relation(fields: [userId], references: [id])
+  warehouse Warehouse         @relation(fields: [warehouseId], references: [id])
 
   @@unique([companyId, referenceNumber]) // Reference number unique per company
   @@map("sales_returns")
@@ -588,7 +597,55 @@ model SalesReturnItem {
   @@map("sales_return_items")
 }
 
+model PurchaseReturn {
+  id              String              @id @default(uuid())
+  referenceNumber String
+  totalAmount     Decimal             @db.Decimal(10, 2)
+  reason          String?
+  status          ReturnStatus        @default(PENDING)
+  warehouseId     String
+  supplierId      String
+  returnDate      DateTime            @default(now())
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  // Link to Company
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id])
+
+  // Foreign Keys
+  userId String
+
+  // Relations
+  items     PurchaseReturnItem[]
+  user      User                 @relation(fields: [userId], references: [id])
+  warehouse Warehouse            @relation(fields: [warehouseId], references: [id])
+  supplier  Supplier             @relation(fields: [supplierId], references: [id])
+
+  @@unique([companyId, referenceNumber])
+  @@map("purchase_returns")
+}
+
+model PurchaseReturnItem {
+  id               String         @id @default(uuid())
+  quantity         Int
+  unitPrice        Decimal        @db.Decimal(10, 2)
+  purchaseReturnId String
+  productId        String
+  product          Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  purchaseReturn   PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
+
+  @@map("purchase_return_items")
+}
+
 // --- ENUMS ---
+
+enum ReturnStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  CANCELLED
+}
 
 enum UserRole {
   OWNER   // NEW: Add OWNER role for the company creator

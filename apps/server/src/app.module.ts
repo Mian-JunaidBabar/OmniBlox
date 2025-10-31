@@ -21,6 +21,9 @@ import { ReportsModule } from './reports/reports.module';
 import { AuthModule as BetterAuthModule } from '@thallesp/nestjs-better-auth';
 import { auth } from './auth/auth.config';
 import { QuotationsModule } from './quotations/quotations.module';
+import { SalesReturnsModule } from './sales-returns/sales-returns.module';
+import { PurchaseReturnsModule } from './purchase-returns/purchase-returns.module';
+import { ReturnsModule } from './returns/returns.module';
 
 @Module({
   imports: [
@@ -43,6 +46,9 @@ import { QuotationsModule } from './quotations/quotations.module';
     ProductCategoriesModule,
     ReportsModule,
     QuotationsModule,
+    SalesReturnsModule,
+    PurchaseReturnsModule,
+    ReturnsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
