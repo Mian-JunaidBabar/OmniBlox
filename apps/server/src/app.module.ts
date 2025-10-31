@@ -17,6 +17,7 @@ import { StockAdjustmentsModule } from './stock-adjustments/stock-adjustments.mo
 import { PurchasesModule } from './purchases/purchases.module';
 import { ExpenseCategoriesModule } from './expense-categories/expense-categories.module';
 import { ProductCategoriesModule } from './product-categories/product-categories.module';
+import { ReportsModule } from './reports/reports.module';
 import { AuthModule as BetterAuthModule } from '@thallesp/nestjs-better-auth';
 import { auth } from './auth/auth.config';
 
@@ -39,6 +40,7 @@ import { auth } from './auth/auth.config';
     PurchasesModule,
     ExpenseCategoriesModule,
     ProductCategoriesModule,
+    ReportsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

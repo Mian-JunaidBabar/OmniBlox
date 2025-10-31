@@ -1,204 +1,201 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
-import { Search, Plus, Download, FileText, Calendar } from "lucide-react";
+import { FileText, TrendingUp, BarChart3, PieChart } from "lucide-react";
 
 export default function ExpenseReportsPage() {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState("");
-
-  const reports = [
-    {
-      id: "1",
-      name: "Monthly Expense Summary - January 2024",
-      period: "2024-01",
-      type: "Monthly",
-      totalAmount: 15240.50,
-      status: "finalized",
-      createdDate: "2024-02-01",
-    },
-    {
-      id: "2",
-      name: "Q1 2024 Expense Report",
-      period: "2024-Q1",
-      type: "Quarterly",
-      totalAmount: 45890.00,
-      status: "draft",
-      createdDate: "2024-03-25",
-    },
-    {
-      id: "3",
-      name: "Travel Expenses - March 2024",
-      period: "2024-03",
-      type: "Category",
-      totalAmount: 8500.00,
-      status: "finalized",
-      createdDate: "2024-04-01",
-    },
-    {
-      id: "4",
-      name: "Department Expense Analysis",
-      period: "2024-03",
-      type: "Custom",
-      totalAmount: 22100.00,
-      status: "pending",
-      createdDate: "2024-03-28",
-    },
-  ];
-
-  const filteredReports = reports.filter(
-    (report) =>
-      report.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      report.type.toLowerCase().includes(searchQuery.toLowerCase())
-  );
-
-  const totalReports = reports.length;
-  const finalizedReports = reports.filter(r => r.status === "finalized").length;
-  const totalAmount = reports.reduce((sum, r) => sum + r.totalAmount, 0);
-
-  const renderStatusBadge = (status: string) => {
-    switch (status) {
-      case "finalized":
-        return <Badge variant="default" className="bg-green-500">Finalized</Badge>;
-      case "draft":
-        return <Badge variant="secondary">Draft</Badge>;
-      case "pending":
-        return <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">Pending</Badge>;
-      default:
-        return <Badge variant="outline">{status}</Badge>;
-    }
-  };
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Expense Reports</h1>
-          <p className="text-muted-foreground">Generate and manage expense reports</p>
-        </div>
-        <div className="flex gap-2">
-          <Button variant="outline">
-            <Download className="mr-2 h-4 w-4" />
-            Export
-          </Button>
-          <Button onClick={() => router.push("/expenses/reports/new")}>
-            <Plus className="mr-2 h-4 w-4" />
-            New Report
-          </Button>
+          <p className="text-muted-foreground">
+            Generate detailed expense reports and analytics
+          </p>
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Reports</CardTitle>
+      {/* Feature Cards */}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <Card
+          className="cursor-pointer hover:border-primary transition-colors"
+          onClick={() => router.push("/expenses/reports/new")}
+        >
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <FileText className="h-5 w-5 text-primary" />
+              <CardTitle className="text-lg">Generate Report</CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{totalReports}</div>
+            <CardDescription>
+              Create detailed expense reports with custom date ranges and
+              filters
+            </CardDescription>
+            <Button className="mt-4 w-full" variant="outline">
+              Get Started
+            </Button>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Finalized Reports</CardTitle>
+        <Card className="opacity-60">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className="text-lg">Trend Analysis</CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{finalizedReports}</div>
+            <CardDescription>
+              Compare expenses across different time periods (Coming Soon)
+            </CardDescription>
+            <Button className="mt-4 w-full" variant="outline" disabled>
+              Coming Soon
+            </Button>
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Amount</CardTitle>
+        <Card className="opacity-60">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-muted-foreground" />
+              <CardTitle className="text-lg">Budget Tracking</CardTitle>
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">${totalAmount.toLocaleString()}</div>
+            <CardDescription>
+              Monitor expenses against budgets and spending limits (Coming Soon)
+            </CardDescription>
+            <Button className="mt-4 w-full" variant="outline" disabled>
+              Coming Soon
+            </Button>
           </CardContent>
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="flex items-center gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search reports..."
-            className="pl-10"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-        </div>
-      </div>
-
-      {/* Reports Table */}
+      {/* Quick Start Guide */}
       <Card>
         <CardHeader>
-          <CardTitle>All Reports</CardTitle>
-          <CardDescription>View and manage expense reports</CardDescription>
+          <CardTitle>Quick Start Guide</CardTitle>
+          <CardDescription>
+            Get started with expense reporting in 3 easy steps
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex gap-4">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              1
+            </div>
+            <div>
+              <h3 className="font-semibold">Select Date Range</h3>
+              <p className="text-sm text-muted-foreground">
+                Choose the start and end dates for your report. Defaults to the
+                current month.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              2
+            </div>
+            <div>
+              <h3 className="font-semibold">Apply Filters (Optional)</h3>
+              <p className="text-sm text-muted-foreground">
+                Filter by specific categories or vendors to focus your analysis.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
+              3
+            </div>
+            <div>
+              <h3 className="font-semibold">Generate & Export</h3>
+              <p className="text-sm text-muted-foreground">
+                View your report with summary cards, category breakdowns, and
+                detailed tables. Export to CSV when needed.
+              </p>
+            </div>
+          </div>
+
+          <div className="pt-4">
+            <Button
+              onClick={() => router.push("/expenses/reports/new")}
+              className="w-full md:w-auto"
+            >
+              <FileText className="mr-2 h-4 w-4" />
+              Generate Your First Report
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Features Overview */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Report Features</CardTitle>
+          <CardDescription>
+            What you can do with expense reports
+          </CardDescription>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Report Name</TableHead>
-                <TableHead>Type</TableHead>
-                <TableHead>Period</TableHead>
-                <TableHead className="text-right">Total Amount</TableHead>
-                <TableHead>Created Date</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredReports.map((report) => (
-                <TableRow
-                  key={report.id}
-                  className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => router.push(`/expenses/reports/${report.id}`)}
-                >
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-medium">{report.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="outline">{report.type}</Badge>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex items-center gap-2">
-                      <Calendar className="h-4 w-4 text-muted-foreground" />
-                      {report.period}
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-right font-semibold">
-                    ${report.totalAmount.toLocaleString()}
-                  </TableCell>
-                  <TableCell>{report.createdDate}</TableCell>
-                  <TableCell>{renderStatusBadge(report.status)}</TableCell>
-                  <TableCell className="text-right">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push(`/expenses/reports/${report.id}`);
-                      }}
-                    >
-                      View
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div className="grid gap-4 md:grid-cols-2">
+            <div className="flex gap-3">
+              <PieChart className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-sm">Category Breakdown</h4>
+                <p className="text-sm text-muted-foreground">
+                  See how expenses are distributed across categories with visual
+                  progress bars
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <TrendingUp className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-sm">Summary Statistics</h4>
+                <p className="text-sm text-muted-foreground">
+                  View total amounts, expense counts, and active filters at a
+                  glance
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <FileText className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-sm">Detailed Tables</h4>
+                <p className="text-sm text-muted-foreground">
+                  Browse all expenses with dates, descriptions, categories, and
+                  payment methods
+                </p>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <BarChart3 className="h-5 w-5 text-primary shrink-0 mt-0.5" />
+              <div>
+                <h4 className="font-semibold text-sm">CSV Export</h4>
+                <p className="text-sm text-muted-foreground">
+                  Export reports to CSV for further analysis in spreadsheet
+                  applications
+                </p>
+              </div>
+            </div>
+          </div>
         </CardContent>
       </Card>
     </div>
