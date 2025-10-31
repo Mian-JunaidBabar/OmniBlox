@@ -80,22 +80,26 @@ export interface UnifiedReturn
 
 export interface CreateSalesReturnDto {
   warehouseId: string;
+  saleId?: string;
   reason?: string;
   items: Array<{
     productId: string;
     quantity: number;
     unitPrice: number;
+    saleItemId?: string;
   }>;
 }
 
 export interface CreatePurchaseReturnDto {
   warehouseId: string;
   supplierId: string;
+  purchaseOrderId?: string;
   reason?: string;
   items: Array<{
     productId: string;
     quantity: number;
     unitPrice: number;
+    purchaseOrderItemId?: string;
   }>;
 }
 

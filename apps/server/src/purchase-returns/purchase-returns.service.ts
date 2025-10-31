@@ -88,6 +88,7 @@ export class PurchaseReturnsService {
             reason: dto.reason,
             warehouseId: dto.warehouseId,
             supplierId: dto.supplierId,
+            purchaseOrderId: dto.purchaseOrderId, // Link to original purchase if provided
             userId,
             companyId,
             items: {
@@ -95,6 +96,7 @@ export class PurchaseReturnsService {
                 productId: item.productId,
                 quantity: item.quantity,
                 unitPrice: item.unitPrice,
+                purchaseOrderItemId: item.purchaseOrderItemId, // Link to original purchase item if provided
               })),
             },
           },

@@ -21,6 +21,10 @@ export class CreatePurchaseReturnItemDto {
   @IsNumber()
   @Min(0)
   unitPrice: number;
+
+  @IsOptional()
+  @IsString()
+  purchaseOrderItemId?: string;
 }
 
 export class CreatePurchaseReturnDto {
@@ -31,6 +35,10 @@ export class CreatePurchaseReturnDto {
   @IsString()
   @IsNotEmpty()
   supplierId: string;
+
+  @IsOptional()
+  @IsString()
+  purchaseOrderId?: string;
 
   @IsOptional()
   @IsString()

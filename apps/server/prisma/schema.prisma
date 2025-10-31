@@ -445,6 +445,7 @@ model Sale {
   user     User     @relation(fields: [userId], references: [id])
   biller   Biller?  @relation(fields: [billerId], references: [id])
   delivery Delivery?
+  returns  SalesReturn[]  // Track returns for this sale
 
   @@unique([companyId, invoiceNumber]) // Invoice number unique per company
   @@map("sales")
@@ -458,6 +459,7 @@ model SaleItem {
   productId String
   product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
   sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  returnedItems SalesReturnItem[]  // Track returns for this item
 
   @@map("sale_items")
 }
@@ -502,6 +504,7 @@ model PurchaseOrder {
   items    PurchaseOrderItem[]
   supplier Supplier            @relation(fields: [supplierId], references: [id])
   user     User                @relation(fields: [userId], references: [id])
+  returns  PurchaseReturn[]    // Track returns for this purchase
 
   @@unique([companyId, referenceNumber]) // Reference number unique per company
   @@map("purchase_orders")
@@ -515,6 +518,7 @@ model PurchaseOrderItem {
   productId       String
   product         Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
   purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  returnedItems   PurchaseReturnItem[]  // Track returns for this item
 
   @@map("purchase_order_items")
 }
@@ -573,6 +577,10 @@ model SalesReturn {
   companyId String
   company   Company @relation(fields: [companyId], references: [id])
 
+  // Optional: Link to original Sale
+  saleId String?
+  sale   Sale?   @relation(fields: [saleId], references: [id])
+
   // Foreign Keys
   userId String
 
@@ -591,6 +599,11 @@ model SalesReturnItem {
   unitPrice     Decimal     @db.Decimal(10, 2)
   salesReturnId String
   productId     String
+  
+  // Optional: Link to original SaleItem for tracking
+  saleItemId String?
+  saleItem   SaleItem? @relation(fields: [saleItemId], references: [id])
+  
   product       Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
   salesReturn   SalesReturn @relation(fields: [salesReturnId], references: [id], onDelete: Cascade)
 
@@ -613,6 +626,10 @@ model PurchaseReturn {
   companyId String
   company   Company @relation(fields: [companyId], references: [id])
 
+  // Optional: Link to original PurchaseOrder
+  purchaseOrderId String?
+  purchaseOrder   PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id])
+
   // Foreign Keys
   userId String
 
@@ -632,6 +649,11 @@ model PurchaseReturnItem {
   unitPrice        Decimal        @db.Decimal(10, 2)
   purchaseReturnId String
   productId        String
+  
+  // Optional: Link to original PurchaseOrderItem for tracking
+  purchaseOrderItemId String?
+  purchaseOrderItem   PurchaseOrderItem? @relation(fields: [purchaseOrderItemId], references: [id])
+  
   product          Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
   purchaseReturn   PurchaseReturn @relation(fields: [purchaseReturnId], references: [id], onDelete: Cascade)
 

@@ -49,6 +49,9 @@ export function usePurchasesApi() {
       const res = (await get("/purchases")) as PurchaseOrder[];
       return Array.isArray(res) ? res : [];
     },
+    getById: async (id: string): Promise<PurchaseOrder> => {
+      return (await get(`/purchases/${id}`)) as PurchaseOrder;
+    },
     create: async (data: CreatePurchaseOrderDto): Promise<PurchaseOrder> => {
       return (await post("/purchases", data)) as PurchaseOrder;
     },

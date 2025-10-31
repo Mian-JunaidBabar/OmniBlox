@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   ArrowLeft,
@@ -33,6 +32,8 @@ import { useWarehouses } from "@/hooks/use-warehouses";
 import { useAllProducts } from "@/hooks/use-products";
 import { useSuppliersApi } from "@/hooks/use-suppliers-api";
 import { useReturnsApi } from "@/hooks/use-returns-api";
+import { useSalesApi } from "@/hooks/use-sales-api";
+import { usePurchasesApi } from "@/hooks/use-purchases-api";
 import { useToast } from "@/hooks/use-toast";
 
 type ItemRow = {
@@ -40,6 +41,9 @@ type ItemRow = {
   productId: string;
   quantity: number;
   unitPrice: number;
+  maxQuantity?: number; // For reference-based returns
+  saleItemId?: string;
+  purchaseOrderItemId?: string;
 };
 
 function useSuppliersList() {
@@ -86,25 +90,170 @@ export default function NewReturnPage() {
   const { products, loading: prodLoading } = useAllProducts();
   const { suppliers, loading: suppLoading } = useSuppliersList();
   const { createSalesReturn, createPurchaseReturn } = useReturnsApi();
+  const { getSales, getSale } = useSalesApi();
+  const { list: listPurchases, getById: getPurchase } = usePurchasesApi();
 
   const [tab, setTab] = useState<"customer" | "supplier">("customer");
+
+  // Customer Return State
+  const [selectedSaleId, setSelectedSaleId] = useState<string>("");
+  const [sales, setSales] = useState<any[]>([]);
+  const [loadingSales, setLoadingSales] = useState(false);
 
   const [customerForm, setCustomerForm] = useState({
     warehouseId: "",
     reason: "",
+    saleId: "",
     items: [
-      { id: crypto.randomUUID(), productId: "", quantity: 1, unitPrice: 0 },
+      {
+        id: crypto.randomUUID(),
+        productId: "",
+        quantity: 1,
+        unitPrice: 0,
+        saleItemId: undefined as string | undefined,
+        maxQuantity: undefined as number | undefined,
+      },
     ] as ItemRow[],
   });
+
+  // Supplier Return State
+  const [selectedPurchaseId, setSelectedPurchaseId] = useState<string>("");
+  const [purchases, setPurchases] = useState<any[]>([]);
+  const [loadingPurchases, setLoadingPurchases] = useState(false);
 
   const [supplierForm, setSupplierForm] = useState({
     warehouseId: "",
     supplierId: "",
     reason: "",
+    purchaseOrderId: "",
     items: [
-      { id: crypto.randomUUID(), productId: "", quantity: 1, unitPrice: 0 },
+      {
+        id: crypto.randomUUID(),
+        productId: "",
+        quantity: 1,
+        unitPrice: 0,
+        purchaseOrderItemId: undefined as string | undefined,
+        maxQuantity: undefined as number | undefined,
+      },
     ] as ItemRow[],
   });
+
+  // Load sales when customer tab is active
+  useEffect(() => {
+    if (tab === "customer") {
+      setLoadingSales(true);
+      getSales({ limit: 100 })
+        .then((res) => setSales(res.sales || []))
+        .catch((err) => console.error("Failed to load sales:", err))
+        .finally(() => setLoadingSales(false));
+    }
+  }, [tab, getSales]);
+
+  // Load purchases when supplier tab is active
+  useEffect(() => {
+    if (tab === "supplier") {
+      setLoadingPurchases(true);
+      listPurchases()
+        .then((res) => setPurchases(res || []))
+        .catch((err) => console.error("Failed to load purchases:", err))
+        .finally(() => setLoadingPurchases(false));
+    }
+  }, [tab, listPurchases]);
+
+  // Handle sale selection
+  const handleSaleSelect = async (saleId: string) => {
+    if (!saleId) {
+      setSelectedSaleId("");
+      setCustomerForm({
+        warehouseId: "",
+        reason: "",
+        saleId: "",
+        items: [
+          {
+            id: crypto.randomUUID(),
+            productId: "",
+            quantity: 1,
+            unitPrice: 0,
+          },
+        ],
+      });
+      return;
+    }
+
+    setSelectedSaleId(saleId);
+    try {
+      const sale = await getSale(saleId);
+      setCustomerForm({
+        warehouseId: sale.warehouseId || "",
+        reason: `Return for sale ${sale.referenceNumber}`,
+        saleId: sale.id,
+        items: sale.items.map((item) => ({
+          id: crypto.randomUUID(),
+          productId: item.productId,
+          quantity: item.quantity,
+          unitPrice: Number(item.unitPrice),
+          saleItemId: item.id,
+          maxQuantity: item.quantity,
+        })),
+      });
+    } catch (err) {
+      console.error("Failed to load sale details:", err);
+      toast({
+        title: "Error",
+        description: "Failed to load sale details",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // Handle purchase selection
+  const handlePurchaseSelect = async (purchaseId: string) => {
+    if (!purchaseId) {
+      setSelectedPurchaseId("");
+      setSupplierForm({
+        warehouseId: "",
+        supplierId: "",
+        reason: "",
+        purchaseOrderId: "",
+        items: [
+          {
+            id: crypto.randomUUID(),
+            productId: "",
+            quantity: 1,
+            unitPrice: 0,
+          },
+        ],
+      });
+      return;
+    }
+
+    setSelectedPurchaseId(purchaseId);
+    try {
+      const purchase = await getPurchase(purchaseId);
+      setSupplierForm({
+        warehouseId: purchase.warehouse?.id || "",
+        supplierId: purchase.supplier.id,
+        reason: `Return for purchase ${purchase.referenceNumber}`,
+        purchaseOrderId: purchase.id,
+        items:
+          purchase.items?.map((item) => ({
+            id: crypto.randomUUID(),
+            productId: item.productId,
+            quantity: item.quantity,
+            unitPrice: Number(item.unitCost),
+            purchaseOrderItemId: item.id,
+            maxQuantity: item.quantity,
+          })) || [],
+      });
+    } catch (err) {
+      console.error("Failed to load purchase details:", err);
+      toast({
+        title: "Error",
+        description: "Failed to load purchase details",
+        variant: "destructive",
+      });
+    }
+  };
 
   const productsById = useMemo(() => {
     const map = new Map<string, any>();
@@ -192,18 +341,20 @@ export default function NewReturnPage() {
           productId: it.productId,
           quantity: it.quantity,
           unitPrice: Number(it.unitPrice),
+          saleItemId: it.saleItemId,
         }));
       if (!items.length) throw new Error("Add at least one item");
       await createSalesReturn({
         warehouseId: customerForm.warehouseId,
+        saleId: customerForm.saleId || undefined,
         reason: customerForm.reason || undefined,
         items,
       });
-      toast({ title: "Customer return created" });
+      toast({ title: "Customer return created successfully" });
       router.push("/returns");
     } catch (e: any) {
       toast({
-        title: "Failed to create",
+        title: "Failed to create return",
         description: e?.message || "Unknown error",
         variant: "destructive",
       });
@@ -220,19 +371,21 @@ export default function NewReturnPage() {
           productId: it.productId,
           quantity: it.quantity,
           unitPrice: Number(it.unitPrice),
+          purchaseOrderItemId: it.purchaseOrderItemId,
         }));
       if (!items.length) throw new Error("Add at least one item");
       await createPurchaseReturn({
         warehouseId: supplierForm.warehouseId,
         supplierId: supplierForm.supplierId,
+        purchaseOrderId: supplierForm.purchaseOrderId || undefined,
         reason: supplierForm.reason || undefined,
         items,
       });
-      toast({ title: "Supplier return created" });
+      toast({ title: "Supplier return created successfully" });
       router.push("/returns");
     } catch (e: any) {
       toast({
-        title: "Failed to create",
+        title: "Failed to create return",
         description: e?.message || "Unknown error",
         variant: "destructive",
       });
@@ -280,6 +433,43 @@ export default function NewReturnPage() {
               <CardDescription>Add items back to inventory</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Reference Selection */}
+              <div className="flex flex-col gap-2 p-4 bg-muted/50 rounded-lg">
+                <Label>Select Existing Sale (Optional)</Label>
+                <Select
+                  value={selectedSaleId}
+                  onValueChange={handleSaleSelect}
+                  disabled={disabled || loadingSales}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        loadingSales
+                          ? "Loading sales..."
+                          : "Manual entry or select sale"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    <SelectItem value="">
+                      Manual Entry (No Reference)
+                    </SelectItem>
+                    {sales.map((sale) => (
+                      <SelectItem key={sale.id} value={sale.id}>
+                        {sale.referenceNumber} - $
+                        {Number(sale.totalAmount).toFixed(2)}
+                        {sale.warehouse && ` (${sale.warehouse.name})`}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedSaleId && (
+                  <p className="text-xs text-muted-foreground">
+                    ✓ Loaded from sale. You can adjust quantities below.
+                  </p>
+                )}
+              </div>
+
               <div className="grid gap-4 md:grid-cols-2">
                 <div className="flex flex-col gap-2">
                   <Label>Warehouse</Label>
@@ -288,7 +478,7 @@ export default function NewReturnPage() {
                     onValueChange={(v) =>
                       setCustomerForm((f) => ({ ...f, warehouseId: v }))
                     }
-                    disabled={disabled}
+                    disabled={disabled || !!selectedSaleId}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select warehouse" />
@@ -354,16 +544,26 @@ export default function NewReturnPage() {
                       </Select>
                     </div>
                     <div className="md:col-span-2 flex flex-col gap-2">
-                      <Label>Qty</Label>
+                      <Label>
+                        Qty
+                        {it.maxQuantity && (
+                          <span className="text-xs text-muted-foreground ml-1">
+                            (max: {it.maxQuantity})
+                          </span>
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         min={1}
+                        max={it.maxQuantity}
                         value={it.quantity}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const val = Number(e.target.value) || 1;
+                          const maxVal = it.maxQuantity || Infinity;
                           updateItem("customer", it.id, {
-                            quantity: Math.max(1, Number(e.target.value) || 1),
-                          })
-                        }
+                            quantity: Math.max(1, Math.min(val, maxVal)),
+                          });
+                        }}
                       />
                     </div>
                     <div className="md:col-span-2 flex flex-col gap-2">
@@ -430,6 +630,42 @@ export default function NewReturnPage() {
               <CardDescription>Send items back to supplier</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Reference Selection */}
+              <div className="flex flex-col gap-2 p-4 bg-muted/50 rounded-lg">
+                <Label>Select Existing Purchase (Optional)</Label>
+                <Select
+                  value={selectedPurchaseId}
+                  onValueChange={handlePurchaseSelect}
+                  disabled={disabled || loadingPurchases}
+                >
+                  <SelectTrigger>
+                    <SelectValue
+                      placeholder={
+                        loadingPurchases
+                          ? "Loading purchases..."
+                          : "Manual entry or select purchase"
+                      }
+                    />
+                  </SelectTrigger>
+                  <SelectContent className="max-h-72">
+                    <SelectItem value="">
+                      Manual Entry (No Reference)
+                    </SelectItem>
+                    {purchases.map((purchase) => (
+                      <SelectItem key={purchase.id} value={purchase.id}>
+                        {purchase.referenceNumber} - {purchase.supplier.name}$
+                        {Number(purchase.totalAmount).toFixed(2)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {selectedPurchaseId && (
+                  <p className="text-xs text-muted-foreground">
+                    ✓ Loaded from purchase. You can adjust quantities below.
+                  </p>
+                )}
+              </div>
+
               <div className="grid gap-4 md:grid-cols-3">
                 <div className="flex flex-col gap-2">
                   <Label>Warehouse</Label>
@@ -438,7 +674,7 @@ export default function NewReturnPage() {
                     onValueChange={(v) =>
                       setSupplierForm((f) => ({ ...f, warehouseId: v }))
                     }
-                    disabled={disabled}
+                    disabled={disabled || !!selectedPurchaseId}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select warehouse" />
@@ -459,7 +695,7 @@ export default function NewReturnPage() {
                     onValueChange={(v) =>
                       setSupplierForm((f) => ({ ...f, supplierId: v }))
                     }
-                    disabled={disabled}
+                    disabled={disabled || !!selectedPurchaseId}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select supplier" />
@@ -525,16 +761,26 @@ export default function NewReturnPage() {
                       </Select>
                     </div>
                     <div className="md:col-span-2 flex flex-col gap-2">
-                      <Label>Qty</Label>
+                      <Label>
+                        Qty
+                        {it.maxQuantity && (
+                          <span className="text-xs text-muted-foreground ml-1">
+                            (max: {it.maxQuantity})
+                          </span>
+                        )}
+                      </Label>
                       <Input
                         type="number"
                         min={1}
+                        max={it.maxQuantity}
                         value={it.quantity}
-                        onChange={(e) =>
+                        onChange={(e) => {
+                          const val = Number(e.target.value) || 1;
+                          const maxVal = it.maxQuantity || Infinity;
                           updateItem("supplier", it.id, {
-                            quantity: Math.max(1, Number(e.target.value) || 1),
-                          })
-                        }
+                            quantity: Math.max(1, Math.min(val, maxVal)),
+                          });
+                        }}
                       />
                     </div>
                     <div className="md:col-span-2 flex flex-col gap-2">

@@ -21,12 +21,20 @@ export class CreateSalesReturnItemDto {
   @IsNumber()
   @Min(0)
   unitPrice: number;
+
+  @IsOptional()
+  @IsString()
+  saleItemId?: string;
 }
 
 export class CreateSalesReturnDto {
   @IsString()
   @IsNotEmpty()
   warehouseId: string;
+
+  @IsOptional()
+  @IsString()
+  saleId?: string;
 
   @IsOptional()
   @IsString()

@@ -58,6 +58,7 @@ export class SalesReturnsService {
             totalAmount,
             reason: dto.reason,
             warehouseId: dto.warehouseId,
+            saleId: dto.saleId, // Link to original sale if provided
             userId,
             companyId,
             items: {
@@ -65,6 +66,7 @@ export class SalesReturnsService {
                 productId: item.productId,
                 quantity: item.quantity,
                 unitPrice: item.unitPrice,
+                saleItemId: item.saleItemId, // Link to original sale item if provided
               })),
             },
           },
