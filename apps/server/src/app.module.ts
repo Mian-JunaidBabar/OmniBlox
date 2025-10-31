@@ -20,6 +20,7 @@ import { ProductCategoriesModule } from './product-categories/product-categories
 import { ReportsModule } from './reports/reports.module';
 import { AuthModule as BetterAuthModule } from '@thallesp/nestjs-better-auth';
 import { auth } from './auth/auth.config';
+import { QuotationsModule } from './quotations/quotations.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { auth } from './auth/auth.config';
     ExpenseCategoriesModule,
     ProductCategoriesModule,
     ReportsModule,
+    QuotationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

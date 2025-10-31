@@ -24,6 +24,7 @@ export class SalesService {
     dto: CreateSaleDto,
     userId: string,
     companyId: string,
+    sourceQuotationId?: string,
   ): Promise<SaleResponseDto> {
     if (!dto.items?.length) {
       throw new BadRequestException('A sale must include at least one item');
@@ -106,6 +107,7 @@ export class SalesService {
             shippingAddress: finalShippingAddress,
             customerId: customer.id,
             customerEmail: providedEmail ?? customer.email ?? null,
+            sourceQuotationId: sourceQuotationId ?? null,
             userId,
             companyId,
             items: {

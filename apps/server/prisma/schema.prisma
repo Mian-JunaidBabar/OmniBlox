@@ -419,6 +419,7 @@ model Sale {
   dueDate       DateTime
   notes         String?
   shippingAddress String?
+  sourceQuotationId String?    // Track which quotation this sale was created from
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   customerEmail String?
