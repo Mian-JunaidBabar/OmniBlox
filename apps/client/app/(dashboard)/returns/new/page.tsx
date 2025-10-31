@@ -162,7 +162,7 @@ export default function NewReturnPage() {
 
   // Handle sale selection
   const handleSaleSelect = async (saleId: string) => {
-    if (!saleId) {
+    if (!saleId || saleId === "__manual__") {
       setSelectedSaleId("");
       setCustomerForm({
         warehouseId: "",
@@ -208,7 +208,7 @@ export default function NewReturnPage() {
 
   // Handle purchase selection
   const handlePurchaseSelect = async (purchaseId: string) => {
-    if (!purchaseId) {
+    if (!purchaseId || purchaseId === "__manual__") {
       setSelectedPurchaseId("");
       setSupplierForm({
         warehouseId: "",
@@ -451,7 +451,7 @@ export default function NewReturnPage() {
                     />
                   </SelectTrigger>
                   <SelectContent className="max-h-72">
-                    <SelectItem value="">
+                    <SelectItem value="__manual__">
                       Manual Entry (No Reference)
                     </SelectItem>
                     {sales.map((sale) => (
@@ -648,7 +648,7 @@ export default function NewReturnPage() {
                     />
                   </SelectTrigger>
                   <SelectContent className="max-h-72">
-                    <SelectItem value="">
+                    <SelectItem value="__manual__">
                       Manual Entry (No Reference)
                     </SelectItem>
                     {purchases.map((purchase) => (
