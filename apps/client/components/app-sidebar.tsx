@@ -129,6 +129,10 @@ const navigation = [
     name: "Settings",
     href: "/settings",
     icon: Settings,
+    children: [
+      { name: "General", href: "/settings" },
+      { name: "Product Categories", href: "/settings/categories" },
+    ],
   },
 ];
 

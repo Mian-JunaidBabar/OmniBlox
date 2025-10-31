@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useProductApi } from "@/hooks/use-product-api";
+import { useProductCategoriesApi } from "@/hooks/use-product-categories-api";
 import { useToast } from "@/hooks/use-toast";
 
 interface ProductFormData {
@@ -54,56 +55,24 @@ export function ProductForm({
 }: ProductFormProps) {
   const router = useRouter();
   const { toast } = useToast();
-  const { createProduct, updateProduct, getCategories, getBrands } =
-    useProductApi();
+  const { createProduct, updateProduct, getBrands } = useProductApi();
+  const { getCategories } = useProductCategoriesApi();
 
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categories, setCategories] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
   const [brands, setBrands] = useState<string[]>([]);
   const [showCustomCategory, setShowCustomCategory] = useState(false);
 
-  const defaultCategoryOptions = useMemo(
-    () => [
-      "Electronics",
-      "Accessories",
-      "Furniture",
-      "Office Supplies",
-      "Food & Beverages",
-      "Health & Beauty",
-      "Clothing",
-      "Books",
-      "Other",
-    ],
-    []
-  );
-
   const categoryOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const merged: string[] = [];
-
-    const addCategory = (category: string) => {
-      const key = category.trim().toLowerCase();
-      if (!key || seen.has(key)) {
-        return;
-      }
-      seen.add(key);
-      merged.push(category);
-    };
-
-    categories.forEach(addCategory);
-    defaultCategoryOptions.forEach(addCategory);
-
-    // Ensure "Other" option stays last if present
-    const otherIndex = merged.findIndex(
-      (category) => category.trim().toLowerCase() === "other"
-    );
-    if (otherIndex >= 0 && otherIndex !== merged.length - 1) {
-      const [other] = merged.splice(otherIndex, 1);
-      merged.push(other);
+    const categoryNames = categories.map((cat) => cat.name);
+    // Add "Other" option at the end if not already present
+    if (!categoryNames.includes("Other")) {
+      categoryNames.push("Other");
     }
-
-    return merged;
-  }, [categories, defaultCategoryOptions]);
+    return categoryNames;
+  }, [categories]);
 
   const [formData, setFormData] = useState<ProductFormData>({
     name: initialData?.name || "",
@@ -131,10 +100,15 @@ export function ProductForm({
         setBrands(brandsData);
       } catch (error) {
         console.error("Failed to load categories and brands:", error);
+        toast({
+          title: "Error",
+          description: "Failed to load categories and brands",
+          variant: "destructive",
+        });
       }
     };
     loadData();
-  }, [getCategories, getBrands]);
+  }, [getCategories, getBrands, toast]);
 
   const handleInputChange = (field: keyof ProductFormData, value: string) => {
     setFormData((prev) => ({ ...prev, [field]: value }));

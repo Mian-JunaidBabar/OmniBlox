@@ -114,19 +114,35 @@ async function main() {
   });
 
   // Create product categories
-  const electronicsCategory = await prisma.productCategory.create({
-    data: {
-      name: 'Electronics',
-      companyId: company.id,
-    },
-  });
+  const categories = await Promise.all([
+    prisma.productCategory.create({
+      data: { name: 'Electronics', companyId: company.id },
+    }),
+    prisma.productCategory.create({
+      data: { name: 'Accessories', companyId: company.id },
+    }),
+    prisma.productCategory.create({
+      data: { name: 'Furniture', companyId: company.id },
+    }),
+    prisma.productCategory.create({
+      data: { name: 'Office Supplies', companyId: company.id },
+    }),
+    prisma.productCategory.create({
+      data: { name: 'Food & Beverages', companyId: company.id },
+    }),
+    prisma.productCategory.create({
+      data: { name: 'Health & Beauty', companyId: company.id },
+    }),
+    prisma.productCategory.create({
+      data: { name: 'Clothing', companyId: company.id },
+    }),
+    prisma.productCategory.create({
+      data: { name: 'Books', companyId: company.id },
+    }),
+  ]);
 
-  const clothingCategory = await prisma.productCategory.create({
-    data: {
-      name: 'Clothing',
-      companyId: company.id,
-    },
-  });
+  const electronicsCategory = categories[0];
+  const clothingCategory = categories[6];
 
   // Create brands
   const appleBrand = await prisma.brand.create({
