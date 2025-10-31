@@ -68,10 +68,6 @@ const navigation = [
     name: "Purchases",
     href: "/purchases",
     icon: ShoppingCart,
-    children: [
-      { name: "All Purchases", href: "/purchases" },
-      { name: "New Purchase", href: "/purchases/new" },
-    ],
   },
   {
     name: "Quotations",
