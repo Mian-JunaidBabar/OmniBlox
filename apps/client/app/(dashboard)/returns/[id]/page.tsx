@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Edit, Trash2, Loader2 } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { ArrowLeft, Edit, Trash2, Loader2, AlertTriangle } from "lucide-react";
 import {
   useReturnsApi,
   type SalesReturn,
@@ -269,6 +270,63 @@ export default function ReturnDetailPage() {
         </div>
       </div>
 
+      {/* Warning Banner for PENDING and PROCESSING status */}
+      {(data.status === "PENDING" || data.status === "PROCESSING") && (
+        <Alert className="border-amber-200 bg-amber-50">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-900">
+            Return Not Completed
+          </AlertTitle>
+          <AlertDescription className="text-amber-800">
+            {data.status === "PENDING" && (
+              <>
+                This return is currently <strong>pending</strong>.{" "}
+                {((type === "customer" && salesReturn?.saleId) ||
+                  (type === "supplier" && purchaseReturn?.purchaseOrderId)) && (
+                  <>
+                    The original{" "}
+                    {type === "customer" ? "sale" : "purchase order"} will not
+                    show return indicators until you mark this return as{" "}
+                    <strong>completed</strong>.
+                  </>
+                )}
+              </>
+            )}
+            {data.status === "PROCESSING" && (
+              <>
+                This return is currently <strong>processing</strong>.{" "}
+                {((type === "customer" && salesReturn?.saleId) ||
+                  (type === "supplier" && purchaseReturn?.purchaseOrderId)) && (
+                  <>
+                    The original{" "}
+                    {type === "customer" ? "sale" : "purchase order"} will not
+                    show return indicators until you mark this return as{" "}
+                    <strong>completed</strong>.
+                  </>
+                )}
+              </>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Success Banner for COMPLETED status */}
+      {data.status === "COMPLETED" &&
+        ((type === "customer" && salesReturn?.saleId) ||
+          (type === "supplier" && purchaseReturn?.purchaseOrderId)) && (
+          <Alert className="border-emerald-200 bg-emerald-50">
+            <AlertTriangle className="h-4 w-4 text-emerald-600" />
+            <AlertTitle className="text-emerald-900">
+              Return Completed
+            </AlertTitle>
+            <AlertDescription className="text-emerald-800">
+              This return has been completed. The original{" "}
+              {type === "customer" ? "sale" : "purchase order"} now shows return
+              indicators with the returned quantities.
+            </AlertDescription>
+          </Alert>
+        )}
+
       <div className="grid gap-6 md:grid-cols-3">
         <Card className="md:col-span-2">
           <CardHeader>
@@ -377,6 +435,16 @@ export default function ReturnDetailPage() {
                 <p className="text-sm font-medium text-muted-foreground">
                   Change Status
                 </p>
+                {/* Info message for PENDING/PROCESSING with reference */}
+                {(data.status === "PENDING" || data.status === "PROCESSING") &&
+                  ((type === "customer" && salesReturn?.saleId) ||
+                    (type === "supplier" &&
+                      purchaseReturn?.purchaseOrderId)) && (
+                    <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-md p-2">
+                      💡 Complete this return to update the original{" "}
+                      {type === "customer" ? "sale" : "purchase order"}
+                    </p>
+                  )}
                 <div className="grid grid-cols-1 gap-2">
                   {data.status === "PENDING" && (
                     <Button

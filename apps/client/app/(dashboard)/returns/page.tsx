@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Plus,
   Search,
@@ -18,6 +19,7 @@ import {
   TrendingUp,
   Loader2,
   AlertCircle,
+  Info,
 } from "lucide-react";
 import Link from "next/link";
 import { useReturnsApi, type UnifiedReturn } from "@/hooks/use-returns-api";
@@ -120,6 +122,16 @@ export default function ReturnsPage() {
           Manage customer and supplier returns
         </p>
       </div>
+
+      {/* Info Banner about Return Workflow */}
+      <Alert className="border-blue-200 bg-blue-50">
+        <Info className="h-4 w-4 text-blue-600" />
+        <AlertDescription className="text-blue-800">
+          <strong>Important:</strong> Returns with references to sales or
+          purchase orders must be marked as <strong>Completed</strong> before
+          the original invoices will show return indicators.
+        </AlertDescription>
+      </Alert>
 
       <div className="flex items-center justify-between">
         <div></div>

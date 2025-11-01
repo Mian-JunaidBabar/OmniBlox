@@ -22,6 +22,7 @@ export interface SalesReturn {
   reason?: string;
   status: "PENDING" | "PROCESSING" | "COMPLETED" | "CANCELLED";
   warehouseId: string;
+  saleId?: string; // Reference to original sale
   returnDate: string;
   createdAt: string;
   updatedAt: string;
@@ -46,6 +47,7 @@ export interface PurchaseReturn {
   status: "PENDING" | "PROCESSING" | "COMPLETED" | "CANCELLED";
   warehouseId: string;
   supplierId: string;
+  purchaseOrderId?: string; // Reference to original purchase order
   returnDate: string;
   createdAt: string;
   updatedAt: string;
