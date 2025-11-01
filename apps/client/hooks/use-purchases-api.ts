@@ -24,6 +24,7 @@ export interface PurchaseOrder {
   subtotal?: number;
   totalAmount: number;
   supplier: { id: string; name: string };
+  warehouseId?: string | null;
   warehouse?: { id: string; name: string } | null;
   items?: PurchaseOrderItem[];
 }

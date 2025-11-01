@@ -161,7 +161,7 @@ export default function NewReturnPage() {
         .catch((err) => console.error("Failed to load sales:", err))
         .finally(() => setLoadingSales(false));
     }
-  }, [tab, getSales]);
+  }, [tab]); // Removed getSales from dependencies to prevent re-fetching
 
   // Load purchases when supplier tab is active
   useEffect(() => {
@@ -172,7 +172,7 @@ export default function NewReturnPage() {
         .catch((err) => console.error("Failed to load purchases:", err))
         .finally(() => setLoadingPurchases(false));
     }
-  }, [tab, listPurchases]);
+  }, [tab]); // Removed listPurchases from dependencies to prevent infinite loop
 
   // Handle sale selection
   const handleSaleSelect = async (saleId: string) => {
@@ -198,7 +198,7 @@ export default function NewReturnPage() {
     try {
       const sale = await getSale(saleId);
       setCustomerForm({
-        warehouseId: sale.warehouseId || "",
+        warehouseId: sale.warehouseId || sale.warehouse?.id || "",
         reason: `Return for sale ${sale.invoiceNumber}`,
         saleId: sale.id,
         items: sale.items.map((item) => ({
@@ -245,7 +245,8 @@ export default function NewReturnPage() {
     try {
       const purchase = await getPurchase(purchaseId);
       setSupplierForm({
-        warehouseId: purchase.warehouse?.id || "",
+        warehouseId:
+          purchase.warehouse?.id || (purchase as any).warehouseId || "",
         supplierId: purchase.supplier.id,
         reason: `Return for purchase ${purchase.referenceNumber}`,
         purchaseOrderId: purchase.id,
@@ -553,7 +554,7 @@ export default function NewReturnPage() {
                     onValueChange={(v) =>
                       setCustomerForm((f) => ({ ...f, warehouseId: v }))
                     }
-                    disabled={disabled || !!selectedSaleId}
+                    disabled={disabled}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select warehouse" />
@@ -769,7 +770,7 @@ export default function NewReturnPage() {
                     onValueChange={(v) =>
                       setSupplierForm((f) => ({ ...f, warehouseId: v }))
                     }
-                    disabled={disabled || !!selectedPurchaseId}
+                    disabled={disabled}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select warehouse" />
