@@ -18,6 +18,8 @@ export interface SaleSummaryDto {
   status: string;
   paymentStatus: string;
   paymentMethod: string | null;
+  warehouseId: string;
+  warehouseName: string;
   subtotal: number;
   tax: number;
   discount: number;

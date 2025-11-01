@@ -85,6 +85,10 @@ export class UpdateSaleDto implements Partial<CreateSaleDto> {
   readonly notes?: string;
 
   @IsOptional()
+  @IsString()
+  readonly warehouseId?: string;
+
+  @IsOptional()
   @IsArray()
   @ArrayMinSize(1)
   @ValidateNested({ each: true })

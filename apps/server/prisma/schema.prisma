@@ -293,6 +293,7 @@ model Warehouse {
   stockAdjustmentItems StockAdjustmentItem[]
   salesReturns         SalesReturn[]
   purchaseReturns      PurchaseReturn[]
+  sales                Sale[]
 
   @@map("warehouses")
 }
@@ -438,12 +439,14 @@ model Sale {
   customerId String
   userId     String
   billerId   String?
+  warehouseId String?
 
   // Relations
   items    SaleItem[]
   customer Customer @relation(fields: [customerId], references: [id])
   user     User     @relation(fields: [userId], references: [id])
   biller   Biller?  @relation(fields: [billerId], references: [id])
+  warehouse Warehouse? @relation(fields: [warehouseId], references: [id])
   delivery Delivery?
   returns  SalesReturn[]  // Track returns for this sale
 

@@ -108,6 +108,7 @@ export class SalesService {
             customerId: customer.id,
             customerEmail: providedEmail ?? customer.email ?? null,
             sourceQuotationId: sourceQuotationId ?? null,
+            warehouseId: dto.warehouseId,
             userId,
             companyId,
             items: {
@@ -127,12 +128,15 @@ export class SalesService {
           },
         });
 
-        // Decrement inventory from the specific warehouse
-        await this.decrementInventoryFromWarehouse(
-          tx,
-          dto.items,
-          dto.warehouseId,
-        );
+        // Decrement inventory from the specific warehouse only if sale is completed
+        const saleStatus = (dto.status ?? OrderStatus.PENDING) as OrderStatus;
+        if (saleStatus === OrderStatus.COMPLETED) {
+          await this.decrementInventoryFromWarehouse(
+            tx,
+            dto.items,
+            dto.warehouseId,
+          );
+        }
 
         // Create delivery record for the sale
         await tx.delivery.create({
@@ -189,6 +193,7 @@ export class SalesService {
         orderBy: { saleDate: 'desc' },
         include: {
           customer: true,
+          warehouse: true,
           items: { include: { product: true } },
         },
       }),
@@ -207,6 +212,7 @@ export class SalesService {
       where: { id, companyId },
       include: {
         customer: true,
+        warehouse: true,
         items: { include: { product: true } },
       },
     });
@@ -334,6 +340,7 @@ export class SalesService {
                 ? { connect: { id: targetCustomerId } }
                 : undefined,
             customerEmail: targetCustomerEmail,
+            warehouseId: dto.warehouseId ?? existing.warehouseId,
             items: dto.items
               ? {
                   deleteMany: {},
@@ -350,12 +357,47 @@ export class SalesService {
           },
           include: {
             customer: true,
+            warehouse: true,
             items: { include: { product: true } },
           },
         });
 
         if (dto.items) {
           await this.adjustInventory(tx, dto.items, 'decrement', companyId);
+        }
+
+        // Handle inventory adjustments based on status changes
+        const newStatus = (dto.status ?? existing.status) as OrderStatus;
+        if (newStatus !== existing.status) {
+          if (
+            newStatus === OrderStatus.COMPLETED &&
+            existing.status !== OrderStatus.COMPLETED
+          ) {
+            // Sale completed - decrement inventory
+            await this.adjustInventory(
+              tx,
+              updated.items.map((item) => ({
+                productId: item.productId,
+                quantity: item.quantity,
+              })),
+              'decrement',
+              companyId,
+            );
+          } else if (
+            newStatus === OrderStatus.CANCELLED &&
+            existing.status === OrderStatus.COMPLETED
+          ) {
+            // Sale cancelled after being completed - increment inventory back
+            await this.adjustInventory(
+              tx,
+              updated.items.map((item) => ({
+                productId: item.productId,
+                quantity: item.quantity,
+              })),
+              'increment',
+              companyId,
+            );
+          }
         }
 
         return this.transformSale(updated);
@@ -737,6 +779,8 @@ export class SalesService {
       status: sale.status,
       paymentStatus: sale.paymentStatus,
       paymentMethod: sale.paymentMethod ?? null,
+      warehouseId: sale.warehouseId,
+      warehouseName: sale.warehouse?.name ?? '',
       subtotal,
       tax,
       discount,

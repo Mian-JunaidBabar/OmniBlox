@@ -118,22 +118,23 @@ export class PurchaseReturnsService {
           },
         });
 
+        // Note: Inventory will be decremented when status changes to COMPLETED
         // Update inventory - SUBTRACT stock (returning goods to supplier)
-        for (const item of dto.items) {
-          await tx.inventory.update({
-            where: {
-              productId_warehouseId: {
-                productId: item.productId,
-                warehouseId: dto.warehouseId,
-              },
-            },
-            data: {
-              quantity: {
-                decrement: item.quantity, // Atomic decrement
-              },
-            },
-          });
-        }
+        // for (const item of dto.items) {
+        //   await tx.inventory.update({
+        //     where: {
+        //       productId_warehouseId: {
+        //         productId: item.productId,
+        //         warehouseId: dto.warehouseId,
+        //       },
+        //     },
+        //     data: {
+        //       quantity: {
+        //         decrement: item.quantity, // Atomic decrement
+        //       },
+        //     },
+        //   });
+        // }
 
         return purchaseReturn;
       },
@@ -204,31 +205,83 @@ export class PurchaseReturnsService {
    * Update a purchase return (status changes primarily)
    */
   async update(id: string, dto: UpdatePurchaseReturnDto, companyId: string) {
-    // Verify it exists
-    await this.findOne(id, companyId);
+    // Get existing purchase return
+    const existing = await this.findOne(id, companyId);
 
-    return this.prisma.purchaseReturn.update({
-      where: { id },
-      data: {
-        ...(dto.status && { status: dto.status }),
-        ...(dto.reason && { reason: dto.reason }),
-      },
-      include: {
-        items: {
-          include: {
-            product: true,
-          },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.purchaseReturn.update({
+        where: { id },
+        data: {
+          ...(dto.status && { status: dto.status }),
+          ...(dto.reason && { reason: dto.reason }),
         },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
           },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          warehouse: true,
+          supplier: true,
         },
-        warehouse: true,
-        supplier: true,
-      },
+      });
+
+      // Handle inventory adjustments based on status changes
+      const newStatus = dto.status;
+      if (newStatus && newStatus !== existing.status) {
+        if (newStatus === 'COMPLETED' && existing.status !== 'COMPLETED') {
+          // Purchase return completed - decrement inventory
+          for (const item of updated.items) {
+            await tx.inventory.update({
+              where: {
+                productId_warehouseId: {
+                  productId: item.productId,
+                  warehouseId: updated.warehouseId,
+                },
+              },
+              data: {
+                quantity: {
+                  decrement: item.quantity, // Atomic decrement
+                },
+              },
+            });
+          }
+        } else if (
+          newStatus === 'CANCELLED' &&
+          existing.status === 'COMPLETED'
+        ) {
+          // Purchase return cancelled after being completed - increment inventory back
+          for (const item of updated.items) {
+            await tx.inventory.upsert({
+              where: {
+                productId_warehouseId: {
+                  productId: item.productId,
+                  warehouseId: updated.warehouseId,
+                },
+              },
+              update: {
+                quantity: {
+                  increment: item.quantity,
+                },
+              },
+              create: {
+                productId: item.productId,
+                warehouseId: updated.warehouseId,
+                quantity: item.quantity,
+              },
+            });
+          }
+        }
+      }
+
+      return updated;
     });
   }
 
