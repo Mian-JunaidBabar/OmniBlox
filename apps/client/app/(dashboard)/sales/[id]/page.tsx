@@ -11,6 +11,7 @@ import {
   Mail,
   Loader2,
   CheckCircle2,
+  RotateCcw,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -94,7 +95,20 @@ export default function SaleDetailPage() {
             <h1 className="text-3xl font-semibold tracking-tight">
               {sale.invoiceNumber}
             </h1>
-            <p className="text-sm text-muted-foreground">{sale.customerName}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-sm text-muted-foreground">
+                {sale.customerName}
+              </p>
+              {sale.hasReturns && (
+                <Badge
+                  variant="outline"
+                  className="text-orange-600 border-orange-600"
+                >
+                  <RotateCcw className="mr-1 h-3 w-3" />
+                  Has Returns
+                </Badge>
+              )}
+            </div>
           </div>
         </div>
         <div className="flex items-center gap-2">

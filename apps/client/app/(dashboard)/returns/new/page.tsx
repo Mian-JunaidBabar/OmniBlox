@@ -153,11 +153,28 @@ export default function NewReturnPage() {
   });
 
   // Load sales when customer tab is active
+  // Only load sales that are PAID and delivered (client-side delivered check)
   useEffect(() => {
     if (tab === "customer") {
       setLoadingSales(true);
-      getSales({ limit: 100 })
-        .then((res) => setSales(res.sales || []))
+      getSales({ limit: 100, paymentStatus: "PAID" })
+        .then((res) => {
+          const list = res?.sales || [];
+          // Filter for delivered sales. The sale object may expose different
+          // delivery indicators depending on backend shape. We check a few
+          // possible fields safely.
+          const deliveredOnly = list.filter((s: any) => {
+            const isPaid = s.paymentStatus === "PAID";
+            const isDelivered =
+              s.status === "DELIVERED" ||
+              s.deliveryStatus === "DELIVERED" ||
+              Boolean(s.isDelivered) ||
+              (Array.isArray(s.deliveries) &&
+                s.deliveries.some((d: any) => d.status === "DELIVERED"));
+            return isPaid && isDelivered;
+          });
+          setSales(deliveredOnly);
+        })
         .catch((err) => console.error("Failed to load sales:", err))
         .finally(() => setLoadingSales(false));
     }
