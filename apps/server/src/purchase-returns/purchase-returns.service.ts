@@ -70,9 +70,8 @@ export class PurchaseReturnsService {
     // Use transaction to ensure atomicity
     return await this.prisma.$transaction(
       async (tx) => {
-        // Generate reference number
-        const count = await tx.purchaseReturn.count({ where: { companyId } });
-        const referenceNumber = `PR-${String(count + 1).padStart(6, '0')}`;
+        // Generate unique reference number
+        const referenceNumber = `PR-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
         // Calculate total
         const totalAmount = dto.items.reduce(
@@ -259,22 +258,34 @@ export class PurchaseReturnsService {
         ) {
           // Purchase return cancelled after being completed - increment inventory back
           for (const item of updated.items) {
-            await tx.inventory.upsert({
+            await tx.inventory.update({
               where: {
                 productId_warehouseId: {
                   productId: item.productId,
                   warehouseId: updated.warehouseId,
                 },
               },
-              update: {
+              data: {
                 quantity: {
                   increment: item.quantity,
                 },
               },
-              create: {
-                productId: item.productId,
-                warehouseId: updated.warehouseId,
-                quantity: item.quantity,
+            });
+          }
+        } else if (newStatus === 'PENDING' && existing.status === 'COMPLETED') {
+          // Purchase return reset to pending after being completed - increment inventory back
+          for (const item of updated.items) {
+            await tx.inventory.update({
+              where: {
+                productId_warehouseId: {
+                  productId: item.productId,
+                  warehouseId: updated.warehouseId,
+                },
+              },
+              data: {
+                quantity: {
+                  increment: item.quantity,
+                },
               },
             });
           }

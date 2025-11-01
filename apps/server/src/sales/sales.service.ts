@@ -525,9 +525,8 @@ export class SalesService {
       return invoiceNumber;
     }
 
-    const count = await tx.sale.count({ where: { companyId } });
-    const nextNumber = (count + 1).toString().padStart(5, '0');
-    return `INV-${nextNumber}`;
+    // Generate unique invoice number using timestamp + random string
+    return `INV-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
   }
 
   private async fetchProducts(

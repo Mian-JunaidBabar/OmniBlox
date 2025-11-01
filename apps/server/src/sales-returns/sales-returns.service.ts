@@ -41,9 +41,8 @@ export class SalesReturnsService {
     // Use transaction to ensure atomicity
     return await this.prisma.$transaction(
       async (tx) => {
-        // Generate reference number
-        const count = await tx.salesReturn.count({ where: { companyId } });
-        const referenceNumber = `SR-${String(count + 1).padStart(6, '0')}`;
+        // Generate unique reference number
+        const referenceNumber = `SR-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
         // Calculate total
         const totalAmount = dto.items.reduce(
@@ -234,6 +233,23 @@ export class SalesReturnsService {
           existing.status === 'COMPLETED'
         ) {
           // Sales return cancelled after being completed - decrement inventory back
+          for (const item of updated.items) {
+            await tx.inventory.update({
+              where: {
+                productId_warehouseId: {
+                  productId: item.productId,
+                  warehouseId: updated.warehouseId,
+                },
+              },
+              data: {
+                quantity: {
+                  decrement: item.quantity,
+                },
+              },
+            });
+          }
+        } else if (newStatus === 'PENDING' && existing.status === 'COMPLETED') {
+          // Sales return reset to pending after being completed - decrement inventory back
           for (const item of updated.items) {
             await tx.inventory.update({
               where: {
