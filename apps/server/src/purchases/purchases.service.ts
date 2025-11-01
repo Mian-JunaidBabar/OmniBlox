@@ -85,11 +85,11 @@ export class PurchasesService {
       },
     });
 
-    return purchaseOrder;
+    return this.transformPurchase(purchaseOrder);
   }
 
   async findAll(companyId: string) {
-    return this.prisma.purchaseOrder.findMany({
+    const purchases = await this.prisma.purchaseOrder.findMany({
       where: { companyId },
       include: {
         items: {
@@ -120,6 +120,8 @@ export class PurchasesService {
       },
       orderBy: { orderDate: 'desc' },
     });
+
+    return purchases.map((p) => this.transformPurchaseSummary(p));
   }
 
   async findOne(id: string, companyId: string) {
@@ -164,7 +166,7 @@ export class PurchasesService {
       throw new NotFoundException('Purchase order not found');
     }
 
-    return purchaseOrder;
+    return this.transformPurchase(purchaseOrder);
   }
 
   async receive(id: string, warehouseId: string, companyId: string) {
@@ -231,7 +233,7 @@ export class PurchasesService {
         );
 
         // 4. Return the updated purchase order
-        return tx.purchaseOrder.findUnique({
+        const po = await tx.purchaseOrder.findUnique({
           where: { id },
           include: {
             items: {
@@ -261,8 +263,62 @@ export class PurchasesService {
             },
           },
         });
+
+        return this.transformPurchase(po);
       },
       { timeout: 20000 },
     );
+  }
+
+  private decimalToNumber(value: any): number {
+    if (value === null || value === undefined) return 0;
+    return typeof value === 'number' ? value : Number(value);
+  }
+
+  private roundCurrency(value: number): number {
+    return Math.round((value + Number.EPSILON) * 100) / 100;
+  }
+
+  private transformPurchaseItem(item: any) {
+    const unitCost = this.decimalToNumber(item.unitCost);
+    return {
+      id: item.id,
+      productId: item.productId,
+      productName: item.product?.name ?? item.productId,
+      quantity: item.quantity,
+      returnedQuantity: item.returnedQuantity ?? 0,
+      unitCost,
+      total: this.roundCurrency(item.quantity * unitCost),
+    };
+  }
+
+  private transformPurchaseSummary(po: any) {
+    const total = this.decimalToNumber(po.totalAmount);
+    return {
+      id: po.id,
+      referenceNumber: po.referenceNumber,
+      orderDate: po.orderDate.toISOString(),
+      status: po.status,
+      hasReturns: Boolean(po.hasReturns),
+      subtotal: 0, // not currently tracked separately for purchases
+      totalAmount: total,
+      supplier: po.supplier
+        ? { id: po.supplier.id, name: po.supplier.name }
+        : null,
+      warehouseId: po.warehouseId ?? null,
+      warehouse: po.warehouse
+        ? { id: po.warehouse.id, name: po.warehouse.name }
+        : null,
+      items: po.items?.map((i) => this.transformPurchaseItem(i)) ?? [],
+    };
+  }
+
+  private transformPurchase(po: any) {
+    return {
+      ...this.transformPurchaseSummary(po),
+      notes: po.notes ?? null,
+      createdAt: po.createdAt.toISOString(),
+      updatedAt: po.updatedAt.toISOString(),
+    };
   }
 }

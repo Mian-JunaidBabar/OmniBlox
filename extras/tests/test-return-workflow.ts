@@ -9,7 +9,8 @@
  * 5. Verify sale IS NOW marked as returned with correct quantities
  */
 
-const BASE_URL = "http://localhost:3001/api";
+// Allow overriding the base URL via TEST_BASE_URL env var so tests can target different ports
+const BASE_URL = process.env.TEST_BASE_URL || "http://localhost:3001/api";
 
 interface TestContext {
   accessToken: string;
@@ -20,9 +21,14 @@ interface TestContext {
   saleId: string;
   saleItemId: string;
   returnId: string;
+  sessionCookie?: string;
 }
 
-async function login(): Promise<{ accessToken: string; tenantId: string }> {
+async function login(): Promise<{
+  accessToken: string;
+  tenantId: string;
+  sessionCookie?: string;
+}> {
   console.log("\n📝 Step 1: Login");
   const response = await fetch(`${BASE_URL}/auth/login`, {
     method: "POST",
@@ -33,18 +39,87 @@ async function login(): Promise<{ accessToken: string; tenantId: string }> {
     }),
   });
 
+  let successResponse: Response | null = null;
+
   if (!response.ok) {
-    throw new Error(`Login failed: ${response.statusText}`);
+    // If login fails with Unauthorized or Not Found, try to auto-register a test admin
+    console.log(`Login failed: ${response.statusText}. Attempting signup...`);
+    try {
+      const signupResp = await fetch(`${BASE_URL}/auth/signup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "admin@omniblox.com",
+          password: "Admin@123",
+          name: "Admin Test",
+          companyName: "OmniBlox Test",
+          // BetterAuth signup requires these additional workspace fields
+          workspaceUrl: "omni-test",
+          industry: "Software",
+          country: "US",
+        }),
+      });
+
+      if (!signupResp.ok) {
+        const txt = await signupResp.text().catch(() => "");
+        throw new Error(`Signup failed: ${signupResp.statusText} - ${txt}`);
+      }
+
+      console.log("✅ Signup successful, retrying login...");
+      // Retry login once
+      const retry = await fetch(`${BASE_URL}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: "admin@omniblox.com",
+          password: "Admin@123",
+        }),
+      });
+
+      if (!retry.ok) {
+        throw new Error(`Login retry failed: ${retry.statusText}`);
+      }
+
+      successResponse = retry;
+    } catch (err) {
+      throw new Error(`Login failed: ${response.statusText} - ${String(err)}`);
+    }
+  }
+  if (!successResponse) {
+    successResponse = response;
   }
 
-  const data = await response.json();
+  const data = await successResponse.json();
   console.log("✅ Login successful");
   console.log(`   User: ${data.user.email}`);
   console.log(`   Tenant: ${data.user.tenantId}`);
 
+  // Debug: print response headers to inspect Set-Cookie
+  try {
+    const headersArray = Array.from((successResponse.headers as any).entries());
+    console.log("   Response headers:", headersArray);
+  } catch (err) {
+    console.log(
+      "   Could not read response headers for debugging:",
+      String(err)
+    );
+  }
+
+  // Capture session cookie (BetterAuth uses cookie sessions)
+  const setCookie =
+    (successResponse.headers &&
+      (successResponse.headers.get("set-cookie") ||
+        successResponse.headers.get("Set-Cookie"))) ||
+    "";
+  const cookie = Array.isArray(setCookie)
+    ? setCookie.join("; ")
+    : setCookie || "";
+
   return {
     accessToken: data.token,
     tenantId: data.user.tenantId,
+    // session cookie to send on subsequent requests
+    sessionCookie: cookie,
   };
 }
 
@@ -52,7 +127,7 @@ async function getWarehouse(ctx: TestContext): Promise<string> {
   console.log("\n📝 Step 2: Get Warehouse");
   const response = await fetch(`${BASE_URL}/warehouses`, {
     headers: {
-      Authorization: `Bearer ${ctx.accessToken}`,
+      Cookie: ctx.sessionCookie || "",
     },
   });
 
@@ -73,7 +148,7 @@ async function getCustomer(ctx: TestContext): Promise<string> {
   console.log("\n📝 Step 3: Get Customer");
   const response = await fetch(`${BASE_URL}/customers`, {
     headers: {
-      Authorization: `Bearer ${ctx.accessToken}`,
+      Cookie: ctx.sessionCookie || "",
     },
   });
 
@@ -94,7 +169,7 @@ async function getProduct(ctx: TestContext): Promise<string> {
   console.log("\n📝 Step 4: Get Product");
   const response = await fetch(`${BASE_URL}/products`, {
     headers: {
-      Authorization: `Bearer ${ctx.accessToken}`,
+      Cookie: ctx.sessionCookie || "",
     },
   });
 
@@ -118,7 +193,7 @@ async function createSale(
   const response = await fetch(`${BASE_URL}/sales`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${ctx.accessToken}`,
+      Cookie: ctx.sessionCookie || "",
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -165,7 +240,7 @@ async function createReturn(ctx: TestContext): Promise<string> {
   const response = await fetch(`${BASE_URL}/sales-returns`, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${ctx.accessToken}`,
+      Cookie: ctx.sessionCookie || "",
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -204,7 +279,7 @@ async function checkSaleBeforeCompletion(ctx: TestContext): Promise<void> {
   console.log("\n📝 Step 7: Check Sale BEFORE completing return");
   const response = await fetch(`${BASE_URL}/sales/${ctx.saleId}`, {
     headers: {
-      Authorization: `Bearer ${ctx.accessToken}`,
+      Cookie: ctx.sessionCookie || "",
     },
   });
 
@@ -235,7 +310,7 @@ async function completeReturn(ctx: TestContext): Promise<void> {
   const response = await fetch(`${BASE_URL}/sales-returns/${ctx.returnId}`, {
     method: "PATCH",
     headers: {
-      Authorization: `Bearer ${ctx.accessToken}`,
+      Cookie: ctx.sessionCookie || "",
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -259,7 +334,7 @@ async function checkSaleAfterCompletion(ctx: TestContext): Promise<void> {
   console.log("\n📝 Step 9: Check Sale AFTER completing return");
   const response = await fetch(`${BASE_URL}/sales/${ctx.saleId}`, {
     headers: {
-      Authorization: `Bearer ${ctx.accessToken}`,
+      Cookie: ctx.sessionCookie || "",
     },
   });
 
@@ -301,7 +376,7 @@ async function testCancellation(ctx: TestContext): Promise<void> {
   const response = await fetch(`${BASE_URL}/sales-returns/${ctx.returnId}`, {
     method: "PATCH",
     headers: {
-      Authorization: `Bearer ${ctx.accessToken}`,
+      Cookie: ctx.sessionCookie || "",
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
@@ -319,7 +394,7 @@ async function testCancellation(ctx: TestContext): Promise<void> {
   // Check sale again
   const saleResponse = await fetch(`${BASE_URL}/sales/${ctx.saleId}`, {
     headers: {
-      Authorization: `Bearer ${ctx.accessToken}`,
+      Cookie: ctx.sessionCookie || "",
     },
   });
 
