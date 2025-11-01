@@ -11,6 +11,7 @@ export interface SaleItem {
   productId: string;
   productName: string;
   quantity: number;
+  returnedQuantity: number;
   unitPrice: number;
   total: number;
 }
@@ -26,6 +27,9 @@ export interface SaleSummary {
   status: SaleStatus;
   paymentStatus: SalePaymentStatus;
   paymentMethod: SalePaymentMethod | null;
+  warehouseId: string;
+  warehouseName: string;
+  hasReturns: boolean;
   subtotal: number;
   tax: number;
   discount: number;

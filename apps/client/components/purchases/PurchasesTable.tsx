@@ -20,7 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MoreHorizontal } from "lucide-react";
+import { MoreHorizontal, RotateCcw } from "lucide-react";
 import type { PurchaseOrder } from "@/hooks/use-purchases-api";
 
 function formatCurrency(n: number | string | undefined) {
@@ -78,6 +78,7 @@ export function PurchasesTable({
             <TableHead>Status</TableHead>
             <TableHead>Total Amount</TableHead>
             <TableHead>Order Date</TableHead>
+            <TableHead>Returns</TableHead>
             {canManage ? (
               <TableHead className="text-right">Actions</TableHead>
             ) : null}
@@ -105,6 +106,17 @@ export function PurchasesTable({
                   {formatCurrency(po.totalAmount)}
                 </TableCell>
                 <TableCell>{formatDate(po.orderDate)}</TableCell>
+                <TableCell>
+                  {po.hasReturns && (
+                    <Badge
+                      variant="outline"
+                      className="text-orange-600 border-orange-600"
+                    >
+                      <RotateCcw className="mr-1 h-3 w-3" />
+                      Has Returns
+                    </Badge>
+                  )}
+                </TableCell>
                 {canManage ? (
                   <TableCell className="text-right">
                     {po.status === "PENDING" ? (
@@ -134,7 +146,7 @@ export function PurchasesTable({
           ) : (
             <TableRow>
               <TableCell
-                colSpan={6}
+                colSpan={7}
                 className="text-center text-sm text-muted-foreground py-10"
               >
                 No purchase orders found.

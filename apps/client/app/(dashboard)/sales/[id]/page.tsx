@@ -197,6 +197,7 @@ export default function SaleDetailPage() {
                   <TableRow>
                     <TableHead>Product</TableHead>
                     <TableHead className="text-right">Quantity</TableHead>
+                    <TableHead className="text-right">Returned</TableHead>
                     <TableHead className="text-right">Price</TableHead>
                     <TableHead className="text-right">Total</TableHead>
                   </TableRow>
@@ -209,6 +210,13 @@ export default function SaleDetailPage() {
                       </TableCell>
                       <TableCell className="text-right">
                         {item.quantity}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {item.returnedQuantity > 0 && (
+                          <span className="text-orange-600 font-medium">
+                            {item.returnedQuantity}
+                          </span>
+                        )}
                       </TableCell>
                       <TableCell className="text-right">
                         {formatCurrency.format(item.unitPrice)}

@@ -1,11 +1,25 @@
 ﻿export type PurchaseStatus = "PENDING" | "RECEIVED" | "CANCELLED";
 
+export type PurchaseOrderItem = {
+  id: string;
+  productId: string;
+  quantity: number;
+  returnedQuantity: number;
+  unitCost: number;
+  product?: {
+    id: string;
+    name: string;
+    sku?: string;
+  };
+};
+
 export type Purchase = {
   id: string;
   referenceNumber: string;
   status: PurchaseStatus;
   orderDate: string;
   totalAmount: number;
+  hasReturns: boolean;
   supplier: { id: string; name: string };
   warehouse?: { id: string; name: string } | null;
 };

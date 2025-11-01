@@ -233,6 +233,9 @@ export default function PurchaseDetailPage() {
                     Quantity
                   </th>
                   <th className="p-3 text-right text-sm font-medium">
+                    Returned
+                  </th>
+                  <th className="p-3 text-right text-sm font-medium">
                     Unit Cost
                   </th>
                   <th className="p-3 text-right text-sm font-medium">Total</th>
@@ -252,6 +255,13 @@ export default function PurchaseDetailPage() {
                         {item.quantity}
                       </td>
                       <td className="p-3 text-sm text-right">
+                        {item.returnedQuantity > 0 && (
+                          <span className="text-orange-600 font-medium">
+                            {item.returnedQuantity}
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3 text-sm text-right">
                         {formatCurrency(item.unitCost)}
                       </td>
                       <td className="p-3 text-sm text-right font-medium">
@@ -262,7 +272,7 @@ export default function PurchaseDetailPage() {
                 ) : (
                   <tr>
                     <td
-                      colSpan={5}
+                      colSpan={6}
                       className="p-6 text-center text-sm text-muted-foreground"
                     >
                       No items found
@@ -272,7 +282,7 @@ export default function PurchaseDetailPage() {
               </tbody>
               <tfoot>
                 <tr className="border-t bg-muted/50 font-medium">
-                  <td colSpan={4} className="p-3 text-right text-sm">
+                  <td colSpan={5} className="p-3 text-right text-sm">
                     Total:
                   </td>
                   <td className="p-3 text-right text-sm">

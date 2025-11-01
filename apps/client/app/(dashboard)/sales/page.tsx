@@ -51,6 +51,7 @@ import {
   TrendingUp,
   Loader2,
   CheckCircle2,
+  RotateCcw,
 } from "lucide-react";
 import Link from "next/link";
 import { useSalesList } from "./_hooks/use-sales";
@@ -231,6 +232,7 @@ export default function SalesPage() {
                 <TableHead>Due Date</TableHead>
                 <TableHead className="text-right">Amount</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead>Returns</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -238,7 +240,7 @@ export default function SalesPage() {
               {loading && (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={8}
                     className="py-12 text-center text-muted-foreground"
                   >
                     <div className="flex items-center justify-center gap-2">
@@ -251,7 +253,7 @@ export default function SalesPage() {
               {!loading && sales.length === 0 && (
                 <TableRow>
                   <TableCell
-                    colSpan={7}
+                    colSpan={8}
                     className="py-12 text-center text-muted-foreground"
                   >
                     No sales found. Try adjusting your filters or create a new
@@ -289,6 +291,17 @@ export default function SalesPage() {
                         <Badge variant={statusDisplay.variant}>
                           {statusDisplay.label}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        {sale.hasReturns && (
+                          <Badge
+                            variant="outline"
+                            className="text-orange-600 border-orange-600"
+                          >
+                            <RotateCcw className="mr-1 h-3 w-3" />
+                            Has Returns
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell
                         className="text-right"

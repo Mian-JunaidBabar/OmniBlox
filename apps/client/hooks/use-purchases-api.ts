@@ -8,6 +8,7 @@ export interface PurchaseOrderItem {
   id: string;
   productId: string;
   quantity: number;
+  returnedQuantity: number;
   unitCost: number;
   product?: {
     id: string;
@@ -21,6 +22,7 @@ export interface PurchaseOrder {
   referenceNumber: string;
   orderDate: string;
   status: OrderStatus;
+  hasReturns: boolean;
   subtotal?: number;
   totalAmount: number;
   supplier: { id: string; name: string };

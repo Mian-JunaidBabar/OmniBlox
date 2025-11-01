@@ -227,6 +227,26 @@ export class SalesReturnsService {
                 quantity: item.quantity,
               },
             });
+
+            // Update returned quantity on original sale item if linked
+            if (item.saleItemId) {
+              await tx.saleItem.update({
+                where: { id: item.saleItemId },
+                data: {
+                  returnedQuantity: {
+                    increment: item.quantity,
+                  },
+                },
+              });
+            }
+          }
+
+          // Mark the sale as having returns if linked
+          if (updated.saleId) {
+            await tx.sale.update({
+              where: { id: updated.saleId },
+              data: { hasReturns: true },
+            });
           }
         } else if (
           newStatus === 'CANCELLED' &&
@@ -247,6 +267,34 @@ export class SalesReturnsService {
                 },
               },
             });
+
+            // Reverse returned quantity on original sale item if linked
+            if (item.saleItemId) {
+              await tx.saleItem.update({
+                where: { id: item.saleItemId },
+                data: {
+                  returnedQuantity: {
+                    decrement: item.quantity,
+                  },
+                },
+              });
+            }
+          }
+
+          // Check if sale still has any returns
+          if (updated.saleId) {
+            const saleItems = await tx.saleItem.findMany({
+              where: { saleId: updated.saleId },
+              select: { returnedQuantity: true },
+            });
+            const hasAnyReturns = saleItems.some(
+              (item) => item.returnedQuantity > 0,
+            );
+
+            await tx.sale.update({
+              where: { id: updated.saleId },
+              data: { hasReturns: hasAnyReturns },
+            });
           }
         } else if (newStatus === 'PENDING' && existing.status === 'COMPLETED') {
           // Sales return reset to pending after being completed - decrement inventory back
@@ -263,6 +311,34 @@ export class SalesReturnsService {
                   decrement: item.quantity,
                 },
               },
+            });
+
+            // Reverse returned quantity on original sale item if linked
+            if (item.saleItemId) {
+              await tx.saleItem.update({
+                where: { id: item.saleItemId },
+                data: {
+                  returnedQuantity: {
+                    decrement: item.quantity,
+                  },
+                },
+              });
+            }
+          }
+
+          // Check if sale still has any returns
+          if (updated.saleId) {
+            const saleItems = await tx.saleItem.findMany({
+              where: { saleId: updated.saleId },
+              select: { returnedQuantity: true },
+            });
+            const hasAnyReturns = saleItems.some(
+              (item) => item.returnedQuantity > 0,
+            );
+
+            await tx.sale.update({
+              where: { id: updated.saleId },
+              data: { hasReturns: hasAnyReturns },
             });
           }
         }

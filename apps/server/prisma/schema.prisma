@@ -428,6 +428,7 @@ model Sale {
   notes         String?
   shippingAddress String?
   sourceQuotationId String?    // Track which quotation this sale was created from
+  hasReturns    Boolean        @default(false)  // Track if any items have been returned
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   customerEmail String?
@@ -458,6 +459,7 @@ model Sale {
 model SaleItem {
   id        String  @id @default(uuid())
   quantity  Int
+  returnedQuantity Int @default(0)  // Track how many items have been returned
   unitPrice Decimal @db.Decimal(10, 2)
   saleId    String
   productId String
@@ -493,6 +495,7 @@ model PurchaseOrder {
   totalAmount     Decimal             @db.Decimal(10, 2)
   status          OrderStatus         @default(PENDING)
   orderDate       DateTime            @default(now())
+  hasReturns      Boolean             @default(false)  // Track if any items have been returned
   createdAt       DateTime            @default(now())
   updatedAt       DateTime            @updatedAt
 
@@ -519,6 +522,7 @@ model PurchaseOrder {
 model PurchaseOrderItem {
   id              String        @id @default(uuid())
   quantity        Int
+  returnedQuantity Int          @default(0)  // Track how many items have been returned
   unitCost        Decimal       @db.Decimal(10, 2)
   purchaseOrderId String
   productId       String

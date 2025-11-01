@@ -251,6 +251,26 @@ export class PurchaseReturnsService {
                 },
               },
             });
+
+            // Update returned quantity on original purchase item if linked
+            if (item.purchaseOrderItemId) {
+              await tx.purchaseOrderItem.update({
+                where: { id: item.purchaseOrderItemId },
+                data: {
+                  returnedQuantity: {
+                    increment: item.quantity,
+                  },
+                },
+              });
+            }
+          }
+
+          // Mark the purchase order as having returns if linked
+          if (updated.purchaseOrderId) {
+            await tx.purchaseOrder.update({
+              where: { id: updated.purchaseOrderId },
+              data: { hasReturns: true },
+            });
           }
         } else if (
           newStatus === 'CANCELLED' &&
@@ -271,6 +291,34 @@ export class PurchaseReturnsService {
                 },
               },
             });
+
+            // Reverse returned quantity on original purchase item if linked
+            if (item.purchaseOrderItemId) {
+              await tx.purchaseOrderItem.update({
+                where: { id: item.purchaseOrderItemId },
+                data: {
+                  returnedQuantity: {
+                    decrement: item.quantity,
+                  },
+                },
+              });
+            }
+          }
+
+          // Check if purchase order still has any returns
+          if (updated.purchaseOrderId) {
+            const purchaseItems = await tx.purchaseOrderItem.findMany({
+              where: { purchaseOrderId: updated.purchaseOrderId },
+              select: { returnedQuantity: true },
+            });
+            const hasAnyReturns = purchaseItems.some(
+              (item) => item.returnedQuantity > 0,
+            );
+
+            await tx.purchaseOrder.update({
+              where: { id: updated.purchaseOrderId },
+              data: { hasReturns: hasAnyReturns },
+            });
           }
         } else if (newStatus === 'PENDING' && existing.status === 'COMPLETED') {
           // Purchase return reset to pending after being completed - increment inventory back
@@ -287,6 +335,34 @@ export class PurchaseReturnsService {
                   increment: item.quantity,
                 },
               },
+            });
+
+            // Reverse returned quantity on original purchase item if linked
+            if (item.purchaseOrderItemId) {
+              await tx.purchaseOrderItem.update({
+                where: { id: item.purchaseOrderItemId },
+                data: {
+                  returnedQuantity: {
+                    decrement: item.quantity,
+                  },
+                },
+              });
+            }
+          }
+
+          // Check if purchase order still has any returns
+          if (updated.purchaseOrderId) {
+            const purchaseItems = await tx.purchaseOrderItem.findMany({
+              where: { purchaseOrderId: updated.purchaseOrderId },
+              select: { returnedQuantity: true },
+            });
+            const hasAnyReturns = purchaseItems.some(
+              (item) => item.returnedQuantity > 0,
+            );
+
+            await tx.purchaseOrder.update({
+              where: { id: updated.purchaseOrderId },
+              data: { hasReturns: hasAnyReturns },
             });
           }
         }

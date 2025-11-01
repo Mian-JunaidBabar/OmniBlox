@@ -7,6 +7,7 @@ export interface SaleItem {
   id: string;
   productId: string;
   quantity: number;
+  returnedQuantity: number;
   unitPrice: number;
   product: {
     id: string;
@@ -22,6 +23,7 @@ export interface Sale {
   totalAmount: number;
   status: string;
   paymentStatus: string;
+  hasReturns: boolean;
   warehouseId?: string;
   warehouse?: {
     id: string;
