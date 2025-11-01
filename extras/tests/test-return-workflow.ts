@@ -24,6 +24,20 @@ interface TestContext {
   sessionCookie?: string;
 }
 
+function authHeaders(ctx: Partial<TestContext>, contentType?: string) {
+  const headers: Record<string, string> = {};
+  if (ctx.accessToken) {
+    headers["Authorization"] = `Bearer ${ctx.accessToken}`;
+  }
+  if (ctx.sessionCookie) {
+    headers["Cookie"] = ctx.sessionCookie;
+  }
+  if (contentType) {
+    headers["Content-Type"] = contentType;
+  }
+  return headers;
+}
+
 async function login(): Promise<{
   accessToken: string;
   tenantId: string;
@@ -93,6 +107,7 @@ async function login(): Promise<{
   console.log("✅ Login successful");
   console.log(`   User: ${data.user.email}`);
   console.log(`   Tenant: ${data.user.tenantId}`);
+  console.log("   Login body:", JSON.stringify(data, null, 2));
 
   // Debug: print response headers to inspect Set-Cookie
   try {
@@ -106,14 +121,35 @@ async function login(): Promise<{
   }
 
   // Capture session cookie (BetterAuth uses cookie sessions)
-  const setCookie =
-    (successResponse.headers &&
-      (successResponse.headers.get("set-cookie") ||
-        successResponse.headers.get("Set-Cookie"))) ||
-    "";
-  const cookie = Array.isArray(setCookie)
-    ? setCookie.join("; ")
-    : setCookie || "";
+  // Collect all Set-Cookie header entries and build a single Cookie header
+  // value containing only the name=value pairs (no attributes).
+  let cookie = "";
+  try {
+    const headersArray = Array.from(
+      (successResponse.headers as any).entries()
+    ) as [string, any][];
+    const setCookiePairs = headersArray
+      .filter(([k]) => k.toLowerCase() === "set-cookie")
+      .map(([, v]) => {
+        // v may contain attributes after ';' - take only the name=value
+        const str = Array.isArray(v) ? v.join("; ") : String(v || "");
+        return str.split(";")[0];
+      })
+      .filter(Boolean);
+
+    if (setCookiePairs.length > 0) {
+      cookie = setCookiePairs.join("; ");
+    }
+    console.log("   Cookie to send:", cookie);
+  } catch (err) {
+    // fallback to whatever headers.get returns (may be only one cookie)
+    const setCookie =
+      (successResponse.headers &&
+        (successResponse.headers.get("set-cookie") ||
+          successResponse.headers.get("Set-Cookie"))) ||
+      "";
+    cookie = Array.isArray(setCookie) ? setCookie.join("; ") : setCookie || "";
+  }
 
   return {
     accessToken: data.token,
@@ -126,9 +162,7 @@ async function login(): Promise<{
 async function getWarehouse(ctx: TestContext): Promise<string> {
   console.log("\n📝 Step 2: Get Warehouse");
   const response = await fetch(`${BASE_URL}/warehouses`, {
-    headers: {
-      Cookie: ctx.sessionCookie || "",
-    },
+    headers: authHeaders(ctx),
   });
 
   if (!response.ok) {
@@ -147,9 +181,7 @@ async function getWarehouse(ctx: TestContext): Promise<string> {
 async function getCustomer(ctx: TestContext): Promise<string> {
   console.log("\n📝 Step 3: Get Customer");
   const response = await fetch(`${BASE_URL}/customers`, {
-    headers: {
-      Cookie: ctx.sessionCookie || "",
-    },
+    headers: authHeaders(ctx),
   });
 
   if (!response.ok) {
@@ -168,9 +200,7 @@ async function getCustomer(ctx: TestContext): Promise<string> {
 async function getProduct(ctx: TestContext): Promise<string> {
   console.log("\n📝 Step 4: Get Product");
   const response = await fetch(`${BASE_URL}/products`, {
-    headers: {
-      Cookie: ctx.sessionCookie || "",
-    },
+    headers: authHeaders(ctx),
   });
 
   if (!response.ok) {
@@ -193,8 +223,7 @@ async function createSale(
   const response = await fetch(`${BASE_URL}/sales`, {
     method: "POST",
     headers: {
-      Cookie: ctx.sessionCookie || "",
-      "Content-Type": "application/json",
+      ...authHeaders(ctx, "application/json"),
     },
     body: JSON.stringify({
       customerId: ctx.customerId,
@@ -240,8 +269,7 @@ async function createReturn(ctx: TestContext): Promise<string> {
   const response = await fetch(`${BASE_URL}/sales-returns`, {
     method: "POST",
     headers: {
-      Cookie: ctx.sessionCookie || "",
-      "Content-Type": "application/json",
+      ...authHeaders(ctx, "application/json"),
     },
     body: JSON.stringify({
       customerId: ctx.customerId,
@@ -278,9 +306,7 @@ async function createReturn(ctx: TestContext): Promise<string> {
 async function checkSaleBeforeCompletion(ctx: TestContext): Promise<void> {
   console.log("\n📝 Step 7: Check Sale BEFORE completing return");
   const response = await fetch(`${BASE_URL}/sales/${ctx.saleId}`, {
-    headers: {
-      Cookie: ctx.sessionCookie || "",
-    },
+    headers: authHeaders(ctx),
   });
 
   if (!response.ok) {
@@ -310,8 +336,7 @@ async function completeReturn(ctx: TestContext): Promise<void> {
   const response = await fetch(`${BASE_URL}/sales-returns/${ctx.returnId}`, {
     method: "PATCH",
     headers: {
-      Cookie: ctx.sessionCookie || "",
-      "Content-Type": "application/json",
+      ...authHeaders(ctx, "application/json"),
     },
     body: JSON.stringify({
       status: "COMPLETED",
@@ -333,9 +358,7 @@ async function completeReturn(ctx: TestContext): Promise<void> {
 async function checkSaleAfterCompletion(ctx: TestContext): Promise<void> {
   console.log("\n📝 Step 9: Check Sale AFTER completing return");
   const response = await fetch(`${BASE_URL}/sales/${ctx.saleId}`, {
-    headers: {
-      Cookie: ctx.sessionCookie || "",
-    },
+    headers: authHeaders(ctx),
   });
 
   if (!response.ok) {
@@ -376,8 +399,7 @@ async function testCancellation(ctx: TestContext): Promise<void> {
   const response = await fetch(`${BASE_URL}/sales-returns/${ctx.returnId}`, {
     method: "PATCH",
     headers: {
-      Cookie: ctx.sessionCookie || "",
-      "Content-Type": "application/json",
+      ...authHeaders(ctx, "application/json"),
     },
     body: JSON.stringify({
       status: "CANCELLED",
@@ -426,6 +448,24 @@ async function runTest() {
     const { accessToken, tenantId } = await login();
     ctx.accessToken = accessToken;
     ctx.tenantId = tenantId;
+
+    // Quick check: call /auth/me to verify the session is recognized by the server
+    console.log("\n📝 Quick check: /auth/me with session cookie");
+    try {
+      const meResp = await fetch(`${BASE_URL}/auth/me`, {
+        method: "GET",
+        headers: { Cookie: (ctx as any).sessionCookie || "" },
+      });
+      console.log("   /auth/me status:", meResp.status);
+      try {
+        const mb = await meResp.text();
+        console.log("   /auth/me body:", mb);
+      } catch (e) {
+        /* ignore */
+      }
+    } catch (e) {
+      console.log("   /auth/me request failed:", String(e));
+    }
 
     // Get test data
     ctx.warehouseId = await getWarehouse(ctx);

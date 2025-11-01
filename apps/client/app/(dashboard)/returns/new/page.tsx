@@ -185,7 +185,12 @@ export default function NewReturnPage() {
     if (tab === "supplier") {
       setLoadingPurchases(true);
       listPurchases()
-        .then((res) => setPurchases(res || []))
+        .then((res) => {
+          const list = res || [];
+          // Only allow referencing purchase orders that have been received (COMPLETED)
+          const received = list.filter((p: any) => p.status === "COMPLETED");
+          setPurchases(received);
+        })
         .catch((err) => console.error("Failed to load purchases:", err))
         .finally(() => setLoadingPurchases(false));
     }

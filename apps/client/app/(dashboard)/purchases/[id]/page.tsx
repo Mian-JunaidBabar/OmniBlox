@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { ArrowLeft, Package, User, FileText } from "lucide-react";
+import { ArrowLeft, Package, User, FileText, RotateCcw } from "lucide-react";
 import { format } from "date-fns";
 import { ReceivePurchaseDialog } from "@/components/purchases/ReceivePurchaseDialog";
 import { toast } from "@/hooks/use-toast";
@@ -133,8 +133,27 @@ export default function PurchaseDetailPage() {
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div>
-            <h1 className="text-3xl font-semibold tracking-tight">
+            <h1 className="text-3xl font-semibold tracking-tight flex items-center gap-3">
               {purchase.referenceNumber}
+              {purchase.hasReturns && (
+                <span className="flex items-center gap-2">
+                  <Badge
+                    variant="outline"
+                    className="text-orange-600 border-orange-600"
+                  >
+                    <RotateCcw className="mr-1 h-3 w-3" />
+                    Has Returns
+                  </Badge>
+                  <span className="text-sm text-muted-foreground">
+                    (
+                    {purchase.items?.reduce(
+                      (s, i) => s + (i.returnedQuantity ?? 0),
+                      0
+                    )}
+                    )
+                  </span>
+                </span>
+              )}
             </h1>
             <p className="text-sm text-muted-foreground">
               Purchase Order Details

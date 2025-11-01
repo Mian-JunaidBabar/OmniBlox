@@ -107,15 +107,25 @@ export function PurchasesTable({
                 </TableCell>
                 <TableCell>{formatDate(po.orderDate)}</TableCell>
                 <TableCell>
-                  {po.hasReturns && (
-                    <Badge
-                      variant="outline"
-                      className="text-orange-600 border-orange-600"
-                    >
-                      <RotateCcw className="mr-1 h-3 w-3" />
-                      Has Returns
-                    </Badge>
-                  )}
+                  {po.hasReturns ? (
+                    <div className="flex items-center gap-2">
+                      <Badge
+                        variant="outline"
+                        className="text-orange-600 border-orange-600"
+                      >
+                        <RotateCcw className="mr-1 h-3 w-3" />
+                        Has Returns
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        (
+                        {po.items?.reduce(
+                          (s, i) => s + (i.returnedQuantity ?? 0),
+                          0
+                        )}
+                        )
+                      </span>
+                    </div>
+                  ) : null}
                 </TableCell>
                 {canManage ? (
                   <TableCell className="text-right">
