@@ -294,6 +294,7 @@ model Warehouse {
   salesReturns         SalesReturn[]
   purchaseReturns      PurchaseReturn[]
   sales                Sale[]
+  purchases            PurchaseOrder[]
 
   @@map("warehouses")
 }
@@ -502,11 +503,13 @@ model PurchaseOrder {
   // Foreign Keys
   supplierId String
   userId     String
+  warehouseId String?
 
   // Relations
   items    PurchaseOrderItem[]
   supplier Supplier            @relation(fields: [supplierId], references: [id])
   user     User                @relation(fields: [userId], references: [id])
+  warehouse Warehouse?         @relation(fields: [warehouseId], references: [id])
   returns  PurchaseReturn[]    // Track returns for this purchase
 
   @@unique([companyId, referenceNumber]) // Reference number unique per company

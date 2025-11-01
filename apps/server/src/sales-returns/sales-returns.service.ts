@@ -87,27 +87,28 @@ export class SalesReturnsService {
           },
         });
 
+        // Note: Inventory will be incremented when status changes to COMPLETED
         // Update inventory - ADD stock back (customer returning goods)
-        for (const item of dto.items) {
-          await tx.inventory.upsert({
-            where: {
-              productId_warehouseId: {
-                productId: item.productId,
-                warehouseId: dto.warehouseId,
-              },
-            },
-            update: {
-              quantity: {
-                increment: item.quantity, // Atomic increment
-              },
-            },
-            create: {
-              productId: item.productId,
-              warehouseId: dto.warehouseId,
-              quantity: item.quantity,
-            },
-          });
-        }
+        // for (const item of dto.items) {
+        //   await tx.inventory.upsert({
+        //     where: {
+        //       productId_warehouseId: {
+        //         productId: item.productId,
+        //         warehouseId: dto.warehouseId,
+        //       },
+        //     },
+        //     update: {
+        //       quantity: {
+        //         increment: item.quantity, // Atomic increment
+        //       },
+        //     },
+        //     create: {
+        //       productId: item.productId,
+        //       warehouseId: dto.warehouseId,
+        //       quantity: item.quantity,
+        //     },
+        //   });
+        // }
 
         return salesReturn;
       },
@@ -176,30 +177,82 @@ export class SalesReturnsService {
    * Update a sales return (status changes primarily)
    */
   async update(id: string, dto: UpdateSalesReturnDto, companyId: string) {
-    // Verify it exists
-    await this.findOne(id, companyId);
+    // Get existing sales return
+    const existing = await this.findOne(id, companyId);
 
-    return this.prisma.salesReturn.update({
-      where: { id },
-      data: {
-        ...(dto.status && { status: dto.status }),
-        ...(dto.reason && { reason: dto.reason }),
-      },
-      include: {
-        items: {
-          include: {
-            product: true,
-          },
+    return this.prisma.$transaction(async (tx) => {
+      const updated = await tx.salesReturn.update({
+        where: { id },
+        data: {
+          ...(dto.status && { status: dto.status }),
+          ...(dto.reason && { reason: dto.reason }),
         },
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
+        include: {
+          items: {
+            include: {
+              product: true,
+            },
           },
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+            },
+          },
+          warehouse: true,
         },
-        warehouse: true,
-      },
+      });
+
+      // Handle inventory adjustments based on status changes
+      const newStatus = dto.status;
+      if (newStatus && newStatus !== existing.status) {
+        if (newStatus === 'COMPLETED' && existing.status !== 'COMPLETED') {
+          // Sales return completed - increment inventory
+          for (const item of updated.items) {
+            await tx.inventory.upsert({
+              where: {
+                productId_warehouseId: {
+                  productId: item.productId,
+                  warehouseId: updated.warehouseId,
+                },
+              },
+              update: {
+                quantity: {
+                  increment: item.quantity, // Atomic increment
+                },
+              },
+              create: {
+                productId: item.productId,
+                warehouseId: updated.warehouseId,
+                quantity: item.quantity,
+              },
+            });
+          }
+        } else if (
+          newStatus === 'CANCELLED' &&
+          existing.status === 'COMPLETED'
+        ) {
+          // Sales return cancelled after being completed - decrement inventory back
+          for (const item of updated.items) {
+            await tx.inventory.update({
+              where: {
+                productId_warehouseId: {
+                  productId: item.productId,
+                  warehouseId: updated.warehouseId,
+                },
+              },
+              data: {
+                quantity: {
+                  decrement: item.quantity,
+                },
+              },
+            });
+          }
+        }
+      }
+
+      return updated;
     });
   }
 

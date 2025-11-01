@@ -144,6 +144,12 @@ export class PurchasesService {
             email: true,
           },
         },
+        warehouse: {
+          select: {
+            id: true,
+            name: true,
+          },
+        },
         user: {
           select: {
             id: true,
@@ -196,6 +202,7 @@ export class PurchasesService {
           where: { id },
           data: {
             status: OrderStatus.COMPLETED,
+            warehouseId: warehouseId,
           },
         });
 

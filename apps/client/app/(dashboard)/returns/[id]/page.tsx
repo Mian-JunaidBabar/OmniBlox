@@ -56,6 +56,8 @@ export default function ReturnDetailPage() {
     getPurchaseReturn,
     deleteSalesReturn,
     deletePurchaseReturn,
+    updateSalesReturn,
+    updatePurchaseReturn,
   } = useReturnsApi();
 
   const [loading, setLoading] = useState(true);
@@ -66,6 +68,7 @@ export default function ReturnDetailPage() {
     null
   );
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [statusUpdateLoading, setStatusUpdateLoading] = useState(false);
 
   const id = String(params.id);
 
@@ -152,6 +155,39 @@ export default function ReturnDetailPage() {
         description: e?.message || "Unknown error",
         variant: "destructive",
       });
+    }
+  };
+
+  const handleStatusChange = async (
+    newStatus: "PENDING" | "PROCESSING" | "COMPLETED" | "CANCELLED"
+  ) => {
+    if (!data || !type || statusUpdateLoading) return;
+
+    try {
+      setStatusUpdateLoading(true);
+
+      if (type === "customer") {
+        const updated = await updateSalesReturn(data.id, { status: newStatus });
+        setSalesReturn(updated);
+      } else {
+        const updated = await updatePurchaseReturn(data.id, {
+          status: newStatus,
+        });
+        setPurchaseReturn(updated);
+      }
+
+      toast({
+        title: "Status updated",
+        description: `Return status changed to ${statusConfig[newStatus].label}`,
+      });
+    } catch (e: any) {
+      toast({
+        title: "Failed to update status",
+        description: e?.message || "Unknown error",
+        variant: "destructive",
+      });
+    } finally {
+      setStatusUpdateLoading(false);
     }
   };
 
@@ -330,12 +366,80 @@ export default function ReturnDetailPage() {
             <CardHeader>
               <CardTitle>Actions</CardTitle>
             </CardHeader>
-            <CardContent className="space-x-2">
+            <CardContent className="space-y-3">
               <Link href={`/returns/${data.id}/edit`}>
-                <Button variant="outline" size="sm">
-                  Edit
+                <Button variant="outline" size="sm" className="w-full">
+                  <Edit className="h-4 w-4 mr-2" /> Edit
                 </Button>
               </Link>
+
+              <div className="space-y-2">
+                <p className="text-sm font-medium text-muted-foreground">
+                  Change Status
+                </p>
+                <div className="grid grid-cols-1 gap-2">
+                  {data.status === "PENDING" && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleStatusChange("PROCESSING")}
+                      disabled={statusUpdateLoading}
+                      className="w-full"
+                    >
+                      {statusUpdateLoading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : null}
+                      Start Processing
+                    </Button>
+                  )}
+
+                  {data.status === "PROCESSING" && (
+                    <Button
+                      variant="default"
+                      size="sm"
+                      onClick={() => handleStatusChange("COMPLETED")}
+                      disabled={statusUpdateLoading}
+                      className="w-full"
+                    >
+                      {statusUpdateLoading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : null}
+                      Mark as Completed
+                    </Button>
+                  )}
+
+                  {data.status !== "CANCELLED" && (
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      onClick={() => handleStatusChange("CANCELLED")}
+                      disabled={statusUpdateLoading}
+                      className="w-full"
+                    >
+                      {statusUpdateLoading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : null}
+                      Cancel Return
+                    </Button>
+                  )}
+
+                  {(data.status === "PROCESSING" ||
+                    data.status === "COMPLETED") && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleStatusChange("PENDING")}
+                      disabled={statusUpdateLoading}
+                      className="w-full"
+                    >
+                      {statusUpdateLoading ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : null}
+                      Reset to Pending
+                    </Button>
+                  )}
+                </div>
+              </div>
             </CardContent>
           </Card>
         </div>
