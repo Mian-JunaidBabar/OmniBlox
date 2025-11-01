@@ -3,6 +3,7 @@ export interface SaleItemResponseDto {
   productId: string;
   productName: string;
   quantity: number;
+  returnedQuantity: number;
   unitPrice: number;
   total: number;
 }
@@ -20,6 +21,7 @@ export interface SaleSummaryDto {
   paymentMethod: string | null;
   warehouseId: string;
   warehouseName: string;
+  hasReturns: boolean;
   subtotal: number;
   tax: number;
   discount: number;

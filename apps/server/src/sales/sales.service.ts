@@ -754,6 +754,7 @@ export class SalesService {
       productId: item.productId,
       productName: item.product?.name ?? item.productId,
       quantity: item.quantity,
+      returnedQuantity: item.returnedQuantity ?? 0,
       unitPrice,
       total: this.roundCurrency(item.quantity * unitPrice),
     };
@@ -780,6 +781,7 @@ export class SalesService {
       paymentMethod: sale.paymentMethod ?? null,
       warehouseId: sale.warehouseId,
       warehouseName: sale.warehouse?.name ?? '',
+      hasReturns: Boolean(sale.hasReturns),
       subtotal,
       tax,
       discount,
