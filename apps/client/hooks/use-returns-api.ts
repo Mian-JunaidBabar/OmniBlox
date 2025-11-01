@@ -104,8 +104,15 @@ export interface CreatePurchaseReturnDto {
 }
 
 export interface UpdateReturnDto {
-  status?: "PENDING" | "PROCESSING" | "COMPLETED" | "CANCELLED";
+  warehouseId?: string;
+  supplierId?: string;
   reason?: string;
+  status?: "PENDING" | "PROCESSING" | "COMPLETED" | "CANCELLED";
+  items?: Array<{
+    productId: string;
+    quantity: number;
+    unitPrice: number;
+  }>;
 }
 
 // ========== HOOKS ==========

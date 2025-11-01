@@ -1,68 +1,235 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useParams, useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { ArrowLeft, Edit, Printer, Download } from "lucide-react"
+import { useEffect, useMemo, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Separator } from "@/components/ui/separator";
+import { ArrowLeft, Edit, Trash2, Loader2 } from "lucide-react";
+import {
+  useReturnsApi,
+  type SalesReturn,
+  type PurchaseReturn,
+} from "@/hooks/use-returns-api";
+import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+
+type ReturnType = "customer" | "supplier";
+
+const statusConfig = {
+  PENDING: {
+    label: "Pending",
+    className: "bg-amber-100 text-amber-700 border-amber-200",
+  },
+  PROCESSING: {
+    label: "Processing",
+    className: "bg-blue-100 text-blue-700 border-blue-200",
+  },
+  COMPLETED: {
+    label: "Completed",
+    className: "bg-emerald-100 text-emerald-700 border-emerald-200",
+  },
+  CANCELLED: {
+    label: "Cancelled",
+    className: "bg-red-100 text-red-700 border-red-200",
+  },
+};
 
 export default function ReturnDetailPage() {
-  const params = useParams()
-  const router = useRouter()
-  const [returnData] = useState({
-    id: params.id,
-    reference: `RET-${String(params.id).padStart(5, "0")}`,
-    date: "2024-01-20",
-    type: "customer",
-    customer: "Acme Corporation",
-    originalSale: "SAL-00123",
-    status: "approved",
-    items: [
-      {
-        id: 1,
-        product: "Laptop Dell XPS 15",
-        sku: "LAP-001",
-        quantity: 2,
-        unitPrice: 1500,
-        reason: "Defective",
-        subtotal: 3000,
-      },
-    ],
-    subtotal: 3000,
-    taxAmount: 300,
-    total: 3300,
-    notes: "Customer reported screen flickering issue",
-    refundMethod: "Original Payment Method",
-    refundStatus: "processed",
-  })
+  const params = useParams();
+  const router = useRouter();
+  const { toast } = useToast();
+  const {
+    getSalesReturn,
+    getPurchaseReturn,
+    deleteSalesReturn,
+    deletePurchaseReturn,
+  } = useReturnsApi();
+
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [type, setType] = useState<ReturnType | null>(null);
+  const [salesReturn, setSalesReturn] = useState<SalesReturn | null>(null);
+  const [purchaseReturn, setPurchaseReturn] = useState<PurchaseReturn | null>(
+    null
+  );
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  const id = String(params.id);
+
+  useEffect(() => {
+    let mounted = true;
+    (async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        // Try as sales return first
+        try {
+          const sr = await getSalesReturn(id);
+          if (!mounted) return;
+          setSalesReturn(sr);
+          setType("customer");
+          return;
+        } catch (_e) {
+          // ignore and try purchase
+        }
+        const pr = await getPurchaseReturn(id);
+        if (!mounted) return;
+        setPurchaseReturn(pr);
+        setType("supplier");
+      } catch (e: any) {
+        if (!mounted) return;
+        setError(e?.message || "Failed to load return");
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    })();
+    return () => {
+      mounted = false;
+    };
+  }, [id, getSalesReturn, getPurchaseReturn]);
+
+  const data = useMemo(() => {
+    if (type === "customer" && salesReturn) {
+      return {
+        type,
+        id: salesReturn.id,
+        referenceNumber: salesReturn.referenceNumber,
+        returnDate: salesReturn.returnDate,
+        status: salesReturn.status,
+        reason: salesReturn.reason,
+        warehouse: salesReturn.warehouse?.name,
+        actor: salesReturn.user?.name,
+        headerBadgeClass: "border-red-200 bg-red-50 text-red-700",
+        items: salesReturn.items,
+        totalAmount: Number(salesReturn.totalAmount),
+        sideLabel: "Customer Return",
+        entityLabel: undefined as string | undefined,
+      };
+    }
+    if (type === "supplier" && purchaseReturn) {
+      return {
+        type,
+        id: purchaseReturn.id,
+        referenceNumber: purchaseReturn.referenceNumber,
+        returnDate: purchaseReturn.returnDate,
+        status: purchaseReturn.status,
+        reason: purchaseReturn.reason,
+        warehouse: purchaseReturn.warehouse?.name,
+        actor: purchaseReturn.user?.name,
+        headerBadgeClass: "border-emerald-200 bg-emerald-50 text-emerald-700",
+        items: purchaseReturn.items,
+        totalAmount: Number(purchaseReturn.totalAmount),
+        sideLabel: "Supplier Return",
+        entityLabel: purchaseReturn.supplier?.name,
+      };
+    }
+    return null;
+  }, [type, salesReturn, purchaseReturn]);
+
+  const handleDelete = async () => {
+    if (!data || !type) return;
+    try {
+      if (type === "customer") await deleteSalesReturn(data.id);
+      else await deletePurchaseReturn(data.id);
+      toast({ title: "Return deleted" });
+      router.push("/returns");
+    } catch (e: any) {
+      toast({
+        title: "Failed to delete",
+        description: e?.message || "Unknown error",
+        variant: "destructive",
+      });
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-6 flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  if (error || !data) {
+    return (
+      <div className="p-6">
+        <div className="max-w-xl mx-auto text-center">
+          <p className="text-lg font-medium mb-2">Return not found</p>
+          <p className="text-muted-foreground mb-4">
+            {error || "We couldn't find a return with this id."}
+          </p>
+          <Link href="/returns">
+            <Button variant="outline">Back to returns</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
+          <Link href="/returns">
+            <Button variant="ghost" size="icon">
+              <ArrowLeft className="h-4 w-4" />
+            </Button>
+          </Link>
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Return {returnData.reference}</h1>
-            <p className="text-muted-foreground">View return details</p>
+            <h1 className="text-3xl font-semibold tracking-tight">
+              {data.referenceNumber}
+            </h1>
+            <p className="text-sm text-muted-foreground">{data.sideLabel}</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm">
-            <Printer className="h-4 w-4 mr-2" />
-            Print
-          </Button>
-          <Button variant="outline" size="sm">
-            <Download className="h-4 w-4 mr-2" />
-            PDF
-          </Button>
-          <Button size="sm" onClick={() => router.push(`/returns/${params.id}/edit`)}>
-            <Edit className="h-4 w-4 mr-2" />
-            Edit
-          </Button>
+          <Link href={`/returns/${data.id}/edit`}>
+            <Button variant="outline" size="sm">
+              <Edit className="h-4 w-4 mr-2" /> Edit
+            </Button>
+          </Link>
+          <AlertDialog
+            open={deleteDialogOpen}
+            onOpenChange={setDeleteDialogOpen}
+          >
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" size="sm">
+                <Trash2 className="h-4 w-4 mr-2" /> Delete
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete Return</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Are you sure you want to delete this return? This action
+                  cannot be undone. The return {data.referenceNumber} will be
+                  permanently removed.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction
+                  onClick={handleDelete}
+                  className="bg-destructive text-destructive-foreground hover:bg-destructive/90 text-white"
+                >
+                  Delete
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
       </div>
 
@@ -72,54 +239,75 @@ export default function ReturnDetailPage() {
             <CardTitle>Return Information</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Reference</p>
-                <p className="text-base font-semibold">{returnData.reference}</p>
+                <p className="text-sm text-muted-foreground">Reference</p>
+                <p className="font-medium">{data.referenceNumber}</p>
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Date</p>
-                <p className="text-base">{new Date(returnData.date).toLocaleDateString()}</p>
+                <p className="text-sm text-muted-foreground">Date</p>
+                <p className="font-medium">
+                  {new Date(data.returnDate).toLocaleDateString()}
+                </p>
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Type</p>
-                <Badge>{returnData.type}</Badge>
+                <p className="text-sm text-muted-foreground">Type</p>
+                <Badge variant="outline" className={data.headerBadgeClass}>
+                  {data.sideLabel}
+                </Badge>
               </div>
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Customer</p>
-                <p className="text-base">{returnData.customer}</p>
+                <p className="text-sm text-muted-foreground">Warehouse</p>
+                <p className="font-medium">{data.warehouse || "-"}</p>
               </div>
+              {data.entityLabel && (
+                <div>
+                  <p className="text-sm text-muted-foreground">Supplier</p>
+                  <p className="font-medium">{data.entityLabel}</p>
+                </div>
+              )}
               <div>
-                <p className="text-sm font-medium text-muted-foreground">Original Sale</p>
-                <p className="text-base">{returnData.originalSale}</p>
+                <p className="text-sm text-muted-foreground">Status</p>
+                <Badge
+                  variant="outline"
+                  className={
+                    statusConfig[data.status as keyof typeof statusConfig]
+                      .className
+                  }
+                >
+                  {statusConfig[data.status as keyof typeof statusConfig].label}
+                </Badge>
               </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Status</p>
-                <Badge variant={returnData.status === "approved" ? "default" : "secondary"}>{returnData.status}</Badge>
-              </div>
+              {data.reason && (
+                <div className="md:col-span-2">
+                  <p className="text-sm text-muted-foreground">Reason</p>
+                  <p className="font-medium">{data.reason}</p>
+                </div>
+              )}
             </div>
 
             <Separator />
 
             <div>
-              <h3 className="font-semibold mb-4">Returned Items</h3>
-              <div className="space-y-3">
-                {returnData.items.map((item) => (
-                  <div key={item.id} className="p-3 border rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex-1">
-                        <p className="font-medium">{item.product}</p>
-                        <p className="text-sm text-muted-foreground">SKU: {item.sku}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm">
-                          Qty: {item.quantity} × ${item.unitPrice}
-                        </p>
-                        <p className="font-semibold">${item.subtotal.toFixed(2)}</p>
+              <h3 className="font-semibold mb-3">Items</h3>
+              <div className="space-y-2">
+                {data.items.map((it) => (
+                  <div
+                    key={it.id}
+                    className="p-3 border rounded-md grid grid-cols-12 gap-3 items-center"
+                  >
+                    <div className="col-span-6">
+                      <div className="font-medium">{it.product?.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        SKU: {it.product?.sku}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="outline">{item.reason}</Badge>
+                    <div className="col-span-2 text-sm">Qty: {it.quantity}</div>
+                    <div className="col-span-2 text-sm">
+                      Unit: ${Number(it.unitPrice).toFixed(2)}
+                    </div>
+                    <div className="col-span-2 text-right font-medium">
+                      ${(Number(it.unitPrice) * Number(it.quantity)).toFixed(2)}
                     </div>
                   </div>
                 ))}
@@ -128,20 +316,11 @@ export default function ReturnDetailPage() {
 
             <Separator />
 
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Subtotal</span>
-                <span className="font-medium">${returnData.subtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Tax</span>
-                <span className="font-medium">${returnData.taxAmount.toFixed(2)}</span>
-              </div>
-              <Separator />
-              <div className="flex justify-between text-lg">
-                <span className="font-semibold">Total Refund</span>
-                <span className="font-bold">${returnData.total.toFixed(2)}</span>
-              </div>
+            <div className="flex justify-between text-base">
+              <span className="text-muted-foreground">Total</span>
+              <span className="font-semibold">
+                ${data.totalAmount.toFixed(2)}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -149,32 +328,18 @@ export default function ReturnDetailPage() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Refund Details</CardTitle>
+              <CardTitle>Actions</CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Refund Method</p>
-                <p className="text-base">{returnData.refundMethod}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Refund Status</p>
-                <Badge variant={returnData.refundStatus === "processed" ? "default" : "secondary"}>
-                  {returnData.refundStatus}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>Notes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">{returnData.notes}</p>
+            <CardContent className="space-x-2">
+              <Link href={`/returns/${data.id}/edit`}>
+                <Button variant="outline" size="sm">
+                  Edit
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </div>
       </div>
     </div>
-  )
+  );
 }

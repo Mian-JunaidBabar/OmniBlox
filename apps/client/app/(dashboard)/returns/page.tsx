@@ -191,10 +191,7 @@ export default function ReturnsPage() {
           ) : (
             <div className="space-y-3">
               {filteredReturns.map((returnItem) => (
-                <Link
-                  key={returnItem.id}
-                  href={`/returns/${returnItem.type}/${returnItem.id}`}
-                >
+                <Link key={returnItem.id} href={`/returns/${returnItem.id}`}>
                   <div className="flex items-center justify-between p-4 border rounded-lg hover:bg-accent/50 transition-colors">
                     <div className="flex items-center gap-4">
                       <div
