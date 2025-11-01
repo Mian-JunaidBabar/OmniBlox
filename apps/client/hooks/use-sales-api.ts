@@ -17,7 +17,7 @@ export interface SaleItem {
 
 export interface Sale {
   id: string;
-  referenceNumber: string;
+  invoiceNumber: string;
   saleDate: string;
   totalAmount: number;
   status: string;
@@ -27,6 +27,12 @@ export interface Sale {
     id: string;
     name: string;
   };
+  customer?: {
+    id: string;
+    name: string;
+    email?: string;
+  };
+  customerName?: string;
   items: SaleItem[];
 }
 

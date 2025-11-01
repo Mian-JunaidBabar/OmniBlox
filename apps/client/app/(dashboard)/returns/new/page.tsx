@@ -21,6 +21,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   ArrowLeft,
   Plus,
@@ -94,6 +95,19 @@ export default function NewReturnPage() {
   const { list: listPurchases, getById: getPurchase } = usePurchasesApi();
 
   const [tab, setTab] = useState<"customer" | "supplier">("customer");
+
+  // Form validation and submission state
+  const [submitting, setSubmitting] = useState(false);
+  const [formErrors, setFormErrors] = useState<{
+    customer?: string;
+    supplier?: string;
+  }>({});
+
+  // Clear errors when switching tabs
+  const handleTabChange = (newTab: "customer" | "supplier") => {
+    setTab(newTab);
+    setFormErrors({});
+  };
 
   // Customer Return State
   const [selectedSaleId, setSelectedSaleId] = useState<string>("");
@@ -185,7 +199,7 @@ export default function NewReturnPage() {
       const sale = await getSale(saleId);
       setCustomerForm({
         warehouseId: sale.warehouseId || "",
-        reason: `Return for sale ${sale.referenceNumber}`,
+        reason: `Return for sale ${sale.invoiceNumber}`,
         saleId: sale.id,
         items: sale.items.map((item) => ({
           id: crypto.randomUUID(),
@@ -330,20 +344,45 @@ export default function NewReturnPage() {
     updateItem(kind, id, { productId, unitPrice: defaultPrice });
   };
 
-  const submitting = false; // can be wired if needed
-
   const handleCreateCustomer = async () => {
+    // Clear previous errors
+    setFormErrors({});
+
+    // Validate form
+    if (!customerForm.warehouseId) {
+      setFormErrors({ customer: "Please select a warehouse" });
+      return;
+    }
+
+    const items = customerForm.items
+      .filter((it) => it.productId && it.quantity > 0)
+      .map((it) => ({
+        productId: it.productId,
+        quantity: it.quantity,
+        unitPrice: Number(it.unitPrice),
+        saleItemId: it.saleItemId,
+      }));
+
+    if (!items.length) {
+      setFormErrors({
+        customer: "Please add at least one item with quantity > 0",
+      });
+      return;
+    }
+
+    // Check for invalid quantities (exceeding max for reference-based returns)
+    const invalidItems = customerForm.items.filter(
+      (it) => it.maxQuantity && it.quantity > it.maxQuantity
+    );
+    if (invalidItems.length > 0) {
+      setFormErrors({
+        customer: `Some items exceed the maximum returnable quantity from the selected sale`,
+      });
+      return;
+    }
+
     try {
-      if (!customerForm.warehouseId) throw new Error("Select a warehouse");
-      const items = customerForm.items
-        .filter((it) => it.productId && it.quantity > 0)
-        .map((it) => ({
-          productId: it.productId,
-          quantity: it.quantity,
-          unitPrice: Number(it.unitPrice),
-          saleItemId: it.saleItemId,
-        }));
-      if (!items.length) throw new Error("Add at least one item");
+      setSubmitting(true);
       await createSalesReturn({
         warehouseId: customerForm.warehouseId,
         saleId: customerForm.saleId || undefined,
@@ -358,22 +397,55 @@ export default function NewReturnPage() {
         description: e?.message || "Unknown error",
         variant: "destructive",
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleCreateSupplier = async () => {
+    // Clear previous errors
+    setFormErrors({});
+
+    // Validate form
+    if (!supplierForm.warehouseId) {
+      setFormErrors({ supplier: "Please select a warehouse" });
+      return;
+    }
+
+    if (!supplierForm.supplierId) {
+      setFormErrors({ supplier: "Please select a supplier" });
+      return;
+    }
+
+    const items = supplierForm.items
+      .filter((it) => it.productId && it.quantity > 0)
+      .map((it) => ({
+        productId: it.productId,
+        quantity: it.quantity,
+        unitPrice: Number(it.unitPrice),
+        purchaseOrderItemId: it.purchaseOrderItemId,
+      }));
+
+    if (!items.length) {
+      setFormErrors({
+        supplier: "Please add at least one item with quantity > 0",
+      });
+      return;
+    }
+
+    // Check for invalid quantities (exceeding max for reference-based returns)
+    const invalidItems = supplierForm.items.filter(
+      (it) => it.maxQuantity && it.quantity > it.maxQuantity
+    );
+    if (invalidItems.length > 0) {
+      setFormErrors({
+        supplier: `Some items exceed the maximum returnable quantity from the selected purchase`,
+      });
+      return;
+    }
+
     try {
-      if (!supplierForm.warehouseId) throw new Error("Select a warehouse");
-      if (!supplierForm.supplierId) throw new Error("Select a supplier");
-      const items = supplierForm.items
-        .filter((it) => it.productId && it.quantity > 0)
-        .map((it) => ({
-          productId: it.productId,
-          quantity: it.quantity,
-          unitPrice: Number(it.unitPrice),
-          purchaseOrderItemId: it.purchaseOrderItemId,
-        }));
-      if (!items.length) throw new Error("Add at least one item");
+      setSubmitting(true);
       await createPurchaseReturn({
         warehouseId: supplierForm.warehouseId,
         supplierId: supplierForm.supplierId,
@@ -389,6 +461,8 @@ export default function NewReturnPage() {
         description: e?.message || "Unknown error",
         variant: "destructive",
       });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -413,7 +487,7 @@ export default function NewReturnPage() {
 
       <Tabs
         value={tab}
-        onValueChange={(v) => setTab(v as any)}
+        onValueChange={(v) => handleTabChange(v as any)}
         className="max-w-5xl"
       >
         <TabsList>
@@ -456,9 +530,10 @@ export default function NewReturnPage() {
                     </SelectItem>
                     {sales.map((sale) => (
                       <SelectItem key={sale.id} value={sale.id}>
-                        {sale.referenceNumber} - $
+                        {sale.invoiceNumber} -{" "}
+                        {sale.customerName || "Unknown Customer"} -{" "}
+                        {new Date(sale.saleDate).toLocaleDateString()} - $
                         {Number(sale.totalAmount).toFixed(2)}
-                        {sale.warehouse && ` (${sale.warehouse.name})`}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -557,6 +632,11 @@ export default function NewReturnPage() {
                         min={1}
                         max={it.maxQuantity}
                         value={it.quantity}
+                        className={
+                          it.maxQuantity && it.quantity > it.maxQuantity
+                            ? "border-red-500"
+                            : ""
+                        }
                         onChange={(e) => {
                           const val = Number(e.target.value) || 1;
                           const maxVal = it.maxQuantity || Infinity;
@@ -604,6 +684,12 @@ export default function NewReturnPage() {
                 </div>
               </div>
 
+              {formErrors.customer && (
+                <Alert variant="destructive">
+                  <AlertDescription>{formErrors.customer}</AlertDescription>
+                </Alert>
+              )}
+
               <div className="flex justify-end gap-2">
                 <Button
                   variant="outline"
@@ -615,7 +701,14 @@ export default function NewReturnPage() {
                   onClick={handleCreateCustomer}
                   disabled={disabled || submitting}
                 >
-                  Create Return
+                  {submitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Creating...
+                    </>
+                  ) : (
+                    "Create Return"
+                  )}
                 </Button>
               </div>
             </CardContent>
@@ -653,7 +746,9 @@ export default function NewReturnPage() {
                     </SelectItem>
                     {purchases.map((purchase) => (
                       <SelectItem key={purchase.id} value={purchase.id}>
-                        {purchase.referenceNumber} - {purchase.supplier.name}$
+                        {purchase.referenceNumber} -{" "}
+                        {purchase.supplier?.name || "Unknown Supplier"} -{" "}
+                        {new Date(purchase.orderDate).toLocaleDateString()} - $
                         {Number(purchase.totalAmount).toFixed(2)}
                       </SelectItem>
                     ))}
@@ -774,6 +869,11 @@ export default function NewReturnPage() {
                         min={1}
                         max={it.maxQuantity}
                         value={it.quantity}
+                        className={
+                          it.maxQuantity && it.quantity > it.maxQuantity
+                            ? "border-red-500"
+                            : ""
+                        }
                         onChange={(e) => {
                           const val = Number(e.target.value) || 1;
                           const maxVal = it.maxQuantity || Infinity;
@@ -821,6 +921,12 @@ export default function NewReturnPage() {
                 </div>
               </div>
 
+              {formErrors.supplier && (
+                <Alert variant="destructive">
+                  <AlertDescription>{formErrors.supplier}</AlertDescription>
+                </Alert>
+              )}
+
               <div className="flex justify-end gap-2">
                 <Button
                   variant="outline"
@@ -832,7 +938,14 @@ export default function NewReturnPage() {
                   onClick={handleCreateSupplier}
                   disabled={disabled || submitting}
                 >
-                  Create Return
+                  {submitting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Creating...
+                    </>
+                  ) : (
+                    "Create Return"
+                  )}
                 </Button>
               </div>
             </CardContent>
