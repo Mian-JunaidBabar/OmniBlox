@@ -46,16 +46,21 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Tooltip as TooltipUI,
   TooltipTrigger,
   TooltipContent,
 } from "@/components/ui/tooltip";
 
+const palette = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444"];
+
 export default function DashboardPage() {
   const [dashboard, setDashboard] = useState<any | null>(null);
+  const [loading, setLoading] = useState(true);
   useEffect(() => {
     let mounted = true;
+    setLoading(true);
     api
       .get("/dashboard/stats")
       .then((d) => {
@@ -64,101 +69,77 @@ export default function DashboardPage() {
       .catch((err) => {
         // Keep static fallbacks on error; log for debugging
         console.warn("Failed to load dashboard stats:", err);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
       });
     return () => {
       mounted = false;
     };
   }, []);
 
-  const palette = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444"];
   // Sales data for monthly chart (use API monthlySeries when available,
   // fall back to static sample data). Normalize the API shape to the
   // chart fields (sales/purchases/profit) so the chart works either way.
-  const rawMonthlySeries = dashboard?.sales?.monthlySeries ?? [
-    { month: "Jan", sales: 45000, purchases: 32000, profit: 13000 },
-    { month: "Feb", sales: 52000, purchases: 35000, profit: 17000 },
-    { month: "Mar", sales: 48000, purchases: 33000, profit: 15000 },
-    { month: "Apr", sales: 61000, purchases: 40000, profit: 21000 },
-    { month: "May", sales: 55000, purchases: 38000, profit: 17000 },
-    { month: "Jun", sales: 67000, purchases: 42000, profit: 25000 },
-  ];
+  const rawMonthlySeries = dashboard?.sales?.monthlySeries ?? [];
+
+  // If purchases are produced separately by the backend (dashboard.purchases.monthlySeries),
+  // build a quick lookup keyed by month so we can populate the purchases column in the
+  // combined monthly chart.
+  const purchasesSeries = dashboard?.purchases?.monthlySeries ?? null;
+  const purchasesLookup: Record<string, number> = purchasesSeries
+    ? purchasesSeries.reduce((acc: Record<string, number>, item: any) => {
+        const m = item.month || item.label || "";
+        acc[m] = Number(
+          item.total ?? item.purchases ?? item.amount ?? item.value ?? 0
+        );
+        return acc;
+      }, {})
+    : {};
 
   const monthlySalesData = rawMonthlySeries.map((e: any) => {
     // Server monthlySeries may use different keys (e.g. { month, invoices, revenue })
     const month = e.month || e.label || "";
     const sales = Number(e.revenue ?? e.sales ?? e.invoices ?? 0);
-    const purchases = Number(e.purchases ?? 0);
+    // prefer purchases on the sales series, otherwise consult purchasesLookup
+    const purchases = Number(e.purchases ?? purchasesLookup[month] ?? 0);
     const profit = Number(e.profit ?? sales - purchases);
     return { month, sales, purchases, profit };
   });
 
   // Stock overview data for pie chart (from API or fallback static)
-  const stockOverviewData = dashboard?.products?.stockOverviewByCategory?.map(
-    (c: any, i: number) => ({
-      name: c.categoryName || "Uncategorized",
-      value: c.totalQuantity,
-      color: palette[i % palette.length],
-    })
-  ) ?? [
-    { name: "Electronics", value: 45, color: "#3b82f6" },
-    { name: "Accessories", value: 28, color: "#10b981" },
-    { name: "Software", value: 18, color: "#f59e0b" },
-    { name: "Hardware", value: 32, color: "#8b5cf6" },
-    { name: "Others", value: 15, color: "#ef4444" },
-  ];
+  const stockOverviewData = dashboard?.products?.stockOverviewByCategory ?? [];
 
   // Best sellers mapped from API or fallback
-  const bestSellers = dashboard?.products?.bestSellers?.map(
-    (b: any, idx: number) => ({
+  const num = (v: any) => {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+  const formatCurrency = (v: any) => {
+    const n = Number(v);
+    if (!Number.isFinite(n)) return String(v ?? "$0");
+    return `$${n.toLocaleString()}`;
+  };
+
+  const bestSellers =
+    dashboard?.products?.bestSellers?.map((b: any, idx: number) => ({
       rank: idx + 1,
       product: b.name ?? b.productName ?? b.productId,
-      sku: b.sku ?? "",
-      sales: b.quantitySold ?? 0,
-      revenue: b.revenue ? String(b.revenue) : "$0",
-      growth: b.growth ?? "",
-    })
-  ) ?? [
-    {
-      rank: 1,
-      product: 'Laptop Pro 15"',
-      sku: "LP15-001",
-      sales: 245,
-      revenue: "$294,000",
-      growth: "+15%",
-    },
-    {
-      rank: 2,
-      product: "Wireless Mouse",
-      sku: "WM-002",
-      sales: 892,
-      revenue: "$44,600",
-      growth: "+28%",
-    },
-    {
-      rank: 3,
-      product: "USB-C Cable",
-      sku: "UC-003",
-      sales: 1205,
-      revenue: "$24,100",
-      growth: "+42%",
-    },
-    {
-      rank: 4,
-      product: 'Monitor 27"',
-      sku: "M27-004",
-      sales: 156,
-      revenue: "$62,400",
-      growth: "+8%",
-    },
-    {
-      rank: 5,
-      product: "Keyboard Mechanical",
-      sku: "KM-005",
-      sales: 334,
-      revenue: "$33,400",
-      growth: "+22%",
-    },
-  ];
+      sku: b.sku ?? b.product?.sku ?? "",
+      // accept multiple possible fields from API
+      sales: num(
+        b.quantitySold ??
+          b.sold ??
+          b.totalSold ??
+          b.qty ??
+          b.quantity ??
+          b.sales
+      ),
+      revenue: formatCurrency(
+        b.revenue ?? b.totalRevenue ?? b.total ?? b.amount
+      ),
+      growth: b.growth ?? b.change ?? "",
+    })) ?? [];
 
   // Top customers, suppliers, etc.
   interface TopCustomer {
@@ -167,39 +148,30 @@ export default function DashboardPage() {
     orders: number;
   }
 
-  const topCustomers: TopCustomer[] = dashboard?.sales?.topCustomers?.map(
-    (c: any) => ({
+  const topCustomers: TopCustomer[] =
+    dashboard?.sales?.topCustomers?.map((c: any) => ({
       name: c.name || c.customerName || "Unknown",
-      purchases: c.total ? `$${c.total.toLocaleString()}` : "$0",
-      orders: c.count ?? 0,
-    })
-  ) ?? [
-    { name: "Acme Corp", purchases: "$45,230", orders: 23 },
-    { name: "TechStart Inc", purchases: "$38,450", orders: 18 },
-    { name: "Global Solutions", purchases: "$32,100", orders: 15 },
-    { name: "Innovation Labs", purchases: "$28,900", orders: 12 },
-    { name: "Digital Dynamics", purchases: "$25,600", orders: 10 },
-  ];
+      purchases: formatCurrency(
+        c.total ?? c.totalAmount ?? c.totalSpent ?? c.amount ?? c.revenue
+      ),
+      orders: num(
+        c.count ?? c.orders ?? c.orderCount ?? c.ordersCount ?? c.numOrders
+      ),
+    })) ?? [];
   interface TopSupplier {
     name: string;
     supplies: string;
     orders: number;
   }
 
-  const topSuppliers: TopSupplier[] = dashboard?.purchases?.topSuppliers?.map(
-    (s: any) => ({
+  const topSuppliers: TopSupplier[] =
+    dashboard?.purchases?.topSuppliers?.map((s: any) => ({
       name: s.name || "Unknown",
-      supplies: s.total ? `$${s.total.toLocaleString()}` : "$0",
-      orders: s.count ?? 0,
-    })
-  ) ?? [
-    { name: "John Electronics Ltd", supplies: "$156,340", orders: 45 },
-    { name: "Tech Supply Co", supplies: "$134,200", orders: 38 },
-    { name: "Global Hardware Inc", supplies: "$98,750", orders: 32 },
-    { name: "Parts Warehouse", supplies: "$87,400", orders: 28 },
-    { name: "Component Direct", supplies: "$76,150", orders: 24 },
-  ];
-
+      supplies: formatCurrency(
+        s.total ?? s.totalAmount ?? s.totalSupplied ?? s.amount
+      ),
+      orders: num(s.count ?? s.orders ?? s.orderCount ?? s.numOrders),
+    })) ?? [];
   // helper to format percent change and select color
   const formatChange = (
     prev: number | null | undefined,
@@ -241,21 +213,21 @@ export default function DashboardPage() {
   const stats = [
     {
       title: "Total Products",
-      value: String(totalProducts || "1,234"),
+      value: String(dashboard?.products?.totalProducts ?? 0),
       changeText: productsChange.text,
       changeClass: productsChange.className,
       icon: Package,
     },
     {
       title: "Invoices This Month",
-      value: String(invoicesThisMonth || "89"),
+      value: String(dashboard?.sales?.invoicesThisMonth ?? 0),
       changeText: invoicesChange.text,
       changeClass: invoicesChange.className,
       icon: FileText,
     },
     {
       title: "Low Stock Items",
-      value: String(lowStock || "23"),
+      value: String(dashboard?.products?.lowStockCount ?? 0),
       changeText: lowStockChange.text,
       changeClass: lowStockChange.className,
       icon: Warehouse,
@@ -265,7 +237,7 @@ export default function DashboardPage() {
       value:
         dashboard?.sales?.totalRevenue != null
           ? `$${Number(dashboard.sales.totalRevenue).toLocaleString()}`
-          : "$45,231",
+          : "$0",
       changeText: revenueChange.text,
       changeClass: revenueChange.className,
       icon: TrendingUp,
@@ -293,11 +265,22 @@ export default function DashboardPage() {
                 <Icon className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">{stat.value}</div>
-                <p className="text-xs text-muted-foreground">
-                  <span className={stat.changeClass}>{stat.changeText}</span>{" "}
-                  from last month
-                </p>
+                {loading ? (
+                  <>
+                    <Skeleton className="h-8 w-20 mb-2" />
+                    <Skeleton className="h-4 w-16" />
+                  </>
+                ) : (
+                  <>
+                    <div className="text-2xl font-bold">{stat.value}</div>
+                    <p className="text-xs text-muted-foreground">
+                      <span className={stat.changeClass}>
+                        {stat.changeText}
+                      </span>{" "}
+                      from last month
+                    </p>
+                  </>
+                )}
               </CardContent>
             </Card>
           );
@@ -320,18 +303,25 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={monthlySalesData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="sales" fill="#3b82f6" name="Sales" />
-                <Bar dataKey="purchases" fill="#10b981" name="Purchases" />
-                <Bar dataKey="profit" fill="#f59e0b" name="Profit" />
-              </BarChart>
-            </ResponsiveContainer>
+            {loading || monthlySalesData.length === 0 ? (
+              <div className="space-y-4">
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-64 w-full" />
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <BarChart data={monthlySalesData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="month" />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="sales" fill="#3b82f6" name="Sales" />
+                  <Bar dataKey="purchases" fill="#10b981" name="Purchases" />
+                  <Bar dataKey="profit" fill="#f59e0b" name="Profit" />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
 
@@ -347,24 +337,31 @@ export default function DashboardPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="p-6">
-            <ResponsiveContainer width="100%" height={300}>
-              <RechartsPieChart>
-                <Pie
-                  data={stockOverviewData}
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="value"
-                  label={({ name, value }: any) => `${name}: ${value}`}
-                >
-                  {stockOverviewData.map((entry: any, index: number) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </RechartsPieChart>
-            </ResponsiveContainer>
+            {loading || stockOverviewData.length === 0 ? (
+              <div className="space-y-4">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-64 w-full rounded-full" />
+              </div>
+            ) : (
+              <ResponsiveContainer width="100%" height={300}>
+                <RechartsPieChart>
+                  <Pie
+                    data={stockOverviewData}
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={100}
+                    fill="#8884d8"
+                    dataKey="value"
+                    label={({ name, value }: any) => `${name}: ${value}`}
+                  >
+                    {stockOverviewData.map((entry: any, index: number) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </RechartsPieChart>
+              </ResponsiveContainer>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -390,105 +387,168 @@ export default function DashboardPage() {
               </TabsList>
 
               <TabsContent value="customers" className="mt-6">
-                <div className="space-y-4">
-                  {topCustomers.map((customer, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border border-gray-200"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold">
-                          {index + 1}
+                {loading || topCustomers.length === 0 ? (
+                  <div className="space-y-4">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border border-gray-200"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="w-8 h-8 rounded-full" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-3 w-16" />
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-800">
-                            {customer.name}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {customer.orders} orders
+                        <Skeleton className="h-6 w-20" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {topCustomers.map((customer, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border border-gray-200"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-800">
+                              {customer.name}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {customer.orders} orders
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-gray-900">
+                            {customer.purchases}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold text-gray-900">
-                          {customer.purchases}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="suppliers" className="mt-6">
-                <div className="space-y-4">
-                  {topSuppliers.map((supplier, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border border-gray-200"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold">
-                          {index + 1}
+                {loading || topSuppliers.length === 0 ? (
+                  <div className="space-y-4">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border border-gray-200"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="w-8 h-8 rounded-full" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-3 w-16" />
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-gray-800">
-                            {supplier.name}
-                          </p>
-                          <p className="text-sm text-gray-600">
-                            {supplier.orders} orders
+                        <Skeleton className="h-6 w-20" />
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {topSuppliers.map((supplier, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border border-gray-200"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold">
+                            {index + 1}
+                          </div>
+                          <div>
+                            <p className="font-semibold text-gray-800">
+                              {supplier.name}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              {supplier.orders} orders
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-gray-900">
+                            {supplier.supplies}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold text-gray-900">
-                          {supplier.supplies}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
 
               <TabsContent value="products" className="mt-6">
-                <div className="space-y-4">
-                  {bestSellers.map((product: any) => (
-                    <div
-                      key={product.rank}
-                      className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border border-gray-200"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold">
-                          {product.rank}
+                {loading || bestSellers.length === 0 ? (
+                  <div className="space-y-4">
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <div
+                        key={i}
+                        className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border border-gray-200"
+                      >
+                        <div className="flex items-center gap-3">
+                          <Skeleton className="w-8 h-8 rounded-full" />
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-32" />
+                            <Skeleton className="h-3 w-16" />
+                          </div>
                         </div>
-                        <div>
-                          <TooltipUI>
-                            <TooltipTrigger asChild>
-                              <p className="font-semibold text-gray-800 truncate w-48">
-                                {product.product}
-                              </p>
-                            </TooltipTrigger>
-                            <TooltipContent>
-                              <span className="max-w-xs break-words">
-                                {product.product}
-                              </span>
-                            </TooltipContent>
-                          </TooltipUI>
-                          <p className="text-sm text-gray-600">
-                            {product.sku} • {product.sales} sold
+                        <div className="space-y-1">
+                          <Skeleton className="h-6 w-20" />
+                          <Skeleton className="h-3 w-12" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {bestSellers.map((product: any) => (
+                      <div
+                        key={product.rank}
+                        className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border border-gray-200"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-gray-800 text-white flex items-center justify-center font-bold">
+                            {product.rank}
+                          </div>
+                          <div>
+                            <TooltipUI>
+                              <TooltipTrigger asChild>
+                                <p className="font-semibold text-gray-800 truncate w-48">
+                                  {product.product}
+                                </p>
+                              </TooltipTrigger>
+                              <TooltipContent>
+                                <span className="max-w-xs break-words">
+                                  {product.product}
+                                </span>
+                              </TooltipContent>
+                            </TooltipUI>
+                            <p className="text-sm text-gray-600">
+                              {product.sku} • {product.sales} sold
+                            </p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-bold text-gray-900">
+                            {product.revenue}
+                          </p>
+                          <p className="text-xs text-gray-600">
+                            {product.growth}
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-bold text-gray-900">
-                          {product.revenue}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          {product.growth}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                    ))}
+                  </div>
+                )}
               </TabsContent>
             </Tabs>
           </CardContent>

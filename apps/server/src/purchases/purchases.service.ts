@@ -19,6 +19,7 @@ export class PurchasesService {
       by: ['supplierId'],
       where: { companyId },
       _sum: { totalAmount: true },
+      _count: { id: true },
       orderBy: { _sum: { totalAmount: 'desc' } },
       take: 5,
     });
@@ -38,9 +39,44 @@ export class PurchasesService {
       supplierId: s.supplierId,
       name: supplierMap.get(s.supplierId) || 'Unknown',
       total: Number(s._sum.totalAmount || 0),
+      count: s._count.id,
     }));
 
-    return { topSuppliers };
+    // Build a 6-month series for purchases
+    const months = Array.from({ length: 6 }).map((_, i) => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - (5 - i));
+      return new Date(d.getFullYear(), d.getMonth(), 1);
+    });
+
+    const monthlyQueries = months.map((m) => {
+      const start = new Date(m.getFullYear(), m.getMonth(), 1);
+      const end = new Date(
+        m.getFullYear(),
+        m.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999,
+      );
+      return this.prisma.purchaseOrder.aggregate({
+        where: {
+          companyId,
+          orderDate: { gte: start, lte: end },
+          status: { not: 'CANCELLED' },
+        },
+        _sum: { totalAmount: true },
+      });
+    });
+
+    const monthAggs = await Promise.all(monthlyQueries);
+    const monthlySeries = monthAggs.map((mAgg, idx) => ({
+      month: months[idx].toLocaleString('default', { month: 'short' }),
+      total: Number(mAgg._sum.totalAmount || 0),
+    }));
+
+    return { topSuppliers, monthlySeries };
   }
 
   async create(dto: CreatePurchaseOrderDto, userId: string, companyId: string) {
