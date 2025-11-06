@@ -71,8 +71,10 @@ export default function DashboardPage() {
   }, []);
 
   const palette = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444"];
-  // Sales data for monthly chart (fallback static if API doesn't provide series)
-  const monthlySalesData = dashboard?.sales?.monthlySeries ?? [
+  // Sales data for monthly chart (use API monthlySeries when available,
+  // fall back to static sample data). Normalize the API shape to the
+  // chart fields (sales/purchases/profit) so the chart works either way.
+  const rawMonthlySeries = dashboard?.sales?.monthlySeries ?? [
     { month: "Jan", sales: 45000, purchases: 32000, profit: 13000 },
     { month: "Feb", sales: 52000, purchases: 35000, profit: 17000 },
     { month: "Mar", sales: 48000, purchases: 33000, profit: 15000 },
@@ -80,6 +82,15 @@ export default function DashboardPage() {
     { month: "May", sales: 55000, purchases: 38000, profit: 17000 },
     { month: "Jun", sales: 67000, purchases: 42000, profit: 25000 },
   ];
+
+  const monthlySalesData = rawMonthlySeries.map((e: any) => {
+    // Server monthlySeries may use different keys (e.g. { month, invoices, revenue })
+    const month = e.month || e.label || "";
+    const sales = Number(e.revenue ?? e.sales ?? e.invoices ?? 0);
+    const purchases = Number(e.purchases ?? 0);
+    const profit = Number(e.profit ?? sales - purchases);
+    return { month, sales, purchases, profit };
+  });
 
   // Stock overview data for pie chart (from API or fallback static)
   const stockOverviewData = dashboard?.products?.stockOverviewByCategory?.map(
@@ -189,23 +200,64 @@ export default function DashboardPage() {
     { name: "Component Direct", supplies: "$76,150", orders: 24 },
   ];
 
+  // helper to format percent change and select color
+  const formatChange = (
+    prev: number | null | undefined,
+    curr: number | null | undefined
+  ) => {
+    if (prev == null || curr == null)
+      return { text: "—", className: "text-gray-600" };
+    if (prev === 0) return { text: "—", className: "text-gray-600" };
+    const diff = curr - prev;
+    const pct = (diff / prev) * 100;
+    const rounded = Math.abs(Number(pct.toFixed(1)));
+    const sign = pct >= 0 ? "+" : "-";
+    const className = pct >= 0 ? "text-green-600" : "text-red-600";
+    return { text: `${sign}${rounded}%`, className };
+  };
+
+  const invoicesThisMonth = Number(
+    dashboard?.sales?.invoicesThisMonth ?? monthlySalesData.at(-1)?.sales ?? 0
+  );
+  const prevInvoices = dashboard?.sales?.previousMonth?.invoices ?? null;
+  const invoicesChange = formatChange(prevInvoices, invoicesThisMonth);
+
+  const totalRevenue = Number(
+    dashboard?.sales?.totalRevenue ?? monthlySalesData.at(-1)?.sales ?? 0
+  );
+  const prevRevenue = dashboard?.sales?.previousMonth?.revenue ?? null;
+  const revenueChange = formatChange(prevRevenue, totalRevenue);
+
+  const totalProducts = Number(dashboard?.products?.totalProducts ?? 0);
+  const prevProducts =
+    dashboard?.products?.previousMonth?.totalProducts ?? null;
+  const productsChange = formatChange(prevProducts, totalProducts);
+
+  const lowStock = Number(dashboard?.products?.lowStockCount ?? 0);
+  const prevLowStock =
+    dashboard?.products?.previousMonth?.lowStockCount ?? null;
+  const lowStockChange = formatChange(prevLowStock, lowStock);
+
   const stats = [
     {
       title: "Total Products",
-      value: String(dashboard?.products?.totalProducts ?? "1,234"),
-      change: "+12.5%",
+      value: String(totalProducts || "1,234"),
+      changeText: productsChange.text,
+      changeClass: productsChange.className,
       icon: Package,
     },
     {
       title: "Invoices This Month",
-      value: String(dashboard?.sales?.invoicesThisMonth ?? "89"),
-      change: "+8.2%",
+      value: String(invoicesThisMonth || "89"),
+      changeText: invoicesChange.text,
+      changeClass: invoicesChange.className,
       icon: FileText,
     },
     {
       title: "Low Stock Items",
-      value: String(dashboard?.products?.lowStockCount ?? "23"),
-      change: "-5.1%",
+      value: String(lowStock || "23"),
+      changeText: lowStockChange.text,
+      changeClass: lowStockChange.className,
       icon: Warehouse,
     },
     {
@@ -214,7 +266,8 @@ export default function DashboardPage() {
         dashboard?.sales?.totalRevenue != null
           ? `$${Number(dashboard.sales.totalRevenue).toLocaleString()}`
           : "$45,231",
-      change: "+15.3%",
+      changeText: revenueChange.text,
+      changeClass: revenueChange.className,
       icon: TrendingUp,
     },
   ];
@@ -242,15 +295,7 @@ export default function DashboardPage() {
               <CardContent>
                 <div className="text-2xl font-bold">{stat.value}</div>
                 <p className="text-xs text-muted-foreground">
-                  <span
-                    className={
-                      stat.change.startsWith("+")
-                        ? "text-green-600"
-                        : "text-red-600"
-                    }
-                  >
-                    {stat.change}
-                  </span>{" "}
+                  <span className={stat.changeClass}>{stat.changeText}</span>{" "}
                   from last month
                 </p>
               </CardContent>

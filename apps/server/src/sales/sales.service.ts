@@ -81,10 +81,58 @@ export class SalesService {
       orders: c._count.id,
     }));
 
+    // Build a 6-month series (including current month) for monthly trends
+    const months = Array.from({ length: 6 }).map((_, i) => {
+      const d = new Date();
+      d.setMonth(d.getMonth() - (5 - i));
+      return new Date(d.getFullYear(), d.getMonth(), 1);
+    });
+
+    const monthlyQueries = months.map((m) => {
+      const start = new Date(m.getFullYear(), m.getMonth(), 1);
+      const end = new Date(
+        m.getFullYear(),
+        m.getMonth() + 1,
+        0,
+        23,
+        59,
+        59,
+        999,
+      );
+      return this.prisma.sale.aggregate({
+        where: {
+          companyId,
+          saleDate: { gte: start, lte: end },
+          status: { not: 'CANCELLED' },
+        },
+        _count: { id: true },
+        _sum: { totalAmount: true },
+      });
+    });
+
+    const monthAggs = await Promise.all(monthlyQueries);
+    const monthlySeries = monthAggs.map((mAgg, idx) => ({
+      month: months[idx].toLocaleString('default', { month: 'short' }),
+      invoices: mAgg._count.id || 0,
+      revenue: Number(mAgg._sum.totalAmount || 0),
+    }));
+
+    // previous month metrics for percent change calculations
+    const prevMonthIndex = monthlySeries.length - 2;
+    const prevMonth = monthlySeries[prevMonthIndex] || {
+      invoices: 0,
+      revenue: 0,
+    };
+
     return {
       invoicesThisMonth,
       totalRevenue,
       topCustomers,
+      monthlySeries,
+      previousMonth: {
+        invoices: prevMonth.invoices,
+        revenue: prevMonth.revenue,
+      },
     };
   }
 
