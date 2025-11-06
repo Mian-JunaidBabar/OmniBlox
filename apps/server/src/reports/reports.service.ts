@@ -223,93 +223,73 @@ export class ReportsService {
    * Stock levels, valuation, low stock alerts, and warehouse breakdown
    */
   async getInventorySummary(dto: DateRangeDto, companyId: string) {
-    const [
-      productCount,
-      inventoryData,
-      lowStockProducts,
-      warehouseBreakdown,
-      recentAdjustments,
-    ] = await Promise.all([
-      // 1. Total Products
-      this.prisma.product.count({
-        where: { companyId, status: 'ACTIVE' },
-      }),
+    const [productCount, inventoryData, warehouseBreakdown, recentAdjustments] =
+      await Promise.all([
+        // 1. Total Products
+        this.prisma.product.count({
+          where: { companyId, status: 'ACTIVE' },
+        }),
 
-      // 2. Total Stock Value - Get all inventory with product cost prices
-      this.prisma.inventory.findMany({
-        where: {
-          product: { companyId },
-        },
-        include: {
-          product: {
-            select: {
-              costPrice: true,
-              salePrice: true,
-              reorderLevel: true,
-            },
+        // 2. Total Stock Value - Get all inventory with product cost prices
+        this.prisma.inventory.findMany({
+          where: {
+            product: { companyId },
           },
-          warehouse: {
-            select: {
-              id: true,
-              name: true,
+          include: {
+            product: {
+              select: {
+                costPrice: true,
+                salePrice: true,
+                reorderLevel: true,
+              },
             },
-          },
-        },
-      }),
-
-      // 3. Low Stock Products
-      this.prisma.product.count({
-        where: {
-          companyId,
-          status: 'ACTIVE',
-          inventory: {
-            some: {
-              quantity: {
-                lte: this.prisma.product.fields.reorderLevel,
+            warehouse: {
+              select: {
+                id: true,
+                name: true,
               },
             },
           },
-        },
-      }),
+        }),
 
-      // 4. Stock by Warehouse
-      this.prisma.inventory.groupBy({
-        by: ['warehouseId'],
-        where: {
-          product: { companyId },
-        },
-        _sum: {
-          quantity: true,
-        },
-      }),
-
-      // 5. Recent Stock Adjustments in date range
-      this.prisma.stockAdjustment.findMany({
-        where: {
-          companyId,
-          adjustmentDate: {
-            gte: new Date(dto.startDate),
-            lte: new Date(dto.endDate),
+        // 3. Stock by Warehouse
+        this.prisma.inventory.groupBy({
+          by: ['warehouseId'],
+          where: {
+            product: { companyId },
           },
-        },
-        include: {
-          items: {
-            include: {
-              product: {
-                select: {
-                  name: true,
-                  sku: true,
+          _sum: {
+            quantity: true,
+          },
+        }),
+
+        // 4. Recent Stock Adjustments in date range
+        this.prisma.stockAdjustment.findMany({
+          where: {
+            companyId,
+            adjustmentDate: {
+              gte: new Date(dto.startDate),
+              lte: new Date(dto.endDate),
+            },
+          },
+          include: {
+            items: {
+              include: {
+                product: {
+                  select: {
+                    name: true,
+                    sku: true,
+                  },
                 },
               },
             },
           },
-        },
-        orderBy: {
-          adjustmentDate: 'desc',
-        },
-        take: 10,
-      }),
-    ]);
+          orderBy: {
+            adjustmentDate: 'desc',
+          },
+          take: 10,
+        }),
+      ]);
 
     // Calculate total stock value and identify low stock items
     let totalStockValue = 0;
