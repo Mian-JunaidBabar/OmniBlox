@@ -11,6 +11,38 @@ import { OrderStatus } from '@prisma/client';
 export class PurchasesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Dashboard-specific purchase aggregations
+   */
+  async getDashboardStats(companyId: string) {
+    const topSuppliersData = await this.prisma.purchaseOrder.groupBy({
+      by: ['supplierId'],
+      where: { companyId },
+      _sum: { totalAmount: true },
+      orderBy: { _sum: { totalAmount: 'desc' } },
+      take: 5,
+    });
+
+    const supplierIds = topSuppliersData
+      .map((s) => s.supplierId)
+      .filter(Boolean) as string[];
+    const suppliers = supplierIds.length
+      ? await this.prisma.supplier.findMany({
+          where: { id: { in: supplierIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const supplierMap = new Map(suppliers.map((s) => [s.id, s.name]));
+
+    const topSuppliers = topSuppliersData.map((s) => ({
+      supplierId: s.supplierId,
+      name: supplierMap.get(s.supplierId) || 'Unknown',
+      total: Number(s._sum.totalAmount || 0),
+    }));
+
+    return { topSuppliers };
+  }
+
   async create(dto: CreatePurchaseOrderDto, userId: string, companyId: string) {
     if (!dto.items?.length) {
       throw new BadRequestException(

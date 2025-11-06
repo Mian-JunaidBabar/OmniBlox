@@ -20,6 +20,74 @@ import {
 export class SalesService {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Dashboard-specific sales aggregations
+   */
+  async getDashboardStats(companyId: string) {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    const endOfMonth = new Date(
+      now.getFullYear(),
+      now.getMonth() + 1,
+      0,
+      23,
+      59,
+      59,
+      999,
+    );
+
+    const [invoicesThisMonth, revenueAgg, topCustomersData] = await Promise.all(
+      [
+        this.prisma.sale.count({
+          where: {
+            companyId,
+            saleDate: { gte: startOfMonth, lte: endOfMonth },
+            status: { not: 'CANCELLED' },
+          },
+        }),
+        this.prisma.sale.aggregate({
+          where: { companyId, status: { not: 'CANCELLED' } },
+          _sum: { totalAmount: true },
+        }),
+        this.prisma.sale.groupBy({
+          by: ['customerId'],
+          where: { companyId, status: { not: 'CANCELLED' } },
+          _sum: { totalAmount: true },
+          _count: { id: true },
+          orderBy: { _sum: { totalAmount: 'desc' } },
+          take: 5,
+        }),
+      ],
+    );
+
+    const totalRevenue = Number(revenueAgg._sum.totalAmount || 0);
+
+    // Fetch customer names
+    const customerIds = topCustomersData
+      .map((c) => c.customerId)
+      .filter(Boolean) as string[];
+    const customers = customerIds.length
+      ? await this.prisma.customer.findMany({
+          where: { id: { in: customerIds } },
+          select: { id: true, name: true },
+        })
+      : [];
+    const customerMap = new Map(customers.map((c) => [c.id, c.name]));
+
+    const topCustomers = topCustomersData.map((c) => ({
+      customerId: c.customerId,
+      name: customerMap.get(c.customerId) || 'Unknown',
+      total: Number(c._sum.totalAmount || 0),
+      orders: c._count.id,
+    }));
+
+    return {
+      invoicesThisMonth,
+      totalRevenue,
+      topCustomers,
+    };
+  }
+
   async create(
     dto: CreateSaleDto,
     userId: string,

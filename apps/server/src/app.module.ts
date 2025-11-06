@@ -18,6 +18,7 @@ import { PurchasesModule } from './purchases/purchases.module';
 import { ExpenseCategoriesModule } from './expense-categories/expense-categories.module';
 import { ProductCategoriesModule } from './product-categories/product-categories.module';
 import { ReportsModule } from './reports/reports.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { AuthModule as BetterAuthModule } from '@thallesp/nestjs-better-auth';
 import { auth } from './auth/auth.config';
 import { QuotationsModule } from './quotations/quotations.module';
@@ -33,6 +34,7 @@ import { ReturnsModule } from './returns/returns.module';
     ProductModule,
     SalesModule,
     CustomersModule,
+    DashboardModule,
     SuppliersModule,
     WarehousesModule,
     ExpensesModule,

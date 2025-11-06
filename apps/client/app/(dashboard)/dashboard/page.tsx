@@ -1,5 +1,8 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { api } from "@/lib/api";
+
 import {
   Card,
   CardContent,
@@ -43,10 +46,33 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
+import {
+  Tooltip as TooltipUI,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 
 export default function DashboardPage() {
-  // Sales data for monthly chart
-  const monthlySalesData = [
+  const [dashboard, setDashboard] = useState<any | null>(null);
+  useEffect(() => {
+    let mounted = true;
+    api
+      .get("/dashboard/stats")
+      .then((d) => {
+        if (mounted) setDashboard(d);
+      })
+      .catch((err) => {
+        // Keep static fallbacks on error; log for debugging
+        console.warn("Failed to load dashboard stats:", err);
+      });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const palette = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444"];
+  // Sales data for monthly chart (fallback static if API doesn't provide series)
+  const monthlySalesData = dashboard?.sales?.monthlySeries ?? [
     { month: "Jan", sales: 45000, purchases: 32000, profit: 13000 },
     { month: "Feb", sales: 52000, purchases: 35000, profit: 17000 },
     { month: "Mar", sales: 48000, purchases: 33000, profit: 15000 },
@@ -55,8 +81,14 @@ export default function DashboardPage() {
     { month: "Jun", sales: 67000, purchases: 42000, profit: 25000 },
   ];
 
-  // Stock overview data for pie chart
-  const stockOverviewData = [
+  // Stock overview data for pie chart (from API or fallback static)
+  const stockOverviewData = dashboard?.products?.stockOverviewByCategory?.map(
+    (c: any, i: number) => ({
+      name: c.categoryName || "Uncategorized",
+      value: c.totalQuantity,
+      color: palette[i % palette.length],
+    })
+  ) ?? [
     { name: "Electronics", value: 45, color: "#3b82f6" },
     { name: "Accessories", value: 28, color: "#10b981" },
     { name: "Software", value: 18, color: "#f59e0b" },
@@ -64,8 +96,17 @@ export default function DashboardPage() {
     { name: "Others", value: 15, color: "#ef4444" },
   ];
 
-  // Best sellers data
-  const bestSellers = [
+  // Best sellers mapped from API or fallback
+  const bestSellers = dashboard?.products?.bestSellers?.map(
+    (b: any, idx: number) => ({
+      rank: idx + 1,
+      product: b.name ?? b.productName ?? b.productId,
+      sku: b.sku ?? "",
+      sales: b.quantitySold ?? 0,
+      revenue: b.revenue ? String(b.revenue) : "$0",
+      growth: b.growth ?? "",
+    })
+  ) ?? [
     {
       rank: 1,
       product: 'Laptop Pro 15"',
@@ -109,15 +150,38 @@ export default function DashboardPage() {
   ];
 
   // Top customers, suppliers, etc.
-  const topCustomers = [
+  interface TopCustomer {
+    name: string;
+    purchases: string;
+    orders: number;
+  }
+
+  const topCustomers: TopCustomer[] = dashboard?.sales?.topCustomers?.map(
+    (c: any) => ({
+      name: c.name || c.customerName || "Unknown",
+      purchases: c.total ? `$${c.total.toLocaleString()}` : "$0",
+      orders: c.count ?? 0,
+    })
+  ) ?? [
     { name: "Acme Corp", purchases: "$45,230", orders: 23 },
     { name: "TechStart Inc", purchases: "$38,450", orders: 18 },
     { name: "Global Solutions", purchases: "$32,100", orders: 15 },
     { name: "Innovation Labs", purchases: "$28,900", orders: 12 },
     { name: "Digital Dynamics", purchases: "$25,600", orders: 10 },
   ];
+  interface TopSupplier {
+    name: string;
+    supplies: string;
+    orders: number;
+  }
 
-  const topSuppliers = [
+  const topSuppliers: TopSupplier[] = dashboard?.purchases?.topSuppliers?.map(
+    (s: any) => ({
+      name: s.name || "Unknown",
+      supplies: s.total ? `$${s.total.toLocaleString()}` : "$0",
+      orders: s.count ?? 0,
+    })
+  ) ?? [
     { name: "John Electronics Ltd", supplies: "$156,340", orders: 45 },
     { name: "Tech Supply Co", supplies: "$134,200", orders: 38 },
     { name: "Global Hardware Inc", supplies: "$98,750", orders: 32 },
@@ -128,25 +192,28 @@ export default function DashboardPage() {
   const stats = [
     {
       title: "Total Products",
-      value: "1,234",
+      value: String(dashboard?.products?.totalProducts ?? "1,234"),
       change: "+12.5%",
       icon: Package,
     },
     {
       title: "Invoices This Month",
-      value: "89",
+      value: String(dashboard?.sales?.invoicesThisMonth ?? "89"),
       change: "+8.2%",
       icon: FileText,
     },
     {
       title: "Low Stock Items",
-      value: "23",
+      value: String(dashboard?.products?.lowStockCount ?? "23"),
       change: "-5.1%",
       icon: Warehouse,
     },
     {
       title: "Revenue",
-      value: "$45,231",
+      value:
+        dashboard?.sales?.totalRevenue != null
+          ? `$${Number(dashboard.sales.totalRevenue).toLocaleString()}`
+          : "$45,231",
       change: "+15.3%",
       icon: TrendingUp,
     },
@@ -246,7 +313,7 @@ export default function DashboardPage() {
                   dataKey="value"
                   label={({ name, value }: any) => `${name}: ${value}`}
                 >
-                  {stockOverviewData.map((entry, index) => (
+                  {stockOverviewData.map((entry: any, index: number) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
@@ -339,7 +406,7 @@ export default function DashboardPage() {
 
               <TabsContent value="products" className="mt-6">
                 <div className="space-y-4">
-                  {bestSellers.map((product) => (
+                  {bestSellers.map((product: any) => (
                     <div
                       key={product.rank}
                       className="flex items-center justify-between p-4 rounded-lg bg-gray-50 border border-gray-200"
@@ -349,9 +416,18 @@ export default function DashboardPage() {
                           {product.rank}
                         </div>
                         <div>
-                          <p className="font-semibold text-gray-800">
-                            {product.product}
-                          </p>
+                          <TooltipUI>
+                            <TooltipTrigger asChild>
+                              <p className="font-semibold text-gray-800 truncate w-48">
+                                {product.product}
+                              </p>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              <span className="max-w-xs break-words">
+                                {product.product}
+                              </span>
+                            </TooltipContent>
+                          </TooltipUI>
                           <p className="text-sm text-gray-600">
                             {product.sku} • {product.sales} sold
                           </p>

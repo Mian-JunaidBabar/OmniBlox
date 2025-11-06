@@ -47,6 +47,23 @@ export class CustomersService {
     return this.transformCustomer(customer);
   }
 
+  /**
+   * Dashboard-specific customer aggregations
+   */
+  async getDashboardStats(companyId: string) {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const [totalCustomers, newCustomersThisMonth] = await Promise.all([
+      this.prisma.customer.count({ where: { companyId } }),
+      this.prisma.customer.count({
+        where: { companyId, createdAt: { gte: startOfMonth } },
+      }),
+    ]);
+
+    return { totalCustomers, newCustomersThisMonth };
+  }
+
   async findAll(
     companyId: string,
     page = 1,

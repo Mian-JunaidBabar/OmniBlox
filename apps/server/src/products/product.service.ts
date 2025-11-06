@@ -425,6 +425,98 @@ export class ProductService {
     }
   }
 
+  /**
+   * Dashboard-specific aggregations for products
+   */
+  async getDashboardStats(companyId: string) {
+    // 1. Total active products
+    const totalProducts = await this.prisma.product.count({
+      where: { companyId, status: 'ACTIVE' },
+    });
+
+    // 2. Inventory entries with product and category
+    const inventory = await this.prisma.inventory.findMany({
+      where: { product: { companyId } },
+      include: { product: { include: { category: true } }, warehouse: true },
+    });
+
+    // Aggregate stock per product
+    const stockByProduct = new Map<string, number>();
+    for (const inv of inventory) {
+      stockByProduct.set(
+        inv.productId,
+        (stockByProduct.get(inv.productId) || 0) + inv.quantity,
+      );
+    }
+
+    // Low stock products (product-level compare against reorderLevel)
+    let lowStockCount = 0;
+    for (const inv of inventory) {
+      const total = stockByProduct.get(inv.productId) || 0;
+      if (total <= (inv.product.reorderLevel || 0)) {
+        lowStockCount++;
+      }
+    }
+
+    // Stock overview by category
+    const stockByCategoryMap = new Map<
+      string,
+      { categoryName: string; totalQuantity: number }
+    >();
+    for (const inv of inventory) {
+      const catName = inv.product.category?.name || 'Uncategorized';
+      const item = stockByCategoryMap.get(catName) || {
+        categoryName: catName,
+        totalQuantity: 0,
+      };
+      item.totalQuantity += inv.quantity;
+      stockByCategoryMap.set(catName, item);
+    }
+
+    const stockOverviewByCategory = Array.from(stockByCategoryMap.values());
+
+    // Best sellers: compute revenue per product from sale items
+    const saleItems = await this.prisma.saleItem.findMany({
+      where: { sale: { companyId } },
+      include: { product: true },
+    });
+
+    const revenueByProduct = new Map<
+      string,
+      {
+        productId: string;
+        name: string;
+        sku?: string;
+        revenue: number;
+        quantity: number;
+      }
+    >();
+    for (const si of saleItems) {
+      const rev = Number(si.unitPrice) * si.quantity;
+      const cur = revenueByProduct.get(si.productId) || {
+        productId: si.productId,
+        name: si.product?.name || si.productId,
+        sku: si.product?.sku,
+        revenue: 0,
+        quantity: 0,
+      };
+      cur.revenue += rev;
+      cur.quantity += si.quantity;
+      revenueByProduct.set(si.productId, cur);
+    }
+
+    const bestSellers = Array.from(revenueByProduct.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    return {
+      totalProducts,
+      lowStockCount,
+      stockOverviewByCategory,
+      bestSellers,
+    };
+  }
+
   async updateStock(
     id: string,
     quantity: number,
