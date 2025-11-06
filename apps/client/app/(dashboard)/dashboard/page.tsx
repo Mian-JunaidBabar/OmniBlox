@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { api } from "@/lib/api";
 
 import {
@@ -55,6 +56,40 @@ import {
 
 const palette = ["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ef4444"];
 
+const CustomTooltip = ({ active, payload, label }: any) => {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-white p-3 border border-gray-200 rounded-lg shadow-lg">
+        <p className="font-semibold text-gray-900">{`Month: ${label}`}</p>
+        <p className="text-blue-600">
+          {`Sales: $${Number(data.sales).toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`}
+        </p>
+        <p className="text-orange-600">
+          {`Purchases: $${Number(data.purchases).toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`}
+        </p>
+        <p
+          className={`font-semibold ${
+            data.profit >= 0 ? "text-green-600" : "text-red-600"
+          }`}
+        >
+          {`Profit: $${Number(data.profit).toLocaleString("en-US", {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2,
+          })}`}
+        </p>
+      </div>
+    );
+  }
+  return null;
+};
+
 export default function DashboardPage() {
   const [dashboard, setDashboard] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
@@ -104,13 +139,7 @@ export default function DashboardPage() {
     // prefer purchases on the sales series, otherwise consult purchasesLookup
     const purchases = Number(e.purchases ?? purchasesLookup[month] ?? 0);
     const profit = Number(e.profit ?? sales - purchases);
-    return {
-      month,
-      sales,
-      purchases,
-      profit,
-      monthWithProfit: `${month}\nProfit: $${profit.toLocaleString()}`,
-    };
+    return { month, sales, purchases, profit };
   });
 
   // Stock overview data for pie chart (from API)
@@ -323,12 +352,12 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={monthlySalesData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="monthWithProfit" height={60} interval={0} />
+                  <XAxis dataKey="month" />
                   <YAxis />
-                  <Tooltip />
+                  <Tooltip content={<CustomTooltip />} />
                   <Legend />
                   <Bar dataKey="sales" fill="#3b82f6" name="Sales" />
-                  <Bar dataKey="purchases" fill="#10b981" name="Purchases" />
+                  <Bar dataKey="purchases" fill="#f59e0b" name="Purchases" />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -591,28 +620,40 @@ export default function DashboardPage() {
           </CardHeader>
           <CardContent className="p-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              <button className="p-4 text-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors">
-                <Package className="h-8 w-8 mx-auto mb-2 text-gray-600" />
-                <div className="font-semibold text-gray-900">Add Product</div>
-                <div className="text-xs text-gray-600">New inventory</div>
-              </button>
-              <button className="p-4 text-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors">
-                <FileText className="h-8 w-8 mx-auto mb-2 text-gray-600" />
-                <div className="font-semibold text-gray-900">
-                  Create Invoice
-                </div>
-                <div className="text-xs text-gray-600">New sale</div>
-              </button>
-              <button className="p-4 text-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors">
-                <Users className="h-8 w-8 mx-auto mb-2 text-gray-600" />
-                <div className="font-semibold text-gray-900">Add Customer</div>
-                <div className="text-xs text-gray-600">New client</div>
-              </button>
-              <button className="p-4 text-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors">
-                <BarChart3 className="h-8 w-8 mx-auto mb-2 text-gray-600" />
-                <div className="font-semibold text-gray-900">View Reports</div>
-                <div className="text-xs text-gray-600">Analytics</div>
-              </button>
+              <Link href="/products/new">
+                <button className="p-4 text-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors w-full">
+                  <Package className="h-8 w-8 mx-auto mb-2 text-gray-600" />
+                  <div className="font-semibold text-gray-900">Add Product</div>
+                  <div className="text-xs text-gray-600">New inventory</div>
+                </button>
+              </Link>
+              <Link href="/sales/new">
+                <button className="p-4 text-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors w-full">
+                  <FileText className="h-8 w-8 mx-auto mb-2 text-gray-600" />
+                  <div className="font-semibold text-gray-900">
+                    Create Invoice
+                  </div>
+                  <div className="text-xs text-gray-600">New sale</div>
+                </button>
+              </Link>
+              <Link href="/people/customers/new">
+                <button className="p-4 text-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors w-full">
+                  <Users className="h-8 w-8 mx-auto mb-2 text-gray-600" />
+                  <div className="font-semibold text-gray-900">
+                    Add Customer
+                  </div>
+                  <div className="text-xs text-gray-600">New client</div>
+                </button>
+              </Link>
+              <Link href="/reports">
+                <button className="p-4 text-center rounded-lg border border-gray-200 bg-white hover:bg-gray-50 transition-colors w-full">
+                  <BarChart3 className="h-8 w-8 mx-auto mb-2 text-gray-600" />
+                  <div className="font-semibold text-gray-900">
+                    View Reports
+                  </div>
+                  <div className="text-xs text-gray-600">Analytics</div>
+                </button>
+              </Link>
             </div>
           </CardContent>
         </Card>
