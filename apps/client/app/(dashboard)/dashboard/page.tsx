@@ -104,11 +104,22 @@ export default function DashboardPage() {
     // prefer purchases on the sales series, otherwise consult purchasesLookup
     const purchases = Number(e.purchases ?? purchasesLookup[month] ?? 0);
     const profit = Number(e.profit ?? sales - purchases);
-    return { month, sales, purchases, profit };
+    return {
+      month,
+      sales,
+      purchases,
+      profit,
+      monthWithProfit: `${month}\nProfit: $${profit.toLocaleString()}`,
+    };
   });
 
-  // Stock overview data for pie chart (from API or fallback static)
-  const stockOverviewData = dashboard?.products?.stockOverviewByCategory ?? [];
+  // Stock overview data for pie chart (from API)
+  const stockOverviewData =
+    dashboard?.products?.stockOverviewByCategory?.map((c: any, i: number) => ({
+      name: c.categoryName || c.name || "Uncategorized",
+      value: c.totalQuantity || c.quantity || c.value || 0,
+      color: palette[i % palette.length],
+    })) ?? [];
 
   // Best sellers mapped from API or fallback
   const num = (v: any) => {
@@ -245,7 +256,7 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className=" space-y-6">
+    <div className="space-y-6">
       <div className="mb-6">
         <h1 className="text-3xl font-semibold tracking-tight">Dashboard</h1>
         <p className="text-sm text-muted-foreground">
@@ -312,13 +323,12 @@ export default function DashboardPage() {
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={monthlySalesData}>
                   <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
+                  <XAxis dataKey="monthWithProfit" height={60} interval={0} />
                   <YAxis />
                   <Tooltip />
                   <Legend />
                   <Bar dataKey="sales" fill="#3b82f6" name="Sales" />
                   <Bar dataKey="purchases" fill="#10b981" name="Purchases" />
-                  <Bar dataKey="profit" fill="#f59e0b" name="Profit" />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -343,24 +353,39 @@ export default function DashboardPage() {
                 <Skeleton className="h-64 w-full rounded-full" />
               </div>
             ) : (
-              <ResponsiveContainer width="100%" height={300}>
-                <RechartsPieChart>
-                  <Pie
-                    data={stockOverviewData}
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                    label={({ name, value }: any) => `${name}: ${value}`}
-                  >
-                    {stockOverviewData.map((entry: any, index: number) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </RechartsPieChart>
-              </ResponsiveContainer>
+              <>
+                <ResponsiveContainer width="100%" height={300}>
+                  <RechartsPieChart>
+                    <Pie
+                      data={stockOverviewData}
+                      cx="50%"
+                      cy="50%"
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                    >
+                      {stockOverviewData.map((entry: any, index: number) => (
+                        <Cell key={`cell-${index}`} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip />
+                  </RechartsPieChart>
+                </ResponsiveContainer>
+                {/* Legend */}
+                <div className="flex flex-wrap justify-center gap-4 mt-4">
+                  {stockOverviewData.map((entry: any, index: number) => (
+                    <div key={index} className="flex items-center gap-2">
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{ backgroundColor: entry.color }}
+                      />
+                      <span className="text-sm text-gray-700">
+                        {entry.name}: {entry.value}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </>
             )}
           </CardContent>
         </Card>
