@@ -170,7 +170,8 @@ export default function EditExpensePage() {
 
   if (loading || !expense) {
     return (
-      <div className="container mx-auto py-6">
+      // Use a centered max-width wrapper without Tailwind `container` padding
+      <div className="w-full max-w-7xl mx-auto">
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         </div>
@@ -186,7 +187,8 @@ export default function EditExpensePage() {
   };
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    // Center content and use global layout padding; avoid `container` which adds its own padding
+    <div className="w-full max-w-7xl mx-auto space-y-6">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
           <Button variant="ghost" size="icon" onClick={() => router.back()}>

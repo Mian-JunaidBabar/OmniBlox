@@ -1,47 +1,66 @@
-﻿"use client"
+﻿"use client";
 
-import { useMemo } from "react"
-import { useRouter } from "next/navigation"
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Skeleton } from "@/components/ui/skeleton"
-import { RefreshCw, AlertCircle } from "lucide-react"
+import { useMemo } from "react";
+import { useRouter } from "next/navigation";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { RefreshCw, AlertCircle } from "lucide-react";
 
-import { SupplierFilters, SupplierStatsCards, SuppliersTable } from "./_components"
-import { useSupplierFilters, useSuppliers } from "./_hooks/use-suppliers"
-import type { SupplierFilters as SupplierFiltersType } from "./_types"
+import {
+  SupplierFilters,
+  SupplierStatsCards,
+  SuppliersTable,
+} from "./_components";
+import { useSupplierFilters, useSuppliers } from "./_hooks/use-suppliers";
+import type { SupplierFilters as SupplierFiltersType } from "./_types";
 
 export default function SuppliersPage() {
-  const router = useRouter()
-  const { suppliers, loading, error, loadSuppliers } = useSuppliers()
-  const { filters, setFilters, filteredSuppliers } = useSupplierFilters(suppliers)
+  const router = useRouter();
+  const { suppliers, loading, error, loadSuppliers } = useSuppliers();
+  const { filters, setFilters, filteredSuppliers } =
+    useSupplierFilters(suppliers);
 
   const stats = useMemo(() => {
-    const totalSuppliers = suppliers.length
-    const activeSuppliers = suppliers.filter((supplier) => supplier.status === "active").length
-    const totalBalance = suppliers.reduce((sum, supplier) => sum + Math.abs(supplier.balance), 0)
-    const totalPurchases = suppliers.reduce((sum, supplier) => sum + supplier.totalPurchases, 0)
+    const totalSuppliers = suppliers.length;
+    const activeSuppliers = suppliers.filter(
+      (supplier) => supplier.status === "active"
+    ).length;
+    const totalBalance = suppliers.reduce(
+      (sum, supplier) => sum + Math.abs(supplier.balance),
+      0
+    );
+    const totalPurchases = suppliers.reduce(
+      (sum, supplier) => sum + supplier.totalPurchases,
+      0
+    );
 
     return {
       totalSuppliers,
       activeSuppliers,
       totalBalance,
       totalPurchases,
-    }
-  }, [suppliers])
+    };
+  }, [suppliers]);
 
   const handleFiltersChange = (newFilters: SupplierFiltersType) => {
-    setFilters(newFilters)
-  }
+    setFilters(newFilters);
+  };
 
   const handleSupplierClick = (supplierId: string) => {
-    router.push(`/suppliers/${supplierId}`)
-  }
+    router.push(`/suppliers/${supplierId}`);
+  };
 
   const handleRetry = () => {
-    loadSuppliers()
-  }
+    loadSuppliers();
+  };
 
   if (error) {
     return (
@@ -58,11 +77,11 @@ export default function SuppliersPage() {
           </AlertDescription>
         </Alert>
       </div>
-    )
+    );
   }
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold">Suppliers</h1>
@@ -94,12 +113,13 @@ export default function SuppliersPage() {
       <Card>
         <CardHeader>
           <CardTitle>Supplier List</CardTitle>
-          <CardDescription>
-            View and manage all your suppliers
-          </CardDescription>
+          <CardDescription>View and manage all your suppliers</CardDescription>
         </CardHeader>
         <CardContent className="space-y-6">
-          <SupplierFilters filters={filters} onFiltersChange={handleFiltersChange} />
+          <SupplierFilters
+            filters={filters}
+            onFiltersChange={handleFiltersChange}
+          />
 
           {loading ? (
             <div className="space-y-3">
@@ -108,13 +128,13 @@ export default function SuppliersPage() {
               ))}
             </div>
           ) : (
-            <SuppliersTable 
-              suppliers={filteredSuppliers} 
-              onSupplierClick={handleSupplierClick} 
+            <SuppliersTable
+              suppliers={filteredSuppliers}
+              onSupplierClick={handleSupplierClick}
             />
           )}
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

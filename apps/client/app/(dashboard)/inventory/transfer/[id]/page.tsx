@@ -2,12 +2,26 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Edit, CheckCircle, XCircle, Clock, Package } from "lucide-react";
+import {
+  ArrowLeft,
+  Edit,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Package,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function TransferDetailPage() {
@@ -30,15 +44,52 @@ export default function TransferDetailPage() {
     receivedBy: "Mike Johnson",
     notes: "Transfer of high-demand products to branch location",
     items: [
-      { id: "1", sku: "PROD-001", name: "Product A", quantity: 50, unit: "pcs", status: "received" },
-      { id: "2", sku: "PROD-002", name: "Product B", quantity: 30, unit: "pcs", status: "received" },
-      { id: "3", sku: "PROD-003", name: "Product C", quantity: 20, unit: "pcs", status: "received" },
+      {
+        id: "1",
+        sku: "PROD-001",
+        name: "Product A",
+        quantity: 50,
+        unit: "pcs",
+        status: "received",
+      },
+      {
+        id: "2",
+        sku: "PROD-002",
+        name: "Product B",
+        quantity: 30,
+        unit: "pcs",
+        status: "received",
+      },
+      {
+        id: "3",
+        sku: "PROD-003",
+        name: "Product C",
+        quantity: 20,
+        unit: "pcs",
+        status: "received",
+      },
     ],
     timeline: [
-      { date: "2024-01-15 09:00", event: "Transfer initiated", user: "John Doe" },
-      { date: "2024-01-15 10:30", event: "Transfer approved", user: "Jane Smith" },
-      { date: "2024-01-15 14:00", event: "Items packed and shipped", user: "John Doe" },
-      { date: "2024-01-17 11:00", event: "Items received", user: "Mike Johnson" },
+      {
+        date: "2024-01-15 09:00",
+        event: "Transfer initiated",
+        user: "John Doe",
+      },
+      {
+        date: "2024-01-15 10:30",
+        event: "Transfer approved",
+        user: "Jane Smith",
+      },
+      {
+        date: "2024-01-15 14:00",
+        event: "Items packed and shipped",
+        user: "John Doe",
+      },
+      {
+        date: "2024-01-17 11:00",
+        event: "Items received",
+        user: "Mike Johnson",
+      },
     ],
   };
 
@@ -57,14 +108,20 @@ export default function TransferDetailPage() {
         );
       case "pending":
         return (
-          <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+          <Badge
+            variant="outline"
+            className="bg-yellow-50 text-yellow-700 border-yellow-300"
+          >
             <Clock className="mr-1 h-3 w-3" />
             Pending
           </Badge>
         );
       case "in-transit":
         return (
-          <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">
+          <Badge
+            variant="outline"
+            className="bg-blue-50 text-blue-700 border-blue-300"
+          >
             <Package className="mr-1 h-3 w-3" />
             In Transit
           </Badge>
@@ -83,7 +140,7 @@ export default function TransferDetailPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 p-6">
+      <div className="space-y-6 ">
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
@@ -119,7 +176,12 @@ export default function TransferDetailPage() {
           <Button variant="outline" onClick={() => window.print()}>
             Print
           </Button>
-          <Button variant="outline" onClick={() => router.push(`/inventory/transfer/${transfer.id}/edit`)}>
+          <Button
+            variant="outline"
+            onClick={() =>
+              router.push(`/inventory/transfer/${transfer.id}/edit`)
+            }
+          >
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Button>
@@ -132,19 +194,25 @@ export default function TransferDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Items</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Items
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <Package className="h-4 w-4 text-blue-500" />
-              <span className="text-2xl font-bold">{transfer.items.length}</span>
+              <span className="text-2xl font-bold">
+                {transfer.items.length}
+              </span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Quantity</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Quantity
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <span className="text-2xl font-bold">
@@ -155,19 +223,27 @@ export default function TransferDetailPage() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Transfer Date</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Transfer Date
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-lg font-semibold">{transfer.transferDate}</span>
+            <span className="text-lg font-semibold">
+              {transfer.transferDate}
+            </span>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Expected Arrival</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Expected Arrival
+            </CardTitle>
           </CardHeader>
           <CardContent>
-            <span className="text-lg font-semibold">{transfer.expectedArrival}</span>
+            <span className="text-lg font-semibold">
+              {transfer.expectedArrival}
+            </span>
           </CardContent>
         </Card>
       </div>
@@ -189,7 +265,9 @@ export default function TransferDetailPage() {
             <CardContent className="space-y-3">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Transfer Number</p>
+                  <p className="text-sm text-muted-foreground">
+                    Transfer Number
+                  </p>
                   <p className="font-semibold">{transfer.transferNumber}</p>
                 </div>
                 <div>
@@ -197,7 +275,9 @@ export default function TransferDetailPage() {
                   {renderStatusBadge(transfer.status)}
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">From Warehouse</p>
+                  <p className="text-sm text-muted-foreground">
+                    From Warehouse
+                  </p>
                   <p className="font-semibold">{transfer.fromWarehouse}</p>
                 </div>
                 <div>
@@ -209,7 +289,9 @@ export default function TransferDetailPage() {
                   <p className="font-semibold">{transfer.transferDate}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Actual Arrival</p>
+                  <p className="text-sm text-muted-foreground">
+                    Actual Arrival
+                  </p>
                   <p className="font-semibold">{transfer.actualArrival}</p>
                 </div>
               </div>
@@ -270,10 +352,15 @@ export default function TransferDetailPage() {
                     <TableRow key={item.id}>
                       <TableCell className="font-mono">{item.sku}</TableCell>
                       <TableCell className="font-medium">{item.name}</TableCell>
-                      <TableCell className="text-right font-semibold">{item.quantity}</TableCell>
+                      <TableCell className="text-right font-semibold">
+                        {item.quantity}
+                      </TableCell>
                       <TableCell>{item.unit}</TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-300">
+                        <Badge
+                          variant="outline"
+                          className="bg-green-50 text-green-700 border-green-300"
+                        >
                           {item.status}
                         </Badge>
                       </TableCell>
@@ -298,8 +385,12 @@ export default function TransferDetailPage() {
                     <div className="w-2 h-2 rounded-full bg-primary mt-2"></div>
                     <div className="flex-1">
                       <p className="font-semibold">{event.event}</p>
-                      <p className="text-sm text-muted-foreground">{event.date}</p>
-                      <p className="text-sm text-muted-foreground">By: {event.user}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {event.date}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        By: {event.user}
+                      </p>
                     </div>
                   </div>
                 ))}

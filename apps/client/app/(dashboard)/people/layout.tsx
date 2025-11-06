@@ -7,7 +7,7 @@ export default function PeopleLayout({
   children: React.ReactNode
 }) {
   return (
-    <div className="space-y-6 px-6 pt-4"> {/* added padding */}
+    <div className="space-y-6"> {/* added padding */}
       <div className="border-b">
         <div className="flex gap-6">
           <Link href="/people/users">

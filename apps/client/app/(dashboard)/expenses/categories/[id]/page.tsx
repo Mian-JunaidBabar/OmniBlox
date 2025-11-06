@@ -61,7 +61,7 @@ export default function ExpenseCategoryDetailPage() {
 
   if (!category) {
     return (
-      <div className="space-y-6 p-6">
+      <div className="space-y-6">
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <p className="text-muted-foreground">Category not found</p>

@@ -359,7 +359,7 @@ export default function EditSalePage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link href={`/sales/${sale.id}`}>
           <Button variant="ghost" size="icon">

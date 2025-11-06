@@ -1,18 +1,24 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useParams, useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { ArrowLeft } from "lucide-react"
+import { useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { ArrowLeft } from "lucide-react";
 
 export default function EditExpensePage() {
-  const params = useParams()
-  const router = useRouter()
+  const params = useParams();
+  const router = useRouter();
   const [formData, setFormData] = useState({
     reference: `EXP-${String(params.id).padStart(5, "0")}`,
     date: "2024-01-15",
@@ -21,8 +27,9 @@ export default function EditExpensePage() {
     amount: "450.00",
     paymentMethod: "Credit Card",
     status: "approved",
-    description: "Monthly office supplies purchase including paper, pens, and folders",
-  })
+    description:
+      "Monthly office supplies purchase including paper, pens, and folders",
+  });
 
   return (
     <div className="space-y-6">
@@ -52,20 +59,26 @@ export default function EditExpensePage() {
                 id="date"
                 type="date"
                 value={formData.date}
-                onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, date: e.target.value })
+                }
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="category">Category</Label>
               <Select
                 value={formData.category}
-                onValueChange={(value) => setFormData({ ...formData, category: value })}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, category: value })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Office Supplies">Office Supplies</SelectItem>
+                  <SelectItem value="Office Supplies">
+                    Office Supplies
+                  </SelectItem>
                   <SelectItem value="Utilities">Utilities</SelectItem>
                   <SelectItem value="Rent">Rent</SelectItem>
                   <SelectItem value="Marketing">Marketing</SelectItem>
@@ -79,7 +92,9 @@ export default function EditExpensePage() {
               <Input
                 id="vendor"
                 value={formData.vendor}
-                onChange={(e) => setFormData({ ...formData, vendor: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, vendor: e.target.value })
+                }
               />
             </div>
             <div className="space-y-2">
@@ -89,14 +104,18 @@ export default function EditExpensePage() {
                 type="number"
                 step="0.01"
                 value={formData.amount}
-                onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, amount: e.target.value })
+                }
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="paymentMethod">Payment Method</Label>
               <Select
                 value={formData.paymentMethod}
-                onValueChange={(value) => setFormData({ ...formData, paymentMethod: value })}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, paymentMethod: value })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -111,7 +130,12 @@ export default function EditExpensePage() {
             </div>
             <div className="space-y-2">
               <Label htmlFor="status">Status</Label>
-              <Select value={formData.status} onValueChange={(value) => setFormData({ ...formData, status: value })}>
+              <Select
+                value={formData.status}
+                onValueChange={(value) =>
+                  setFormData({ ...formData, status: value })
+                }
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -129,7 +153,9 @@ export default function EditExpensePage() {
             <Textarea
               id="description"
               value={formData.description}
-              onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, description: e.target.value })
+              }
               rows={4}
             />
           </div>
@@ -143,5 +169,5 @@ export default function EditExpensePage() {
         <Button onClick={() => router.push("/expenses")}>Save Changes</Button>
       </div>
     </div>
-  )
+  );
 }

@@ -63,7 +63,7 @@ export default function CustomersPage() {
   const totalCustomers = customers.length;
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div className="mb-6">
         <h1 className="text-3xl font-semibold tracking-tight">Customers</h1>
         <p className="text-sm text-muted-foreground">

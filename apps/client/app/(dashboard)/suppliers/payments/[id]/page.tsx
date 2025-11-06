@@ -2,7 +2,18 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Edit, Trash2, DollarSign, Calendar, CreditCard, User, FileText, CheckCircle, Clock } from "lucide-react";
+import {
+  ArrowLeft,
+  Edit,
+  Trash2,
+  DollarSign,
+  Calendar,
+  CreditCard,
+  User,
+  FileText,
+  CheckCircle,
+  Clock,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -20,7 +31,7 @@ export default function PaymentDetailPage() {
     supplierEmail: "contact@johnelectronics.com",
     supplierPhone: "+1 (555) 123-4567",
     date: "2024-01-15",
-    amount: 45230.50,
+    amount: 45230.5,
     method: "Bank Transfer",
     status: "completed",
     reference: "TXN123456789",
@@ -42,13 +53,24 @@ export default function PaymentDetailPage() {
   const renderStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
-        return <Badge variant="default" className="bg-green-500">Completed</Badge>;
+        return (
+          <Badge variant="default" className="bg-green-500">
+            Completed
+          </Badge>
+        );
       case "pending":
         return <Badge variant="secondary">Pending</Badge>;
       case "failed":
         return <Badge variant="destructive">Failed</Badge>;
       case "processing":
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">Processing</Badge>;
+        return (
+          <Badge
+            variant="outline"
+            className="bg-blue-50 text-blue-700 border-blue-300"
+          >
+            Processing
+          </Badge>
+        );
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -68,7 +90,7 @@ export default function PaymentDetailPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -77,7 +99,9 @@ export default function PaymentDetailPage() {
           </Button>
           <div>
             <h1 className="text-3xl font-bold">Payment {payment.id}</h1>
-            <p className="text-muted-foreground">Payment to {payment.supplier}</p>
+            <p className="text-muted-foreground">
+              Payment to {payment.supplier}
+            </p>
           </div>
           {renderStatusBadge(payment.status)}
         </div>
@@ -103,19 +127,25 @@ export default function PaymentDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Payment Amount</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Payment Amount
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-green-500" />
-              <span className="text-2xl font-bold">${payment.amount.toLocaleString()}</span>
+              <span className="text-2xl font-bold">
+                ${payment.amount.toLocaleString()}
+              </span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Payment Date</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Payment Date
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
@@ -127,7 +157,9 @@ export default function PaymentDetailPage() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Payment Method</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Payment Method
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
@@ -139,12 +171,16 @@ export default function PaymentDetailPage() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Reference Number</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Reference Number
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <FileText className="h-4 w-4 text-orange-500" />
-              <span className="text-sm font-mono font-semibold">{payment.reference}</span>
+              <span className="text-sm font-mono font-semibold">
+                {payment.reference}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -176,22 +212,32 @@ export default function PaymentDetailPage() {
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Amount</p>
-                  <p className="font-semibold text-lg">${payment.amount.toLocaleString()}</p>
+                  <p className="font-semibold text-lg">
+                    ${payment.amount.toLocaleString()}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Payment Method</p>
+                  <p className="text-sm text-muted-foreground">
+                    Payment Method
+                  </p>
                   <p className="font-medium">{payment.method}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Reference Number</p>
-                  <p className="font-mono text-sm font-medium">{payment.reference}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Reference Number
+                  </p>
+                  <p className="font-mono text-sm font-medium">
+                    {payment.reference}
+                  </p>
                 </div>
               </div>
 
               <Separator />
 
               <div>
-                <p className="text-sm text-muted-foreground mb-2">Description</p>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Description
+                </p>
                 <p className="font-medium">{payment.description}</p>
               </div>
             </CardContent>
@@ -209,7 +255,9 @@ export default function PaymentDetailPage() {
                   <p className="font-medium">{payment.bankName}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Account Number</p>
+                  <p className="text-sm text-muted-foreground">
+                    Account Number
+                  </p>
                   <p className="font-medium">{payment.accountNumber}</p>
                 </div>
               </div>
@@ -236,7 +284,9 @@ export default function PaymentDetailPage() {
                   <p className="font-medium">{payment.processedBy}</p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Processing Date</p>
+                  <p className="text-sm text-muted-foreground">
+                    Processing Date
+                  </p>
                   <p className="font-medium">{payment.processedDate}</p>
                 </div>
               </div>
@@ -279,7 +329,11 @@ export default function PaymentDetailPage() {
                 <p className="text-sm text-muted-foreground">Phone</p>
                 <p className="font-medium">{payment.supplierPhone}</p>
               </div>
-              <Button variant="outline" className="w-full" onClick={() => router.push('/suppliers')}>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => router.push("/suppliers")}
+              >
                 View Supplier Details
               </Button>
             </CardContent>
@@ -302,7 +356,9 @@ export default function PaymentDetailPage() {
                       <CheckCircle className="h-4 w-4 text-green-500" />
                       Payment Initiated
                     </p>
-                    <p className="text-sm text-muted-foreground">{payment.date}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {payment.date}
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-3">
@@ -315,7 +371,9 @@ export default function PaymentDetailPage() {
                       <CheckCircle className="h-4 w-4 text-green-500" />
                       Approved
                     </p>
-                    <p className="text-sm text-muted-foreground">{payment.approvedDate}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {payment.approvedDate}
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-3">
@@ -327,7 +385,9 @@ export default function PaymentDetailPage() {
                       <CheckCircle className="h-4 w-4 text-green-500" />
                       Completed
                     </p>
-                    <p className="text-sm text-muted-foreground">{payment.processedDate}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {payment.processedDate}
+                    </p>
                   </div>
                 </div>
               </div>

@@ -1,23 +1,36 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Search, Plus, Download, Filter } from "lucide-react"
-import Link from "next/link"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Search, Plus, Download, Filter } from "lucide-react";
+import Link from "next/link";
 
 export default function SupplierOrdersPage() {
-  const router = useRouter()
+  const router = useRouter();
   const orders = [
     {
       id: "PO-001",
       supplier: "John Electronics Ltd",
       date: "2024-01-15",
-      amount: 45230.50,
+      amount: 45230.5,
       status: "completed",
       items: 12,
     },
@@ -25,7 +38,7 @@ export default function SupplierOrdersPage() {
       id: "PO-002",
       supplier: "Tech Supply Co",
       date: "2024-01-12",
-      amount: 28450.00,
+      amount: 28450.0,
       status: "pending",
       items: 8,
     },
@@ -33,31 +46,33 @@ export default function SupplierOrdersPage() {
       id: "PO-003",
       supplier: "Global Hardware Inc",
       date: "2024-01-10",
-      amount: 15780.50,
+      amount: 15780.5,
       status: "completed",
       items: 5,
     },
-  ]
+  ];
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
-        return <Badge variant="default">Completed</Badge>
+        return <Badge variant="default">Completed</Badge>;
       case "pending":
-        return <Badge variant="secondary">Pending</Badge>
+        return <Badge variant="secondary">Pending</Badge>;
       case "cancelled":
-        return <Badge variant="destructive">Cancelled</Badge>
+        return <Badge variant="destructive">Cancelled</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>
+        return <Badge variant="outline">{status}</Badge>;
     }
-  }
+  };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Purchase Orders</h1>
-          <p className="text-muted-foreground">Manage orders from all suppliers</p>
+          <p className="text-muted-foreground">
+            Manage orders from all suppliers
+          </p>
         </div>
         <Button asChild>
           <Link href="/purchases/new">
@@ -85,7 +100,9 @@ export default function SupplierOrdersPage() {
       <Card>
         <CardHeader>
           <CardTitle>All Purchase Orders</CardTitle>
-          <CardDescription>Track and manage purchase orders from suppliers</CardDescription>
+          <CardDescription>
+            Track and manage purchase orders from suppliers
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -102,7 +119,7 @@ export default function SupplierOrdersPage() {
             </TableHeader>
             <TableBody>
               {orders.map((order) => (
-                <TableRow 
+                <TableRow
                   key={order.id}
                   className="cursor-pointer hover:bg-muted/50"
                   onClick={() => router.push(`/suppliers/orders/${order.id}`)}
@@ -114,12 +131,12 @@ export default function SupplierOrdersPage() {
                   <TableCell>${order.amount.toLocaleString()}</TableCell>
                   <TableCell>{getStatusBadge(order.status)}</TableCell>
                   <TableCell className="text-right">
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="sm"
                       onClick={(e) => {
-                        e.stopPropagation()
-                        router.push(`/suppliers/orders/${order.id}`)
+                        e.stopPropagation();
+                        router.push(`/suppliers/orders/${order.id}`);
                       }}
                     >
                       View
@@ -132,5 +149,5 @@ export default function SupplierOrdersPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

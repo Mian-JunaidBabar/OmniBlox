@@ -36,6 +36,13 @@ export interface Expense {
     name: string;
     email: string;
   };
+  // Some API responses include a `createdBy` relation with user details
+  createdBy?: {
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+  };
   attachments?: ExpenseAttachment[];
   companyId: string;
   createdAt: string;

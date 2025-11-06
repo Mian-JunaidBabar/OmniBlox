@@ -493,7 +493,7 @@ export default function NewReturnPage() {
     whLoading || prodLoading || (tab === "supplier" && suppLoading);
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-4 mb-2">
         <Link href="/returns">
           <Button variant="ghost" size="icon">

@@ -21,7 +21,7 @@ export default function NewProductPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center gap-4">
         <Link href="/products">
           <Button variant="ghost" size="sm" className="gap-2">

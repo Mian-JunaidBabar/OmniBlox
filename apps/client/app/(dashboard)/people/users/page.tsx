@@ -85,8 +85,8 @@ export default function UsersPage() {
           getTeamStats(),
         ]);
         // Backend returns array directly when no pagination params
-        const usersList = Array.isArray(usersResponse) 
-          ? usersResponse 
+        const usersList = Array.isArray(usersResponse)
+          ? usersResponse
           : usersResponse.users;
         setUsers(usersList);
         setStats(statsResponse);
@@ -117,7 +117,7 @@ export default function UsersPage() {
     return new Date(lastLogin).toLocaleString();
   };
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div className="mb-6">
         <h1 className="text-3xl font-semibold tracking-tight">Users</h1>
         <p className="text-sm text-muted-foreground">

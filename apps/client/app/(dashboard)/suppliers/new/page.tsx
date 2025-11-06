@@ -1,17 +1,23 @@
-﻿"use client"
+﻿"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { ArrowLeft } from "lucide-react"
-import Link from "next/link"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { ArrowLeft } from "lucide-react";
+import Link from "next/link";
 
 export default function NewSupplierPage() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(false)
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     company: "",
@@ -25,35 +31,37 @@ export default function NewSupplierPage() {
     paymentTerms: "Net 30",
     rating: 5,
     balance: 0,
-  })
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
-    
+    e.preventDefault();
+    setLoading(true);
+
     try {
       // TODO: Replace with actual API call
-      await new Promise(resolve => setTimeout(resolve, 1000))
-      
-      // Redirect back to suppliers list
-      router.push("/suppliers")
-    } catch (error) {
-      console.error("Failed to create supplier:", error)
-    } finally {
-      setLoading(false)
-    }
-  }
+      await new Promise((resolve) => setTimeout(resolve, 1000));
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
-    setFormData(prev => ({
+      // Redirect back to suppliers list
+      router.push("/suppliers");
+    } catch (error) {
+      console.error("Failed to create supplier:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
       ...prev,
-      [name]: name === "rating" || name === "balance" ? Number(value) : value
-    }))
-  }
+      [name]: name === "rating" || name === "balance" ? Number(value) : value,
+    }));
+  };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       <div className="mb-6">
         <Link href="/suppliers">
           <Button variant="ghost" size="sm">
@@ -218,7 +226,11 @@ export default function NewSupplierPage() {
             </div>
 
             <div className="flex justify-end gap-4">
-              <Button type="button" variant="outline" onClick={() => router.push("/suppliers")}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => router.push("/suppliers")}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={loading}>
@@ -229,5 +241,5 @@ export default function NewSupplierPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

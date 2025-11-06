@@ -2,12 +2,29 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Edit, Trash2, Package, Calendar, DollarSign, User, FileText, Truck } from "lucide-react";
+import {
+  ArrowLeft,
+  Edit,
+  Trash2,
+  Package,
+  Calendar,
+  DollarSign,
+  User,
+  FileText,
+  Truck,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 export default function PurchaseOrderDetailPage() {
   const params = useParams();
@@ -22,18 +39,46 @@ export default function PurchaseOrderDetailPage() {
     supplierPhone: "+1 (555) 123-4567",
     date: "2024-01-15",
     expectedDelivery: "2024-01-22",
-    amount: 45230.50,
+    amount: 45230.5,
     status: "completed",
     items: [
-      { id: 1, name: "Laptop Computer", sku: "LAP-001", quantity: 5, unitPrice: 1200.00, total: 6000.00 },
-      { id: 2, name: "Wireless Mouse", sku: "MOU-001", quantity: 20, unitPrice: 25.00, total: 500.00 },
-      { id: 3, name: "USB-C Cable", sku: "CAB-001", quantity: 50, unitPrice: 12.00, total: 600.00 },
-      { id: 4, name: "External Hard Drive", sku: "HDD-001", quantity: 10, unitPrice: 150.00, total: 1500.00 },
+      {
+        id: 1,
+        name: "Laptop Computer",
+        sku: "LAP-001",
+        quantity: 5,
+        unitPrice: 1200.0,
+        total: 6000.0,
+      },
+      {
+        id: 2,
+        name: "Wireless Mouse",
+        sku: "MOU-001",
+        quantity: 20,
+        unitPrice: 25.0,
+        total: 500.0,
+      },
+      {
+        id: 3,
+        name: "USB-C Cable",
+        sku: "CAB-001",
+        quantity: 50,
+        unitPrice: 12.0,
+        total: 600.0,
+      },
+      {
+        id: 4,
+        name: "External Hard Drive",
+        sku: "HDD-001",
+        quantity: 10,
+        unitPrice: 150.0,
+        total: 1500.0,
+      },
     ],
-    subtotal: 8600.00,
-    tax: 860.00,
-    shipping: 50.00,
-    total: 9510.00,
+    subtotal: 8600.0,
+    tax: 860.0,
+    shipping: 50.0,
+    total: 9510.0,
     notes: "Urgent order - please expedite shipping",
   };
 
@@ -45,13 +90,24 @@ export default function PurchaseOrderDetailPage() {
   const renderStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
-        return <Badge variant="default" className="bg-green-500">Completed</Badge>;
+        return (
+          <Badge variant="default" className="bg-green-500">
+            Completed
+          </Badge>
+        );
       case "pending":
         return <Badge variant="secondary">Pending</Badge>;
       case "cancelled":
         return <Badge variant="destructive">Cancelled</Badge>;
       case "processing":
-        return <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-300">Processing</Badge>;
+        return (
+          <Badge
+            variant="outline"
+            className="bg-blue-50 text-blue-700 border-blue-300"
+          >
+            Processing
+          </Badge>
+        );
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -71,7 +127,7 @@ export default function PurchaseOrderDetailPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -106,7 +162,9 @@ export default function PurchaseOrderDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Order Date</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Order Date
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
@@ -118,19 +176,25 @@ export default function PurchaseOrderDetailPage() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Expected Delivery</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Expected Delivery
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <Truck className="h-4 w-4 text-orange-500" />
-              <span className="text-lg font-semibold">{order.expectedDelivery}</span>
+              <span className="text-lg font-semibold">
+                {order.expectedDelivery}
+              </span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Items</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Items
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
@@ -142,12 +206,16 @@ export default function PurchaseOrderDetailPage() {
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Amount</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Amount
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <DollarSign className="h-4 w-4 text-green-500" />
-              <span className="text-2xl font-bold">${order.total.toLocaleString()}</span>
+              <span className="text-2xl font-bold">
+                ${order.total.toLocaleString()}
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -176,10 +244,18 @@ export default function PurchaseOrderDetailPage() {
                   {order.items.map((item) => (
                     <TableRow key={item.id}>
                       <TableCell className="font-medium">{item.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{item.sku}</TableCell>
-                      <TableCell className="text-right">{item.quantity}</TableCell>
-                      <TableCell className="text-right">${item.unitPrice.toFixed(2)}</TableCell>
-                      <TableCell className="text-right font-semibold">${item.total.toFixed(2)}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {item.sku}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {item.quantity}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        ${item.unitPrice.toFixed(2)}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">
+                        ${item.total.toFixed(2)}
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -190,7 +266,9 @@ export default function PurchaseOrderDetailPage() {
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Subtotal</span>
-                  <span className="font-medium">${order.subtotal.toFixed(2)}</span>
+                  <span className="font-medium">
+                    ${order.subtotal.toFixed(2)}
+                  </span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Tax (10%)</span>
@@ -198,12 +276,16 @@ export default function PurchaseOrderDetailPage() {
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Shipping</span>
-                  <span className="font-medium">${order.shipping.toFixed(2)}</span>
+                  <span className="font-medium">
+                    ${order.shipping.toFixed(2)}
+                  </span>
                 </div>
                 <Separator />
                 <div className="flex justify-between">
                   <span className="font-semibold">Total</span>
-                  <span className="text-xl font-bold">${order.total.toFixed(2)}</span>
+                  <span className="text-xl font-bold">
+                    ${order.total.toFixed(2)}
+                  </span>
                 </div>
               </div>
             </CardContent>
@@ -245,7 +327,11 @@ export default function PurchaseOrderDetailPage() {
                 <p className="text-sm text-muted-foreground">Phone</p>
                 <p className="font-medium">{order.supplierPhone}</p>
               </div>
-              <Button variant="outline" className="w-full" onClick={() => router.push('/suppliers')}>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => router.push("/suppliers")}
+              >
                 View Supplier Details
               </Button>
             </CardContent>
@@ -265,7 +351,9 @@ export default function PurchaseOrderDetailPage() {
                   </div>
                   <div className="pb-4">
                     <p className="font-medium">Order Placed</p>
-                    <p className="text-sm text-muted-foreground">{order.date}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {order.date}
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-3">
@@ -275,7 +363,9 @@ export default function PurchaseOrderDetailPage() {
                   </div>
                   <div className="pb-4">
                     <p className="font-medium">Processing</p>
-                    <p className="text-sm text-muted-foreground">{order.date}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {order.date}
+                    </p>
                   </div>
                 </div>
                 <div className="flex gap-3">
@@ -283,8 +373,12 @@ export default function PurchaseOrderDetailPage() {
                     <div className="w-2 h-2 rounded-full bg-gray-300"></div>
                   </div>
                   <div>
-                    <p className="font-medium text-muted-foreground">Delivery Expected</p>
-                    <p className="text-sm text-muted-foreground">{order.expectedDelivery}</p>
+                    <p className="font-medium text-muted-foreground">
+                      Delivery Expected
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {order.expectedDelivery}
+                    </p>
                   </div>
                 </div>
               </div>

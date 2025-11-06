@@ -2,7 +2,20 @@
 
 import React, { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { ArrowLeft, Edit, Trash2, Phone, Mail, MapPin, Globe, Building, CreditCard, TrendingUp, Calendar, Star } from "lucide-react";
+import {
+  ArrowLeft,
+  Edit,
+  Trash2,
+  Phone,
+  Mail,
+  MapPin,
+  Globe,
+  Building,
+  CreditCard,
+  TrendingUp,
+  Calendar,
+  Star,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +50,11 @@ export default function SupplierDetailPage() {
   const renderStatusBadge = (status: string) => {
     switch (status) {
       case "active":
-        return <Badge variant="default" className="bg-green-500">Active</Badge>;
+        return (
+          <Badge variant="default" className="bg-green-500">
+            Active
+          </Badge>
+        );
       case "inactive":
         return <Badge variant="secondary">Inactive</Badge>;
       case "blocked":
@@ -54,7 +71,9 @@ export default function SupplierDetailPage() {
           <Star
             key={star}
             className={`w-4 h-4 ${
-              star <= rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
+              star <= rating
+                ? "fill-yellow-400 text-yellow-400"
+                : "text-gray-300"
             }`}
           />
         ))}
@@ -81,7 +100,9 @@ export default function SupplierDetailPage() {
         <div className="flex items-center justify-center h-96">
           <div className="text-center">
             <p className="text-xl font-semibold mb-2">Supplier not found</p>
-            <p className="text-muted-foreground mb-4">The supplier you're looking for doesn't exist.</p>
+            <p className="text-muted-foreground mb-4">
+              The supplier you're looking for doesn't exist.
+            </p>
             <Button onClick={() => router.push("/suppliers")}>
               <ArrowLeft className="mr-2 h-4 w-4" />
               Back to Suppliers
@@ -93,7 +114,7 @@ export default function SupplierDetailPage() {
   }
 
   return (
-    <div className="space-y-6 p-6">
+    <div className="space-y-6 ">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -107,7 +128,10 @@ export default function SupplierDetailPage() {
           {renderStatusBadge(supplier.status)}
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" onClick={() => router.push(`/suppliers/${supplier.id}/edit`)}>
+          <Button
+            variant="outline"
+            onClick={() => router.push(`/suppliers/${supplier.id}/edit`)}
+          >
             <Edit className="mr-2 h-4 w-4" />
             Edit
           </Button>
@@ -124,36 +148,48 @@ export default function SupplierDetailPage() {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Total Purchases</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Purchases
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-green-500" />
-              <span className="text-2xl font-bold">${supplier.totalPurchases?.toLocaleString() || "0"}</span>
+              <span className="text-2xl font-bold">
+                ${supplier.totalPurchases?.toLocaleString() || "0"}
+              </span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Outstanding Balance</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Outstanding Balance
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-orange-500" />
-              <span className="text-2xl font-bold">${supplier.balance?.toLocaleString() || "0"}</span>
+              <span className="text-2xl font-bold">
+                ${supplier.balance?.toLocaleString() || "0"}
+              </span>
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">Rating</CardTitle>
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Rating
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="flex items-center gap-2">
               {renderRating(supplier.rating || 0)}
-              <span className="text-sm text-muted-foreground">({supplier.rating || 0}/5)</span>
+              <span className="text-sm text-muted-foreground">
+                ({supplier.rating || 0}/5)
+              </span>
             </div>
           </CardContent>
         </Card>
@@ -179,7 +215,9 @@ export default function SupplierDetailPage() {
                 <div className="flex items-start gap-3">
                   <Building className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Company Name</p>
+                    <p className="text-sm text-muted-foreground">
+                      Company Name
+                    </p>
                     <p className="font-medium">{supplier.company}</p>
                   </div>
                 </div>
@@ -207,8 +245,12 @@ export default function SupplierDetailPage() {
                 <div className="flex items-start gap-3">
                   <TrendingUp className="h-5 w-5 text-muted-foreground mt-0.5" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Last Purchase</p>
-                    <p className="font-medium">{supplier.lastPurchase || "N/A"}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Last Purchase
+                    </p>
+                    <p className="font-medium">
+                      {supplier.lastPurchase || "N/A"}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -240,15 +282,25 @@ export default function SupplierDetailPage() {
               <CardContent className="space-y-4">
                 <div>
                   <p className="text-sm text-muted-foreground">Payment Terms</p>
-                  <p className="font-medium">{supplier.paymentTerms || "N/A"}</p>
+                  <p className="font-medium">
+                    {supplier.paymentTerms || "N/A"}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Outstanding Balance</p>
-                  <p className="font-medium">${supplier.balance?.toLocaleString() || "0"}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Outstanding Balance
+                  </p>
+                  <p className="font-medium">
+                    ${supplier.balance?.toLocaleString() || "0"}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">Total Purchases</p>
-                  <p className="font-medium">${supplier.totalPurchases?.toLocaleString() || "0"}</p>
+                  <p className="text-sm text-muted-foreground">
+                    Total Purchases
+                  </p>
+                  <p className="font-medium">
+                    ${supplier.totalPurchases?.toLocaleString() || "0"}
+                  </p>
                 </div>
               </CardContent>
             </Card>
@@ -260,10 +312,14 @@ export default function SupplierDetailPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Supplier Rating</p>
+                  <p className="text-sm text-muted-foreground">
+                    Supplier Rating
+                  </p>
                   <div className="flex items-center gap-2 mt-1">
                     {renderRating(supplier.rating || 0)}
-                    <span className="text-sm font-medium">({supplier.rating || 0}/5)</span>
+                    <span className="text-sm font-medium">
+                      ({supplier.rating || 0}/5)
+                    </span>
                   </div>
                 </div>
                 <div>
@@ -283,7 +339,9 @@ export default function SupplierDetailPage() {
               <CardTitle>Contact Persons</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Contact management coming soon...</p>
+              <p className="text-muted-foreground">
+                Contact management coming soon...
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -294,7 +352,9 @@ export default function SupplierDetailPage() {
               <CardTitle>Transaction History</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Transaction history coming soon...</p>
+              <p className="text-muted-foreground">
+                Transaction history coming soon...
+              </p>
             </CardContent>
           </Card>
         </TabsContent>
@@ -305,7 +365,9 @@ export default function SupplierDetailPage() {
               <CardTitle>Documents</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-muted-foreground">Document management coming soon...</p>
+              <p className="text-muted-foreground">
+                Document management coming soon...
+              </p>
             </CardContent>
           </Card>
         </TabsContent>

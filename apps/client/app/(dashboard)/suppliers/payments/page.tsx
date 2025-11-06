@@ -1,23 +1,36 @@
-"use client"
+"use client";
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Badge } from "@/components/ui/badge"
-import { Search, Plus, Download, Filter } from "lucide-react"
-import Link from "next/link"
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
+import { Search, Plus, Download, Filter } from "lucide-react";
+import Link from "next/link";
 
 export default function SupplierPaymentsPage() {
-  const router = useRouter()
+  const router = useRouter();
   const payments = [
     {
       id: "PAY-001",
       supplier: "John Electronics Ltd",
       date: "2024-01-15",
-      amount: 45230.50,
+      amount: 45230.5,
       method: "Bank Transfer",
       status: "completed",
       reference: "TXN123456789",
@@ -26,7 +39,7 @@ export default function SupplierPaymentsPage() {
       id: "PAY-002",
       supplier: "Tech Supply Co",
       date: "2024-01-12",
-      amount: 28450.00,
+      amount: 28450.0,
       method: "Check",
       status: "pending",
       reference: "CHK987654321",
@@ -35,32 +48,36 @@ export default function SupplierPaymentsPage() {
       id: "PAY-003",
       supplier: "Global Hardware Inc",
       date: "2024-01-10",
-      amount: 15780.50,
+      amount: 15780.5,
       method: "Bank Transfer",
       status: "completed",
       reference: "TXN987654321",
     },
-  ]
+  ];
 
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "completed":
-        return <Badge variant="default">Completed</Badge>
+        return <Badge variant="default">Completed</Badge>;
       case "pending":
-        return <Badge variant="secondary">Pending</Badge>
+        return <Badge variant="secondary">Pending</Badge>;
       case "failed":
-        return <Badge variant="destructive">Failed</Badge>
+        return <Badge variant="destructive">Failed</Badge>;
       default:
-        return <Badge variant="outline">{status}</Badge>
+        return <Badge variant="outline">{status}</Badge>;
     }
-  }
+  };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">Supplier Payments</h1>
-          <p className="text-muted-foreground">Track payments made to suppliers</p>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Supplier Payments
+          </h1>
+          <p className="text-muted-foreground">
+            Track payments made to suppliers
+          </p>
         </div>
         <Button asChild>
           <Link href="/suppliers/payments/new">
@@ -86,7 +103,9 @@ export default function SupplierPaymentsPage() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">$28,450.00</div>
-            <p className="text-xs text-muted-foreground">Awaiting confirmation</p>
+            <p className="text-xs text-muted-foreground">
+              Awaiting confirmation
+            </p>
           </CardContent>
         </Card>
         <Card>
@@ -136,25 +155,31 @@ export default function SupplierPaymentsPage() {
             </TableHeader>
             <TableBody>
               {payments.map((payment) => (
-                <TableRow 
+                <TableRow
                   key={payment.id}
                   className="cursor-pointer hover:bg-muted/50"
-                  onClick={() => router.push(`/suppliers/payments/${payment.id}`)}
+                  onClick={() =>
+                    router.push(`/suppliers/payments/${payment.id}`)
+                  }
                 >
                   <TableCell className="font-medium">{payment.id}</TableCell>
                   <TableCell>{payment.supplier}</TableCell>
                   <TableCell>{payment.date}</TableCell>
                   <TableCell>{payment.method}</TableCell>
-                  <TableCell className="font-mono text-sm">{payment.reference}</TableCell>
-                  <TableCell className="font-semibold">${payment.amount.toLocaleString()}</TableCell>
+                  <TableCell className="font-mono text-sm">
+                    {payment.reference}
+                  </TableCell>
+                  <TableCell className="font-semibold">
+                    ${payment.amount.toLocaleString()}
+                  </TableCell>
                   <TableCell>{getStatusBadge(payment.status)}</TableCell>
                   <TableCell className="text-right">
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="sm"
                       onClick={(e) => {
-                        e.stopPropagation()
-                        router.push(`/suppliers/payments/${payment.id}`)
+                        e.stopPropagation();
+                        router.push(`/suppliers/payments/${payment.id}`);
                       }}
                     >
                       View
@@ -167,5 +192,5 @@ export default function SupplierPaymentsPage() {
         </CardContent>
       </Card>
     </div>
-  )
+  );
 }

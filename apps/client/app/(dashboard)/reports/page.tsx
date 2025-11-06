@@ -1,7 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,7 +27,16 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import { TrendingUp, TrendingDown, DollarSign, Package, Users, Download, Loader2, AlertCircle } from "lucide-react";
+import {
+  TrendingUp,
+  TrendingDown,
+  DollarSign,
+  Package,
+  Users,
+  Download,
+  Loader2,
+  AlertCircle,
+} from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   reportsService,
@@ -51,22 +66,28 @@ const formatPercentage = (value: number) => {
 export default function ReportsPage() {
   const { toast } = useToast();
   const [activeTab, setActiveTab] = useState("financial");
-  
+
   // Date range state
   const [dateFrom, setDateFrom] = useState(() => {
     const date = new Date();
     date.setMonth(date.getMonth() - 6);
     return date.toISOString().split("T")[0];
   });
-  const [dateTo, setDateTo] = useState(() => new Date().toISOString().split("T")[0]);
+  const [dateTo, setDateTo] = useState(
+    () => new Date().toISOString().split("T")[0]
+  );
 
   // Loading and error states
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   // Report data states
-  const [financialData, setFinancialData] = useState<FinancialSummary | null>(null);
-  const [inventoryData, setInventoryData] = useState<InventorySummary | null>(null);
+  const [financialData, setFinancialData] = useState<FinancialSummary | null>(
+    null
+  );
+  const [inventoryData, setInventoryData] = useState<InventorySummary | null>(
+    null
+  );
   const [salesData, setSalesData] = useState<SalesSummary | null>(null);
   const [staffData, setStaffData] = useState<StaffPerformance | null>(null);
   const [taxData, setTaxData] = useState<TaxSummary | null>(null);
@@ -95,10 +116,11 @@ export default function ReportsPage() {
     setError(null);
 
     try {
-      const [financial, inventory, sales, staff, tax] = await reportsService.getAllReports({
-        startDate: dateFrom,
-        endDate: dateTo,
-      });
+      const [financial, inventory, sales, staff, tax] =
+        await reportsService.getAllReports({
+          startDate: dateFrom,
+          endDate: dateTo,
+        });
 
       setFinancialData(financial);
       setInventoryData(inventory);
@@ -111,7 +133,8 @@ export default function ReportsPage() {
         description: "All reports have been successfully generated.",
       });
     } catch (err: any) {
-      const errorMessage = err.message || "Failed to fetch reports. Please try again.";
+      const errorMessage =
+        err.message || "Failed to fetch reports. Please try again.";
       setError(errorMessage);
       toast({
         title: "Error",
@@ -179,10 +202,12 @@ export default function ReportsPage() {
   };
 
   return (
-    <div className="p-6 space-y-6">
+    <div className="space-y-6">
       <div className="mb-6">
         <h1 className="text-3xl font-semibold tracking-tight">Reports</h1>
-        <p className="text-sm text-muted-foreground">Comprehensive business analytics and insights</p>
+        <p className="text-sm text-muted-foreground">
+          Comprehensive business analytics and insights
+        </p>
       </div>
 
       <div className="flex items-center justify-between">
@@ -250,7 +275,11 @@ export default function ReportsPage() {
         </Alert>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-6"
+      >
         <TabsList>
           <TabsTrigger value="financial">Financial</TabsTrigger>
           <TabsTrigger value="inventory">Inventory</TabsTrigger>
@@ -267,35 +296,61 @@ export default function ReportsPage() {
                 <Card>
                   <CardHeader className="pb-3">
                     <CardDescription>Total Revenue</CardDescription>
-                    <CardTitle className="text-3xl">{formatCurrency(financialData.summary.totalRevenue)}</CardTitle>
+                    <CardTitle className="text-3xl">
+                      {formatCurrency(financialData.summary.totalRevenue)}
+                    </CardTitle>
                     <div className="flex items-center gap-1 text-sm text-emerald-600">
                       <TrendingUp className="h-4 w-4" />
-                      <span>{formatPercentage(financialData.summary.grossMargin)}</span>
+                      <span>
+                        {formatPercentage(financialData.summary.grossMargin)}
+                      </span>
                     </div>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="pb-3">
                     <CardDescription>Total Expenses</CardDescription>
-                    <CardTitle className="text-3xl">{formatCurrency(financialData.summary.totalExpenses)}</CardTitle>
+                    <CardTitle className="text-3xl">
+                      {formatCurrency(financialData.summary.totalExpenses)}
+                    </CardTitle>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="pb-3">
                     <CardDescription>Net Profit</CardDescription>
-                    <CardTitle className={`text-3xl ${financialData.summary.netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    <CardTitle
+                      className={`text-3xl ${
+                        financialData.summary.netProfit >= 0
+                          ? "text-emerald-600"
+                          : "text-red-600"
+                      }`}
+                    >
                       {formatCurrency(financialData.summary.netProfit)}
                     </CardTitle>
-                    <div className={`flex items-center gap-1 text-sm ${financialData.summary.netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                      {financialData.summary.netProfit >= 0 ? <TrendingUp className="h-4 w-4" /> : <TrendingDown className="h-4 w-4" />}
-                      <span>{formatPercentage(financialData.summary.netMargin)}</span>
+                    <div
+                      className={`flex items-center gap-1 text-sm ${
+                        financialData.summary.netProfit >= 0
+                          ? "text-emerald-600"
+                          : "text-red-600"
+                      }`}
+                    >
+                      {financialData.summary.netProfit >= 0 ? (
+                        <TrendingUp className="h-4 w-4" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4" />
+                      )}
+                      <span>
+                        {formatPercentage(financialData.summary.netMargin)}
+                      </span>
                     </div>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="pb-3">
                     <CardDescription>Profit Margin</CardDescription>
-                    <CardTitle className="text-3xl">{formatPercentage(financialData.summary.netMargin)}</CardTitle>
+                    <CardTitle className="text-3xl">
+                      {formatPercentage(financialData.summary.netMargin)}
+                    </CardTitle>
                   </CardHeader>
                 </Card>
               </div>
@@ -303,7 +358,9 @@ export default function ReportsPage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Profit & Loss Trend</CardTitle>
-                  <CardDescription>Revenue trend over the selected period</CardDescription>
+                  <CardDescription>
+                    Revenue trend over the selected period
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <ResponsiveContainer width="100%" height={350}>
@@ -313,7 +370,13 @@ export default function ReportsPage() {
                       <YAxis />
                       <Tooltip />
                       <Legend />
-                      <Line type="monotone" dataKey="value" stroke="#3b82f6" strokeWidth={2} name="Revenue" />
+                      <Line
+                        type="monotone"
+                        dataKey="value"
+                        stroke="#3b82f6"
+                        strokeWidth={2}
+                        name="Revenue"
+                      />
                     </LineChart>
                   </ResponsiveContainer>
                 </CardContent>
@@ -323,7 +386,9 @@ export default function ReportsPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Revenue by Category</CardTitle>
-                    <CardDescription>Sales distribution across product categories</CardDescription>
+                    <CardDescription>
+                      Sales distribution across product categories
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     {financialData.revenueByCategory.length > 0 ? (
@@ -337,21 +402,33 @@ export default function ReportsPage() {
                             outerRadius={100}
                             fill="#8884d8"
                             dataKey="revenue"
-                            label={(entry) => entry.categoryName}
+                            label={(entry: any) => String(entry.categoryName)}
                           >
-                            {financialData.revenueByCategory.map((entry, index) => (
-                              <Cell
-                                key={`cell-${index}`}
-                                fill={["#3b82f6", "#10b981", "#f59e0b", "#8b5cf6", "#ec4899"][index % 5]}
-                              />
-                            ))}
+                            {financialData.revenueByCategory.map(
+                              (entry, index) => (
+                                <Cell
+                                  key={`cell-${index}`}
+                                  fill={
+                                    [
+                                      "#3b82f6",
+                                      "#10b981",
+                                      "#f59e0b",
+                                      "#8b5cf6",
+                                      "#ec4899",
+                                    ][index % 5]
+                                  }
+                                />
+                              )
+                            )}
                           </Pie>
                           <Tooltip />
                           <Legend />
                         </PieChart>
                       </ResponsiveContainer>
                     ) : (
-                      <p className="text-center text-muted-foreground py-8">No category data available</p>
+                      <p className="text-center text-muted-foreground py-8">
+                        No category data available
+                      </p>
                     )}
                   </CardContent>
                 </Card>
@@ -369,8 +446,14 @@ export default function ReportsPage() {
                             <DollarSign className="h-5 w-5 text-blue-600" />
                           </div>
                           <div>
-                            <div className="text-sm text-muted-foreground">Gross Revenue</div>
-                            <div className="font-semibold">{formatCurrency(financialData.summary.totalRevenue)}</div>
+                            <div className="text-sm text-muted-foreground">
+                              Gross Revenue
+                            </div>
+                            <div className="font-semibold">
+                              {formatCurrency(
+                                financialData.summary.totalRevenue
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -380,8 +463,12 @@ export default function ReportsPage() {
                             <DollarSign className="h-5 w-5 text-amber-600" />
                           </div>
                           <div>
-                            <div className="text-sm text-muted-foreground">Cost of Goods Sold</div>
-                            <div className="font-semibold">{formatCurrency(financialData.summary.totalCOGS)}</div>
+                            <div className="text-sm text-muted-foreground">
+                              Cost of Goods Sold
+                            </div>
+                            <div className="font-semibold">
+                              {formatCurrency(financialData.summary.totalCOGS)}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -391,8 +478,14 @@ export default function ReportsPage() {
                             <DollarSign className="h-5 w-5 text-purple-600" />
                           </div>
                           <div>
-                            <div className="text-sm text-muted-foreground">Gross Profit</div>
-                            <div className="font-semibold">{formatCurrency(financialData.summary.grossProfit)}</div>
+                            <div className="text-sm text-muted-foreground">
+                              Gross Profit
+                            </div>
+                            <div className="font-semibold">
+                              {formatCurrency(
+                                financialData.summary.grossProfit
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -402,8 +495,14 @@ export default function ReportsPage() {
                             <DollarSign className="h-5 w-5 text-emerald-600" />
                           </div>
                           <div>
-                            <div className="text-sm text-muted-foreground">Operating Expenses</div>
-                            <div className="font-semibold">{formatCurrency(financialData.summary.totalExpenses)}</div>
+                            <div className="text-sm text-muted-foreground">
+                              Operating Expenses
+                            </div>
+                            <div className="font-semibold">
+                              {formatCurrency(
+                                financialData.summary.totalExpenses
+                              )}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -416,32 +515,55 @@ export default function ReportsPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Category Performance</CardTitle>
-                    <CardDescription>Detailed breakdown by product category</CardDescription>
+                    <CardDescription>
+                      Detailed breakdown by product category
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
-                      {financialData.revenueByCategory.map((category, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
-                          <div>
-                            <div className="font-medium">{category.categoryName}</div>
-                            <div className="text-sm text-muted-foreground">{category.itemCount} items sold</div>
+                      {financialData.revenueByCategory.map(
+                        (category, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-4 border rounded-lg"
+                          >
+                            <div>
+                              <div className="font-medium">
+                                {category.categoryName}
+                              </div>
+                              <div className="text-sm text-muted-foreground">
+                                {category.itemCount} items sold
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-6">
+                              <div className="text-right">
+                                <div className="text-sm text-muted-foreground">
+                                  Revenue
+                                </div>
+                                <div className="font-semibold text-emerald-600">
+                                  {formatCurrency(category.revenue)}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm text-muted-foreground">
+                                  Profit
+                                </div>
+                                <div className="font-semibold">
+                                  {formatCurrency(category.profit)}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm text-muted-foreground">
+                                  Margin
+                                </div>
+                                <div className="font-semibold">
+                                  {formatPercentage(category.margin)}
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-6">
-                            <div className="text-right">
-                              <div className="text-sm text-muted-foreground">Revenue</div>
-                              <div className="font-semibold text-emerald-600">{formatCurrency(category.revenue)}</div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm text-muted-foreground">Profit</div>
-                              <div className="font-semibold">{formatCurrency(category.profit)}</div>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-sm text-muted-foreground">Margin</div>
-                              <div className="font-semibold">{formatPercentage(category.margin)}</div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                        )
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -462,19 +584,29 @@ export default function ReportsPage() {
                 <Card>
                   <CardHeader className="pb-3">
                     <CardDescription>Total Products</CardDescription>
-                    <CardTitle className="text-3xl">{inventoryData.summary.totalProducts}</CardTitle>
+                    <CardTitle className="text-3xl">
+                      {inventoryData.summary.totalProducts}
+                    </CardTitle>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="pb-3">
                     <CardDescription>Stock Value</CardDescription>
-                    <CardTitle className="text-3xl">{formatCurrency(inventoryData.summary.totalStockValue)}</CardTitle>
+                    <CardTitle className="text-3xl">
+                      {formatCurrency(inventoryData.summary.totalStockValue)}
+                    </CardTitle>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="pb-3">
                     <CardDescription>Low Stock Items</CardDescription>
-                    <CardTitle className={`text-3xl ${inventoryData.summary.lowStockCount > 0 ? 'text-amber-600' : ''}`}>
+                    <CardTitle
+                      className={`text-3xl ${
+                        inventoryData.summary.lowStockCount > 0
+                          ? "text-amber-600"
+                          : ""
+                      }`}
+                    >
                       {inventoryData.summary.lowStockCount}
                     </CardTitle>
                   </CardHeader>
@@ -493,7 +625,9 @@ export default function ReportsPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Stock by Warehouse</CardTitle>
-                    <CardDescription>Inventory distribution across locations</CardDescription>
+                    <CardDescription>
+                      Inventory distribution across locations
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <ResponsiveContainer width="100%" height={350}>
@@ -503,7 +637,11 @@ export default function ReportsPage() {
                         <YAxis />
                         <Tooltip />
                         <Legend />
-                        <Bar dataKey="totalQuantity" fill="#3b82f6" name="Total Units" />
+                        <Bar
+                          dataKey="totalQuantity"
+                          fill="#3b82f6"
+                          name="Total Units"
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
@@ -514,24 +652,39 @@ export default function ReportsPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Low Stock Alerts</CardTitle>
-                    <CardDescription>Products below reorder level</CardDescription>
+                    <CardDescription>
+                      Products below reorder level
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
                       {inventoryData.lowStockItems.map((item, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-4 border rounded-lg"
+                        >
                           <div>
                             <div className="font-medium">{item.productId}</div>
-                            <div className="text-sm text-muted-foreground">{item.warehouseName}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {item.warehouseName}
+                            </div>
                           </div>
                           <div className="flex items-center gap-6">
                             <div className="text-right">
-                              <div className="text-sm text-muted-foreground">Current Stock</div>
-                              <div className="font-semibold text-red-600">{item.currentQuantity} units</div>
+                              <div className="text-sm text-muted-foreground">
+                                Current Stock
+                              </div>
+                              <div className="font-semibold text-red-600">
+                                {item.currentQuantity} units
+                              </div>
                             </div>
                             <div className="text-right">
-                              <div className="text-sm text-muted-foreground">Reorder Level</div>
-                              <div className="font-medium">{item.reorderLevel} units</div>
+                              <div className="text-sm text-muted-foreground">
+                                Reorder Level
+                              </div>
+                              <div className="font-medium">
+                                {item.reorderLevel} units
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -556,25 +709,33 @@ export default function ReportsPage() {
                 <Card>
                   <CardHeader className="pb-3">
                     <CardDescription>Total Sales</CardDescription>
-                    <CardTitle className="text-3xl">{formatCurrency(salesData.summary.totalSales)}</CardTitle>
+                    <CardTitle className="text-3xl">
+                      {formatCurrency(salesData.summary.totalSales)}
+                    </CardTitle>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="pb-3">
                     <CardDescription>Orders</CardDescription>
-                    <CardTitle className="text-3xl">{salesData.summary.orderCount}</CardTitle>
+                    <CardTitle className="text-3xl">
+                      {salesData.summary.orderCount}
+                    </CardTitle>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="pb-3">
                     <CardDescription>Avg Order Value</CardDescription>
-                    <CardTitle className="text-3xl">{formatCurrency(salesData.summary.averageOrderValue)}</CardTitle>
+                    <CardTitle className="text-3xl">
+                      {formatCurrency(salesData.summary.averageOrderValue)}
+                    </CardTitle>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="pb-3">
                     <CardDescription>New Customers</CardDescription>
-                    <CardTitle className="text-3xl text-emerald-600">{salesData.summary.newCustomers}</CardTitle>
+                    <CardTitle className="text-3xl text-emerald-600">
+                      {salesData.summary.newCustomers}
+                    </CardTitle>
                   </CardHeader>
                 </Card>
               </div>
@@ -583,31 +744,47 @@ export default function ReportsPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Top Selling Products</CardTitle>
-                    <CardDescription>Best performing products by revenue</CardDescription>
+                    <CardDescription>
+                      Best performing products by revenue
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
                       {salesData.topSellingProducts.map((product, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-4 border rounded-lg"
+                        >
                           <div className="flex items-center gap-4">
                             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                               <Package className="h-5 w-5 text-primary" />
                             </div>
                             <div>
-                              <div className="font-medium">{product.productName}</div>
+                              <div className="font-medium">
+                                {product.productName}
+                              </div>
                               <div className="text-sm text-muted-foreground">
-                                SKU: {product.sku} • {product.quantitySold} units sold
+                                SKU: {product.sku} • {product.quantitySold}{" "}
+                                units sold
                               </div>
                             </div>
                           </div>
                           <div className="flex items-center gap-6">
                             <div className="text-right">
-                              <div className="text-sm text-muted-foreground">Revenue</div>
-                              <div className="font-semibold text-emerald-600">{formatCurrency(product.revenue)}</div>
+                              <div className="text-sm text-muted-foreground">
+                                Revenue
+                              </div>
+                              <div className="font-semibold text-emerald-600">
+                                {formatCurrency(product.revenue)}
+                              </div>
                             </div>
                             <div className="text-right">
-                              <div className="text-sm text-muted-foreground">Avg Price</div>
-                              <div className="font-medium">{formatCurrency(product.avgPrice)}</div>
+                              <div className="text-sm text-muted-foreground">
+                                Avg Price
+                              </div>
+                              <div className="font-medium">
+                                {formatCurrency(product.avgPrice)}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -639,19 +816,25 @@ export default function ReportsPage() {
                 <Card>
                   <CardHeader className="pb-3">
                     <CardDescription>Total Staff</CardDescription>
-                    <CardTitle className="text-3xl">{staffData.summary.totalStaff}</CardTitle>
+                    <CardTitle className="text-3xl">
+                      {staffData.summary.totalStaff}
+                    </CardTitle>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="pb-3">
                     <CardDescription>Total Revenue</CardDescription>
-                    <CardTitle className="text-3xl">{formatCurrency(staffData.summary.totalRevenue)}</CardTitle>
+                    <CardTitle className="text-3xl">
+                      {formatCurrency(staffData.summary.totalRevenue)}
+                    </CardTitle>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="pb-3">
                     <CardDescription>Total Orders</CardDescription>
-                    <CardTitle className="text-3xl">{staffData.summary.totalOrders}</CardTitle>
+                    <CardTitle className="text-3xl">
+                      {staffData.summary.totalOrders}
+                    </CardTitle>
                   </CardHeader>
                 </Card>
                 <Card>
@@ -659,7 +842,10 @@ export default function ReportsPage() {
                     <CardDescription>Avg per Staff</CardDescription>
                     <CardTitle className="text-3xl">
                       {staffData.summary.totalStaff > 0
-                        ? formatCurrency(staffData.summary.totalRevenue / staffData.summary.totalStaff)
+                        ? formatCurrency(
+                            staffData.summary.totalRevenue /
+                              staffData.summary.totalStaff
+                          )
                         : formatCurrency(0)}
                     </CardTitle>
                   </CardHeader>
@@ -670,12 +856,17 @@ export default function ReportsPage() {
                 <Card>
                   <CardHeader>
                     <CardTitle>Staff Performance</CardTitle>
-                    <CardDescription>Sales performance by team member</CardDescription>
+                    <CardDescription>
+                      Sales performance by team member
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-3">
                       {staffData.performance.map((staff, index) => (
-                        <div key={index} className="flex items-center justify-between p-4 border rounded-lg">
+                        <div
+                          key={index}
+                          className="flex items-center justify-between p-4 border rounded-lg"
+                        >
                           <div className="flex items-center gap-4">
                             <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center">
                               <Users className="h-5 w-5 text-primary" />
@@ -689,12 +880,20 @@ export default function ReportsPage() {
                           </div>
                           <div className="flex items-center gap-6">
                             <div className="text-right">
-                              <div className="text-sm text-muted-foreground">Revenue</div>
-                              <div className="font-semibold">{formatCurrency(staff.revenue)}</div>
+                              <div className="text-sm text-muted-foreground">
+                                Revenue
+                              </div>
+                              <div className="font-semibold">
+                                {formatCurrency(staff.revenue)}
+                              </div>
                             </div>
                             <div className="text-right">
-                              <div className="text-sm text-muted-foreground">Avg Order</div>
-                              <div className="font-medium">{formatCurrency(staff.averageOrderValue)}</div>
+                              <div className="text-sm text-muted-foreground">
+                                Avg Order
+                              </div>
+                              <div className="font-medium">
+                                {formatCurrency(staff.averageOrderValue)}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -726,13 +925,17 @@ export default function ReportsPage() {
                 <Card>
                   <CardHeader className="pb-3">
                     <CardDescription>Total Tax Collected</CardDescription>
-                    <CardTitle className="text-3xl">{formatCurrency(taxData.summary.totalTaxCollected)}</CardTitle>
+                    <CardTitle className="text-3xl">
+                      {formatCurrency(taxData.summary.totalTaxCollected)}
+                    </CardTitle>
                   </CardHeader>
                 </Card>
                 <Card>
                   <CardHeader className="pb-3">
                     <CardDescription>Transactions</CardDescription>
-                    <CardTitle className="text-3xl">{taxData.summary.transactionCount}</CardTitle>
+                    <CardTitle className="text-3xl">
+                      {taxData.summary.transactionCount}
+                    </CardTitle>
                   </CardHeader>
                 </Card>
                 <Card>
@@ -740,7 +943,10 @@ export default function ReportsPage() {
                     <CardDescription>Avg Tax per Transaction</CardDescription>
                     <CardTitle className="text-3xl">
                       {taxData.summary.transactionCount > 0
-                        ? formatCurrency(taxData.summary.totalTaxCollected / taxData.summary.transactionCount)
+                        ? formatCurrency(
+                            taxData.summary.totalTaxCollected /
+                              taxData.summary.transactionCount
+                          )
                         : formatCurrency(0)}
                     </CardTitle>
                   </CardHeader>
@@ -767,7 +973,11 @@ export default function ReportsPage() {
                         <YAxis />
                         <Tooltip />
                         <Legend />
-                        <Bar dataKey="value" fill="#10b981" name="Tax Collected" />
+                        <Bar
+                          dataKey="value"
+                          fill="#10b981"
+                          name="Tax Collected"
+                        />
                       </BarChart>
                     </ResponsiveContainer>
                   </CardContent>
