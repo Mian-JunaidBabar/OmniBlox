@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Label } from "@/components/ui/label";
 import {
@@ -18,7 +19,8 @@ import {
   CheckCircle2,
   AlertCircle,
   Lock,
-  UserCheck,
+  Mail,
+  User,
   ArrowLeft,
 } from "lucide-react";
 import { useTeamApi } from "@/hooks/use-team-api";
@@ -30,6 +32,8 @@ function AcceptInvitationForm() {
 
   const { acceptInvitation } = useTeamApi();
 
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isLoading, setIsLoading] = useState(false);
@@ -51,6 +55,16 @@ function AcceptInvitationForm() {
       return;
     }
 
+    if (!name.trim()) {
+      setError("Name is required");
+      return;
+    }
+
+    if (!email.trim()) {
+      setError("Email is required");
+      return;
+    }
+
     if (password.length < 8) {
       setError("Password must be at least 8 characters");
       return;
@@ -64,10 +78,8 @@ function AcceptInvitationForm() {
     setIsLoading(true);
 
     try {
-      await acceptInvitation(token, password);
-
+      await acceptInvitation(token, password, email, name);
       setSuccess(true);
-
       setTimeout(() => {
         router.push("/login");
       }, 2000);
@@ -107,13 +119,13 @@ function AcceptInvitationForm() {
       <Card className="w-full max-w-md shadow-xl border-border/40">
         <CardHeader className="space-y-3 text-center">
           <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-xl bg-primary shadow-md">
-            <UserCheck className="h-7 w-7 text-primary-foreground" />
+            <User className="h-7 w-7 text-primary-foreground" />
           </div>
           <CardTitle className="text-2xl font-bold tracking-tight">
-            Accept Invitation
+            Join the Team
           </CardTitle>
           <CardDescription className="text-base text-muted-foreground">
-            Set your password to activate your account
+            Fill in your details to activate your account
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -124,11 +136,42 @@ function AcceptInvitationForm() {
             </Alert>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-5">
+          <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="password" className="text-sm font-medium">
-                Password
-              </Label>
+              <Label htmlFor="name" className="text-sm font-medium">Full Name</Label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
+                <Input
+                  id="name"
+                  placeholder="John Smith"
+                  className="pl-10 text-sm"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  disabled={isLoading || !token}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-sm font-medium">Email Address</Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="john@company.com"
+                  className="pl-10 text-sm"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  disabled={isLoading || !token}
+                  required
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-sm font-medium">Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
                 <PasswordInput
@@ -143,15 +186,11 @@ function AcceptInvitationForm() {
                   autoComplete="new-password"
                 />
               </div>
-              <p className="text-xs text-muted-foreground">
-                Must be at least 8 characters
-              </p>
+              <p className="text-xs text-muted-foreground">Must be at least 8 characters</p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="confirmPassword" className="text-sm font-medium">
-                Confirm Password
-              </Label>
+              <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirm Password</Label>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground z-10" />
                 <PasswordInput
@@ -168,16 +207,9 @@ function AcceptInvitationForm() {
               </div>
             </div>
 
-            <Button
-              type="submit"
-              className="w-full font-semibold tracking-wide"
-              disabled={isLoading || !token}
-            >
+            <Button type="submit" className="w-full font-semibold tracking-wide" disabled={isLoading || !token}>
               {isLoading ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Activating...
-                </>
+                <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Activating...</>
               ) : (
                 "Activate Account"
               )}
@@ -185,13 +217,8 @@ function AcceptInvitationForm() {
           </form>
 
           <div className="mt-6 text-center">
-            <Button
-              variant="ghost"
-              onClick={() => router.push("/login")}
-              className="text-sm font-medium"
-            >
-              <ArrowLeft className="mr-2 h-4 w-4" />
-              Back to Login
+            <Button variant="ghost" onClick={() => router.push("/login")} className="text-sm font-medium">
+              <ArrowLeft className="mr-2 h-4 w-4" /> Back to Login
             </Button>
           </div>
         </CardContent>
@@ -202,13 +229,7 @@ function AcceptInvitationForm() {
 
 export default function AcceptInvitationPage() {
   return (
-    <Suspense
-      fallback={
-        <div className="min-h-screen flex items-center justify-center">
-          <Loader2 className="h-8 w-8 animate-spin" />
-        </div>
-      }
-    >
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>}>
       <AcceptInvitationForm />
     </Suspense>
   );

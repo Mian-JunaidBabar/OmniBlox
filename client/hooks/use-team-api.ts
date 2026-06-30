@@ -20,7 +20,7 @@ export interface CreateUserData {
 export interface UpdateUserData {
   email?: string;
   name?: string;
-  role?: "ADMIN" | "MANAGER" | "OBSERVER";
+  role?: "OWNER" | "ADMIN" | "MANAGER" | "OBSERVER";
 }
 
 export interface ChangePasswordData {
@@ -32,6 +32,12 @@ export interface TeamListResponse {
   users: TeamUser[];
   total: number;
   pages: number;
+}
+
+export interface InviteLinkResponse {
+  token: string;
+  link: string;
+  expiresAt: string;
 }
 
 export interface TeamStats {
@@ -125,6 +131,13 @@ export function useTeamApi() {
     [put]
   );
 
+  const generateInvite = useCallback(
+    async (data: { role?: string; name?: string }): Promise<InviteLinkResponse> => {
+      return post("/team/invite", data) as Promise<InviteLinkResponse>;
+    },
+    [post]
+  );
+
   const deleteUser = useCallback(
     async (id: string): Promise<{ message: string }> => {
       return del(`/team/${id}`) as Promise<{ message: string }>;
@@ -137,8 +150,8 @@ export function useTeamApi() {
   }, [get]);
 
   const acceptInvitation = useCallback(
-    async (token: string, password: string): Promise<{ message: string }> => {
-      return post("/auth/accept-invitation", { token, password }) as Promise<{
+    async (token: string, password: string, email?: string, name?: string): Promise<{ message: string }> => {
+      return post("/auth/accept-invitation", { token, password, email, name }) as Promise<{
         message: string;
       }>;
     },
@@ -155,5 +168,6 @@ export function useTeamApi() {
     deleteUser,
     getTeamStats,
     acceptInvitation,
+    generateInvite,
   };
 }

@@ -9,12 +9,14 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CacheService } from '../cache/cache.service';
 import { UserRole } from '@prisma/client';
 import { hashPassword, verifyPassword } from 'better-auth/crypto';
-import { randomBytes } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 import { EmailService } from '../email/email.service';
 import {
   CreateUserDto,
   UpdateUserDto,
   ChangePasswordDto,
+  GenerateInviteDto,
+  InviteLinkResponseDto,
   UserResponseDto,
   UserListResponseDto,
   UserStatsDto,
@@ -113,6 +115,67 @@ export class TeamService {
     return this.mapToUserResponse(user);
   }
 
+  async generateInvite(
+    dto: GenerateInviteDto,
+    companyId: string,
+    currentUserRole: UserRole,
+  ): Promise<InviteLinkResponseDto> {
+    if (!['OWNER', 'ADMIN'].includes(currentUserRole)) {
+      throw new ForbiddenException('Insufficient permissions to create invite');
+    }
+    if (
+      dto.role === UserRole.ADMIN &&
+      currentUserRole !== ('OWNER' as UserRole)
+    ) {
+      throw new ForbiddenException(
+        'Only company owner can create admin invites',
+      );
+    }
+
+    const placeholderEmail = `invite-${randomUUID()}@placeholder.omniblox`;
+    const placeholderPassword = randomBytes(32).toString('hex');
+    const hashedPassword = await hashPassword(placeholderPassword);
+
+    const user = await this.prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          email: placeholderEmail,
+          name: dto.name || 'Invited User',
+          role: dto.role ?? UserRole.OBSERVER,
+          status: 'INVITED',
+          password: hashedPassword,
+          companyId,
+        },
+      });
+      await tx.account.create({
+        data: {
+          userId: newUser.id,
+          accountId: newUser.id,
+          providerId: 'credential',
+          password: hashedPassword,
+        },
+      });
+      return newUser;
+    });
+
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000);
+
+    await this.prisma.authToken.create({
+      data: { token, type: 'INVITATION', expiresAt, userId: user.id },
+    });
+
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+    const link = `${frontendUrl}/accept-invitation?token=${token}`;
+
+    await Promise.all([
+      this.cache.del(LIST_KEY(companyId)),
+      this.cache.del(STATS_KEY(companyId)),
+    ]);
+
+    return { token, link, expiresAt };
+  }
+
   async findAll(companyId: string): Promise<UserResponseDto[]> {
     const cacheKey = LIST_KEY(companyId);
     const cached = await this.cache.get<UserResponseDto[]>(cacheKey);
@@ -204,6 +267,14 @@ export class TeamService {
       throw new ForbiddenException('Only company owner can assign admin role');
     }
     if (
+      dto.role === UserRole.OWNER &&
+      currentUserRole !== ('OWNER' as UserRole)
+    ) {
+      throw new ForbiddenException(
+        'Only the current owner can transfer ownership',
+      );
+    }
+    if (
       dto.role &&
       id !== currentUserId &&
       !['OWNER', 'ADMIN'].includes(currentUserRole)
@@ -218,6 +289,15 @@ export class TeamService {
       });
       if (emailExists)
         throw new ConflictException('User with this email already exists');
+    }
+
+    // Enforce single-owner rule: if promoting someone to OWNER,
+    // demote the current owner to ADMIN
+    if (dto.role === UserRole.OWNER && existingUser.role !== UserRole.OWNER) {
+      await this.prisma.user.updateMany({
+        where: { companyId, role: UserRole.OWNER, id: { not: id } },
+        data: { role: UserRole.ADMIN },
+      });
     }
 
     const updatedUser = await this.prisma.user.update({

@@ -9,6 +9,13 @@ import {
   Plus, Search, Loader2, ChevronRight, ChevronLeft, FileText,
   FileSpreadsheet, RefreshCw, Users, Shield, Crown, Briefcase,
 } from "lucide-react";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useTeamApi, type TeamUser } from "@/hooks/use-team-api";
 import { useAuth } from "@/contexts/auth-context";
 import { useToast } from "@/hooks/use-toast";
@@ -35,13 +42,15 @@ export default function UsersPage() {
   const currentRole = (user?.role || "").toUpperCase();
   const canView = checkRoleAccess(currentRole, ["OWNER", "ADMIN", "MANAGER"]);
   const canCreateUser = currentRole === "OWNER" || currentRole === "ADMIN";
-  const { getUsers, getTeamStats } = useTeamApi();
+  const { getUsers, getTeamStats, updateUser } = useTeamApi();
   const [users, setUsers] = useState<TeamUser[]>([]);
   const [stats, setStats] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
+  const [changingRole, setChangingRole] = useState<string | null>(null);
+  const canManageRole = currentRole === "OWNER" || currentRole === "ADMIN";
 
   const loadUsers = useCallback(async () => {
     try {
@@ -94,6 +103,29 @@ export default function UsersPage() {
     URL.revokeObjectURL(url);
     toast({ title: "Exported", description: "Users data exported as CSV" });
   };
+
+  const roleOptions = useMemo(() => {
+    if (currentRole === "OWNER") {
+      return ["OWNER", "ADMIN", "MANAGER", "OBSERVER"] as const;
+    }
+    return ["ADMIN", "MANAGER", "OBSERVER"] as const;
+  }, [currentRole]);
+
+  const handleRoleChange = useCallback(async (userId: string, newRole: string) => {
+    setChangingRole(userId);
+    try {
+      await updateUser(userId, { role: newRole as any });
+      setUsers((prev) =>
+        prev.map((u) => (u.id === userId ? { ...u, role: newRole as TeamUser["role"] } : u)),
+      );
+      toast({ title: "Role updated", description: "User role changed successfully." });
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message || "Failed to update role.", variant: "destructive" });
+      loadUsers();
+    } finally {
+      setChangingRole(null);
+    }
+  }, [updateUser, toast, loadUsers]);
 
   const getRoleIcon = (role: string) => {
     switch (role) {
@@ -232,10 +264,35 @@ export default function UsersPage() {
                       </td>
                       <td className="px-5 text-muted-foreground">{u.email}</td>
                       <td className="px-5">
-                        <Badge variant="outline" className={`font-medium text-xs ${roleConfig[u.role]?.className || ""}`}>
-                          <RoleIcon className="h-3 w-3 mr-1" />
-                          {roleConfig[u.role]?.label || u.role}
-                        </Badge>
+                        {canManageRole && user?.id !== u.id ? (
+                          <Select
+                            value={u.role}
+                            onValueChange={(val) => handleRoleChange(u.id, val)}
+                            disabled={changingRole === u.id}
+                          >
+                            <SelectTrigger className={`h-[30px] w-[120px] rounded-[5px] text-xs font-medium ${roleConfig[u.role]?.className || ""}`}>
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {roleOptions.map((role) => (
+                                <SelectItem key={role} value={role} className="text-xs">
+                                  <span className="flex items-center gap-1.5">
+                                    {(() => {
+                                      const Icon = getRoleIcon(role);
+                                      return <Icon className="h-3 w-3" />;
+                                    })()}
+                                    {roleConfig[role]?.label || role}
+                                  </span>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge variant="outline" className={`font-medium text-xs ${roleConfig[u.role]?.className || ""}`}>
+                            <RoleIcon className="h-3 w-3 mr-1" />
+                            {roleConfig[u.role]?.label || u.role}
+                          </Badge>
+                        )}
                       </td>
                       <td className="px-5">
                         <Badge variant="outline" className={`font-medium text-xs ${statusConfig[userStatus]?.className || ""}`}>

@@ -206,7 +206,7 @@ export function AppSidebar({ collapsed, onCollapsedChange }: AppSidebarProps) {
   const searchParams = useSearchParams();
   const { user } = useAuth();
   const userRole = (user?.role || "").toUpperCase() as Role;
-  const isSuperadmin = user?.isSuperadmin === true;
+  const isSuperadmin = userRole === "OWNER";
 
   // Exactly one item is ever marked active: the single best match across
   // the whole nav (by id, not display name), so two items that resolve to

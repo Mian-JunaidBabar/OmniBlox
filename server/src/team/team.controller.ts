@@ -22,6 +22,8 @@ import {
   CreateUserDto,
   UpdateUserDto,
   ChangePasswordDto,
+  GenerateInviteDto,
+  InviteLinkResponseDto,
   UserResponseDto,
   UserListResponseDto,
   UserStatsDto,
@@ -31,6 +33,20 @@ import {
 @Controller('team')
 export class TeamController {
   constructor(private readonly teamService: TeamService) {}
+
+  @Post('invite')
+  @Roles(UserRole.OWNER, UserRole.ADMIN)
+  async generateInvite(
+    @Body() generateInviteDto: GenerateInviteDto,
+    @CompanyId() companyId: string,
+    @GetCurrentUser('role') currentUserRole: UserRole,
+  ): Promise<InviteLinkResponseDto> {
+    return this.teamService.generateInvite(
+      generateInviteDto,
+      companyId,
+      currentUserRole,
+    );
+  }
 
   @Post()
   @Roles(UserRole.OWNER, UserRole.ADMIN)

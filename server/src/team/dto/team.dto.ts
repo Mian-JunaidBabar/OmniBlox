@@ -59,6 +59,22 @@ export class UserListResponseDto {
   pages: number;
 }
 
+export class GenerateInviteDto {
+  @IsEnum(UserRole)
+  @IsOptional()
+  role?: UserRole = UserRole.OBSERVER;
+
+  @IsString()
+  @IsOptional()
+  name?: string;
+}
+
+export class InviteLinkResponseDto {
+  token: string;
+  link: string;
+  expiresAt: Date;
+}
+
 export class UserStatsDto {
   totalUsers: number;
   adminCount: number;

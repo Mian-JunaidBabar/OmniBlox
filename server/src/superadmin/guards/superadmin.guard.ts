@@ -38,13 +38,13 @@ export class SuperadminGuard implements CanActivate {
       companyId: (session.user as any).companyId,
     };
 
-    // Check superadmin status and OWNER role from DB
+    // Only OWNER role can access superadmin
     const dbUser = await this.prisma.user.findUnique({
       where: { id: session.user.id },
-      select: { isSuperadmin: true, role: true },
+      select: { role: true },
     });
 
-    if (!dbUser || !dbUser.isSuperadmin || dbUser.role !== 'OWNER') {
+    if (!dbUser || dbUser.role !== 'OWNER') {
       throw new UnauthorizedException('Superadmin access required');
     }
 

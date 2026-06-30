@@ -735,6 +735,8 @@ export class AuthService {
   async acceptInvitation(
     token: string,
     password: string,
+    email?: string,
+    name?: string,
   ): Promise<{ message: string }> {
     const authToken = await this.prisma.authToken.findUnique({
       where: { token },
@@ -753,14 +755,28 @@ export class AuthService {
     const user = authToken.user;
     const hashedPassword = await hashPassword(password);
 
+    // If email provided (invite-by-link flow), check uniqueness and update
+    if (email && email !== user.email) {
+      const emailExists = await this.prisma.user.findUnique({
+        where: { email },
+      });
+      if (emailExists) {
+        throw new ConflictException('A user with this email already exists');
+      }
+    }
+
     await this.prisma.$transaction(async (tx) => {
+      const updateData: any = {
+        password: hashedPassword,
+        emailVerified: user.emailVerified ?? new Date(),
+        status: 'ACTIVE',
+      };
+      if (email && email !== user.email) updateData.email = email;
+      if (name) updateData.name = name;
+
       await tx.user.update({
         where: { id: user.id },
-        data: {
-          password: hashedPassword,
-          emailVerified: user.emailVerified ?? new Date(),
-          status: 'ACTIVE',
-        },
+        data: updateData,
       });
 
       await tx.account.updateMany({
